@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { CARD_ART } from '../data/cardArt';
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import { MAP_DECORATIONS, MAP_HEIGHT, MAP_WIDTH, type MapDecoration } from '../data/map';
-import type { CardDefinition, Coord, PlayerId, Terrain, UnitState } from '../data/types';
+import type { Coord, PlayerId, Terrain, UnitState } from '../data/types';
 import {
   attackUnit,
   coordKey,
@@ -725,9 +725,6 @@ export class GameScene extends Phaser.Scene {
     player.hand.forEach((cardId, index) => {
       const card = CARD_DEFINITIONS[cardId as CardDefinitionId];
       const cardArt = CARD_ART[cardId as CardDefinitionId];
-      const unit = card.type === 'unit'
-        ? unitDefinition({ definitionId: card.unitId } as UnitState)
-        : null;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = [
@@ -744,19 +741,9 @@ export class GameScene extends Phaser.Scene {
       button.style.setProperty('--deal-delay', `${index * 70}ms`);
       button.innerHTML = `
         <span class="card-surface">
-          <span class="card-aura"></span>
-          <span class="card-art-window">
-            <img class="card-art" src="${cardArt}" alt="" draggable="false">
-            <span class="card-art-vignette"></span>
-          </span>
-          <span class="card-cost" aria-hidden="true">${card.cost}</span>
-          <span class="card-name">${card.name}</span>
-          <span class="card-type">${card.type === 'unit' ? 'Undead unit' : 'Tactic'}</span>
-          <span class="card-copy">${this.cardCopy(card)}</span>
-          ${unit ? `<span class="card-stat card-attack" title="Attack">${unit.attack}</span>` : ''}
-          ${unit ? `<span class="card-stat card-health" title="Health">${unit.maxHp}</span>` : ''}
-          <span class="card-crest" aria-hidden="true">${card.type === 'unit' ? '☠' : '✦'}</span>
-          <span class="card-foil"></span>
+          <img class="card-art" src="${cardArt}" alt="" draggable="false" decoding="async">
+          <span class="card-holo" aria-hidden="true"></span>
+          <span class="card-glare" aria-hidden="true"></span>
         </span>`;
       button.addEventListener('pointermove', (event) => this.tiltCard(button, event));
       button.addEventListener('pointerleave', () => this.resetCardTilt(button));
@@ -766,25 +753,17 @@ export class GameScene extends Phaser.Scene {
     this.lastHandSignature = handSignature;
   }
 
-  private cardCopy(card: CardDefinition): string {
-    if (card.type === 'unit') {
-      const definition = unitDefinition({ definitionId: card.unitId } as UnitState);
-      const traits = [...definition.traits, ...(definition.ability ? [definition.ability] : [])];
-      return `<strong>${traits.join(' · ') || 'Ready'}</strong><small>Move ${definition.move} · Range ${definition.range}</small>`;
-    }
-    const verb = card.effect.kind === 'damage' ? 'Deal' : 'Heal';
-    return `<strong>${verb} ${card.effect.amount}</strong><small>${card.effect.target} unit</small>`;
-  }
-
   private tiltCard(card: HTMLButtonElement, event: PointerEvent): void {
     if (card.disabled) return;
     const rect = card.getBoundingClientRect();
     const x = Phaser.Math.Clamp((event.clientX - rect.left) / rect.width, 0, 1);
     const y = Phaser.Math.Clamp((event.clientY - rect.top) / rect.height, 0, 1);
-    card.style.setProperty('--tilt-x', `${(0.5 - y) * 12}deg`);
-    card.style.setProperty('--tilt-y', `${(x - 0.5) * 15}deg`);
+    card.style.setProperty('--tilt-x', `${(0.5 - y) * 16}deg`);
+    card.style.setProperty('--tilt-y', `${(x - 0.5) * 20}deg`);
     card.style.setProperty('--shine-x', `${x * 100}%`);
     card.style.setProperty('--shine-y', `${y * 100}%`);
+    card.style.setProperty('--holo-x', `${(1 - x) * 100}%`);
+    card.style.setProperty('--holo-y', `${(1 - y) * 100}%`);
   }
 
   private resetCardTilt(card: HTMLButtonElement): void {
@@ -792,6 +771,8 @@ export class GameScene extends Phaser.Scene {
     card.style.setProperty('--tilt-y', '0deg');
     card.style.setProperty('--shine-x', '50%');
     card.style.setProperty('--shine-y', '50%');
+    card.style.setProperty('--holo-x', '50%');
+    card.style.setProperty('--holo-y', '50%');
   }
 
   private animatePlayedCard(index: number): void {

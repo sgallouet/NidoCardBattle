@@ -1,7 +1,4 @@
 import Phaser from 'phaser';
-import outdoorUrl from '../../assets/source/sscap/Outdoor.png?url';
-import cliffsUrl from '../../assets/source/sscap/cliffs.png?url';
-import mountainsUrl from '../../assets/source/sscap/mountains v2.png?url';
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import { MAP_HEIGHT, MAP_WIDTH } from '../data/map';
 import type { CardDefinition, Coord, PlayerId, Terrain, UnitState } from '../data/types';
@@ -27,20 +24,32 @@ import {
   unitDefinition,
 } from './engine';
 
-const HEX_SIZE = 33;
+const HEX_SIZE = 56;
 const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
-const ORIGIN_X = 55;
-const ORIGIN_Y = 58;
-const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x62b6ff, 2: 0xef6a76 };
-const TERRAIN_COLORS: Record<Terrain, number> = {
-  plain: 0x657a49,
-  forest: 0x36583b,
-  hill: 0x786443,
-  water: 0x276e93,
-  cliff: 0x4f5158,
+const ORIGIN_X = 230;
+const ORIGIN_Y = 170;
+const WORLD_WIDTH = 1670;
+const WORLD_HEIGHT = 1060;
+const MIN_ZOOM = 0.72;
+const MAX_ZOOM = 1.35;
+const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x55b9f3, 2: 0xf05b67 };
+const TERRAIN_PALETTES: Record<Terrain, number[]> = {
+  plain: [0x66804b, 0x708852, 0x5d7946, 0x78905a],
+  forest: [0x315638, 0x294a32, 0x3b6240],
+  hill: [0x756648, 0x806f4e, 0x6c6046],
+  water: [0x27779a, 0x2d84a7, 0x226d91],
+  cliff: [0x52585a, 0x606465, 0x494f51],
 };
 
 type InteractionMode = 'unit' | 'card' | 'displace-target' | 'displace-destination' | null;
+
+interface DragState {
+  startX: number;
+  startY: number;
+  scrollX: number;
+  scrollY: number;
+  moved: boolean;
+}
 
 export class GameScene extends Phaser.Scene {
   private state = createGameState();
@@ -49,34 +58,96 @@ export class GameScene extends Phaser.Scene {
   private selectedCardIndex: number | null = null;
   private displaceTargetId: string | null = null;
   private mode: InteractionMode = null;
+  private dragState: DragState | null = null;
+  private suppressBoardClickUntil = 0;
   private message = 'Player 1 begins. Move a unit or play a card.';
 
   constructor() {
     super('game');
   }
 
-  preload(): void {
-    this.load.image('sscap-outdoor', outdoorUrl);
-    this.load.image('sscap-cliffs', cliffsUrl);
-    this.load.image('sscap-mountains', mountainsUrl);
-  }
-
   create(): void {
-    this.createAssetFrames();
     document.querySelector<HTMLButtonElement>('#end-turn-button')?.addEventListener('click', () => this.handleEndTurn());
     document.querySelector<HTMLButtonElement>('#cancel-button')?.addEventListener('click', () => this.cancelInteraction('Selection cleared.'));
     document.querySelector<HTMLButtonElement>('#ability-button')?.addEventListener('click', () => this.beginDisplace());
+    document.querySelector<HTMLButtonElement>('#zoom-in')?.addEventListener('click', () => this.zoomBy(0.12));
+    document.querySelector<HTMLButtonElement>('#zoom-out')?.addEventListener('click', () => this.zoomBy(-0.12));
+    document.querySelector<HTMLButtonElement>('#zoom-reset')?.addEventListener('click', () => this.resetCamera());
+    this.setupCameraControls();
     this.renderAll();
+    this.resetCamera();
   }
 
-  private createAssetFrames(): void {
-    const outdoor = this.textures.get('sscap-outdoor');
-    if (!outdoor.has('tree')) outdoor.add('tree', 0, 160, 224, 64, 96);
-    if (!outdoor.has('fort')) outdoor.add('fort', 0, 240, 224, 80, 64);
-    const cliffs = this.textures.get('sscap-cliffs');
-    if (!cliffs.has('cliff-mark')) cliffs.add('cliff-mark', 0, 0, 0, 96, 64);
-    const mountains = this.textures.get('sscap-mountains');
-    if (!mountains.has('hill-mark')) mountains.add('hill-mark', 0, 0, 128, 160, 96);
+  private setupCameraControls(): void {
+    const camera = this.cameras.main;
+    camera.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+    this.input.on('wheel', (
+      pointer: Phaser.Input.Pointer,
+      _objects: Phaser.GameObjects.GameObject[],
+      _deltaX: number,
+      deltaY: number,
+    ) => {
+      const worldPoint = camera.getWorldPoint(pointer.x, pointer.y);
+      const zoom = Phaser.Math.Clamp(camera.zoom - deltaY * 0.0012, MIN_ZOOM, MAX_ZOOM);
+      camera.setZoom(zoom);
+      camera.setScroll(worldPoint.x - pointer.x / zoom, worldPoint.y - pointer.y / zoom);
+      this.updateZoomLabel();
+    });
+
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.isDown) return;
+      this.dragState = {
+        startX: pointer.x,
+        startY: pointer.y,
+        scrollX: camera.scrollX,
+        scrollY: camera.scrollY,
+        moved: false,
+      };
+    });
+
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.isDown || !this.dragState) return;
+      const dx = pointer.x - this.dragState.startX;
+      const dy = pointer.y - this.dragState.startY;
+      if (!this.dragState.moved && Math.hypot(dx, dy) < 7) return;
+      this.dragState.moved = true;
+      this.game.canvas.classList.add('dragging');
+      camera.setScroll(
+        this.dragState.scrollX - dx / camera.zoom,
+        this.dragState.scrollY - dy / camera.zoom,
+      );
+    });
+
+    this.input.on('pointerup', () => {
+      if (this.dragState?.moved) {
+        this.suppressBoardClickUntil = performance.now() + 150;
+      }
+      this.dragState = null;
+      this.game.canvas.classList.remove('dragging');
+    });
+  }
+
+  private resetCamera(): void {
+    const fit = Math.min(this.scale.width / 1500, this.scale.height / 950);
+    this.cameras.main.setZoom(Phaser.Math.Clamp(fit, MIN_ZOOM, 1));
+    this.cameras.main.centerOn(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+    this.updateZoomLabel();
+  }
+
+  private zoomBy(change: number): void {
+    const camera = this.cameras.main;
+    const pointer = new Phaser.Math.Vector2(this.scale.width / 2, this.scale.height / 2);
+    const worldPoint = camera.getWorldPoint(pointer.x, pointer.y);
+    const zoom = Phaser.Math.Clamp(camera.zoom + change, MIN_ZOOM, MAX_ZOOM);
+    camera.setZoom(zoom);
+    camera.setScroll(worldPoint.x - pointer.x / zoom, worldPoint.y - pointer.y / zoom);
+    this.updateZoomLabel();
+  }
+
+  private updateZoomLabel(): void {
+    const label = document.querySelector<HTMLElement>('#zoom-value');
+    if (label) label.textContent = `${Math.round(this.cameras.main.zoom * 100)}%`;
   }
 
   private center(coord: Coord): Phaser.Math.Vector2 {
@@ -101,7 +172,6 @@ export class GameScene extends Phaser.Scene {
     const attack = new Set<string>();
     const summon = new Set<string>();
     const selected = new Set<string>();
-
     const selectedUnit = this.selectedUnitId ? findUnit(this.state, this.selectedUnitId) : undefined;
     if (selectedUnit) selected.add(coordKey(selectedUnit.coord));
 
@@ -127,7 +197,6 @@ export class GameScene extends Phaser.Scene {
     if (this.mode === 'displace-destination' && selectedUnit && this.displaceTargetId) {
       for (const coord of getDisplaceDestinations(this.state, selectedUnit.id, this.displaceTargetId)) summon.add(coordKey(coord));
     }
-
     return { move, attack, summon, selected };
   }
 
@@ -140,9 +209,9 @@ export class GameScene extends Phaser.Scene {
     this.boardLayer?.destroy(true);
     this.boardLayer = this.add.container(0, 0);
     const highlight = this.highlights();
-
-    const backdrop = this.add.rectangle(435, 300, 870, 600, 0x10131a);
+    const backdrop = this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH, WORLD_HEIGHT, 0x1c3022);
     this.boardLayer.add(backdrop);
+    this.addMapBackdropDetails();
 
     for (let r = 0; r < MAP_HEIGHT; r += 1) {
       for (let q = 0; q < MAP_WIDTH; q += 1) {
@@ -151,19 +220,47 @@ export class GameScene extends Phaser.Scene {
         const center = this.center(coord);
         const points = this.hexPoints(center);
         const hex = this.add.graphics();
-        let fill = TERRAIN_COLORS[terrainAt(coord)];
-        if (highlight.move.has(key)) fill = 0x3f9f94;
-        if (highlight.summon.has(key)) fill = 0xb18b3f;
-        if (highlight.attack.has(key)) fill = 0xa13e4c;
+        const palette = TERRAIN_PALETTES[terrainAt(coord)];
+        const fill = palette[(q * 17 + r * 31) % palette.length];
+        hex.fillStyle(0x101a13, 0.42);
+        hex.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x + 4, center.y + 6), 0), true);
         hex.fillStyle(fill, 1);
         hex.fillPoints(points, true);
-        const stroke = highlight.selected.has(key) ? 0xffffff : 0x25202c;
-        hex.lineStyle(highlight.selected.has(key) ? 4 : 2, stroke, 1);
+        hex.fillStyle(0xffffff, 0.035);
+        hex.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x - 3, center.y - 4), 9), true);
+
+        let stroke = 0x263828;
+        let strokeWidth = 2;
+        if (highlight.move.has(key)) {
+          hex.fillStyle(0x50d6c2, 0.34);
+          hex.fillPoints(points, true);
+          stroke = 0x7ff8e3;
+          strokeWidth = 4;
+        }
+        if (highlight.summon.has(key)) {
+          hex.fillStyle(0xe6b758, 0.4);
+          hex.fillPoints(points, true);
+          stroke = 0xffdf87;
+          strokeWidth = 4;
+        }
+        if (highlight.attack.has(key)) {
+          hex.fillStyle(0xd54555, 0.42);
+          hex.fillPoints(points, true);
+          stroke = 0xff7785;
+          strokeWidth = 4;
+        }
+        if (highlight.selected.has(key)) {
+          stroke = 0xffffff;
+          strokeWidth = 5;
+        }
+        hex.lineStyle(strokeWidth, stroke, 0.95);
         hex.strokePoints(points, true);
         hex.setInteractive(new Phaser.Geom.Polygon(points), Phaser.Geom.Polygon.Contains);
-        hex.on('pointerdown', () => this.handleHexClick(coord));
+        hex.on('pointerup', () => {
+          if (!this.dragState?.moved && performance.now() >= this.suppressBoardClickUntil) this.handleHexClick(coord);
+        });
         this.boardLayer.add(hex);
-        this.addTerrainDecoration(coord, center);
+        this.addTerrainDetail(coord, center);
       }
     }
 
@@ -171,43 +268,145 @@ export class GameScene extends Phaser.Scene {
     for (const unit of this.state.units) this.addUnit(unit);
 
     if (this.state.winner) {
-      const shade = this.add.rectangle(435, 300, 870, 600, 0x09070b, 0.72);
-      const title = this.add.text(435, 270, `PLAYER ${this.state.winner} WINS`, {
-        fontFamily: 'Georgia, serif', fontSize: '44px', color: '#f5d58e', fontStyle: 'bold',
+      const shade = this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 780, 250, 0x090d0a, 0.92)
+        .setStrokeStyle(3, 0xd8b967);
+      const title = this.add.text(WORLD_WIDTH / 2, WORLD_HEIGHT / 2 - 25, `PLAYER ${this.state.winner} WINS`, {
+        fontFamily: 'Georgia, serif', fontSize: '50px', color: '#f5d58e', fontStyle: 'bold',
       }).setOrigin(0.5);
-      const copy = this.add.text(435, 325, 'The Commander survived all three checkpoints.', {
-        fontFamily: 'Arial, sans-serif', fontSize: '17px', color: '#f4eee4',
+      const copy = this.add.text(WORLD_WIDTH / 2, WORLD_HEIGHT / 2 + 42, 'The Commander survived all three checkpoints.', {
+        fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#f4eee4',
       }).setOrigin(0.5);
       this.boardLayer.add([shade, title, copy]);
     }
   }
 
-  private addTerrainDecoration(coord: Coord, center: Phaser.Math.Vector2): void {
-    const terrain = terrainAt(coord);
-    let sprite: Phaser.GameObjects.Image | undefined;
-    if (terrain === 'forest') sprite = this.add.image(center.x, center.y - 2, 'sscap-outdoor', 'tree').setDisplaySize(28, 42);
-    if (terrain === 'hill') sprite = this.add.image(center.x, center.y + 2, 'sscap-mountains', 'hill-mark').setDisplaySize(45, 28);
-    if (terrain === 'cliff') sprite = this.add.image(center.x, center.y + 3, 'sscap-cliffs', 'cliff-mark').setDisplaySize(44, 30);
-    if (sprite) {
-      sprite.setAlpha(0.72);
-      this.boardLayer?.add(sprite);
+  private addMapBackdropDetails(): void {
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0x0f1e15, 0.46);
+    graphics.fillCircle(100, 120, 230);
+    graphics.fillCircle(WORLD_WIDTH - 80, 180, 270);
+    graphics.fillCircle(170, WORLD_HEIGHT - 50, 270);
+    graphics.fillCircle(WORLD_WIDTH - 130, WORLD_HEIGHT - 40, 250);
+    graphics.lineStyle(2, 0x789160, 0.08);
+    for (let index = 0; index < 26; index += 1) {
+      const x = 40 + ((index * 193) % (WORLD_WIDTH - 80));
+      const y = 30 + ((index * 317) % (WORLD_HEIGHT - 60));
+      graphics.lineBetween(x - 10, y + 8, x, y - 9);
+      graphics.lineBetween(x, y - 9, x + 8, y + 5);
     }
+    this.boardLayer?.add(graphics);
+  }
+
+  private addTerrainDetail(coord: Coord, center: Phaser.Math.Vector2): void {
+    const terrain = terrainAt(coord);
+    const graphics = this.add.graphics();
+    const seed = coord.q * 41 + coord.r * 73;
+
+    if (terrain === 'plain') {
+      graphics.lineStyle(2, 0xb1c37a, 0.28);
+      for (let index = 0; index < 4; index += 1) {
+        const x = center.x - 28 + ((seed + index * 19) % 54);
+        const y = center.y - 19 + ((seed + index * 29) % 38);
+        graphics.lineBetween(x, y + 5, x + 2, y - 4);
+        graphics.lineBetween(x + 2, y - 4, x + 6, y + 2);
+      }
+    }
+
+    if (terrain === 'forest') {
+      graphics.fillStyle(0x142b20, 0.35);
+      graphics.fillEllipse(center.x, center.y + 15, 74, 25);
+      const trees = [[-22, 4, 18], [0, -8, 23], [23, 6, 17], [3, 13, 18]];
+      for (const [dx, dy, size] of trees) {
+        graphics.fillStyle(0x402f20, 0.9);
+        graphics.fillRect(center.x + dx - 2, center.y + dy, 4, 18);
+        graphics.fillStyle(0x183f29, 1);
+        graphics.fillTriangle(
+          center.x + dx, center.y + dy - size,
+          center.x + dx - size * 0.58, center.y + dy + 5,
+          center.x + dx + size * 0.58, center.y + dy + 5,
+        );
+        graphics.lineStyle(1, 0x6b8f55, 0.45);
+        graphics.strokeTriangle(
+          center.x + dx, center.y + dy - size,
+          center.x + dx - size * 0.58, center.y + dy + 5,
+          center.x + dx + size * 0.58, center.y + dy + 5,
+        );
+      }
+    }
+
+    if (terrain === 'hill') {
+      graphics.fillStyle(0x4e4534, 0.48);
+      graphics.fillEllipse(center.x, center.y + 13, 76, 29);
+      graphics.fillStyle(0xa08a5d, 0.7);
+      graphics.fillTriangle(center.x - 35, center.y + 16, center.x - 7, center.y - 20, center.x + 20, center.y + 16);
+      graphics.fillStyle(0x82724f, 0.85);
+      graphics.fillTriangle(center.x - 5, center.y + 17, center.x + 19, center.y - 11, center.x + 39, center.y + 17);
+      graphics.lineStyle(2, 0xc1ae79, 0.32);
+      graphics.lineBetween(center.x - 28, center.y + 20, center.x + 31, center.y + 20);
+    }
+
+    if (terrain === 'water') {
+      graphics.lineStyle(2, 0x8bd7e4, 0.48);
+      for (let index = -1; index <= 1; index += 1) {
+        const offset = ((seed + index * 11) % 12) - 6;
+        graphics.lineBetween(center.x - 31 + offset, center.y + index * 15, center.x - 7 + offset, center.y + index * 15);
+        graphics.lineBetween(center.x + 4 + offset, center.y + index * 15, center.x + 30 + offset, center.y + index * 15);
+      }
+    }
+
+    if (terrain === 'cliff') {
+      graphics.fillStyle(0x303638, 0.9);
+      graphics.fillTriangle(center.x - 39, center.y + 24, center.x - 13, center.y - 28, center.x + 6, center.y + 24);
+      graphics.fillStyle(0x717778, 0.9);
+      graphics.fillTriangle(center.x - 5, center.y + 25, center.x + 17, center.y - 21, center.x + 40, center.y + 25);
+      graphics.lineStyle(2, 0xaeb1aa, 0.38);
+      graphics.lineBetween(center.x - 13, center.y - 28, center.x - 3, center.y + 3);
+      graphics.lineBetween(center.x + 17, center.y - 21, center.x + 13, center.y + 8);
+    }
+    this.boardLayer?.add(graphics);
   }
 
   private addSite(coord: Coord, type: 'keep' | 'fort' | 'well', owner: PlayerId | null): void {
     const center = this.center(coord);
-    const ownerColor = owner ? PLAYER_COLORS[owner] : 0xb8abb8;
-    const ring = this.add.circle(center.x, center.y, 21, 0x121018, 0.5).setStrokeStyle(3, ownerColor, 1);
-    this.boardLayer?.add(ring);
+    const ownerColor = owner ? PLAYER_COLORS[owner] : 0xd2c5a2;
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0x0c120e, 0.5);
+    graphics.fillEllipse(center.x + 4, center.y + 26, 78, 25);
 
-    if (type === 'keep' || type === 'fort') {
-      const fort = this.add.image(center.x, center.y - 2, 'sscap-outdoor', 'fort').setDisplaySize(type === 'keep' ? 42 : 34, type === 'keep' ? 34 : 28);
-      this.boardLayer?.add(fort);
+    if (type === 'keep') {
+      graphics.fillStyle(0x29322c, 1);
+      graphics.fillRect(center.x - 29, center.y - 16, 58, 47);
+      graphics.fillStyle(ownerColor, 0.95);
+      graphics.fillRect(center.x - 35, center.y - 31, 18, 58);
+      graphics.fillRect(center.x + 17, center.y - 31, 18, 58);
+      graphics.fillRect(center.x - 23, center.y - 24, 46, 13);
+      for (const x of [-34, -23, 18, 29]) graphics.fillRect(center.x + x, center.y - 38, 7, 11);
+      graphics.fillStyle(0x101713, 1);
+      graphics.fillRect(center.x - 7, center.y + 7, 14, 24);
+    } else if (type === 'fort') {
+      graphics.fillStyle(0x5b6257, 1);
+      graphics.fillRect(center.x - 30, center.y - 14, 60, 39);
+      graphics.fillStyle(0x909681, 1);
+      for (const x of [-29, -9, 11]) graphics.fillRect(center.x + x, center.y - 24, 17, 16);
+      graphics.fillStyle(0x252c27, 1);
+      graphics.fillRect(center.x - 6, center.y + 4, 12, 21);
+    } else {
+      graphics.fillStyle(0x283c3b, 1);
+      graphics.fillCircle(center.x, center.y, 29);
+      graphics.lineStyle(7, ownerColor, 1);
+      graphics.strokeCircle(center.x, center.y, 27);
+      graphics.lineStyle(3, 0xb7f5ef, 0.9);
+      graphics.strokeCircle(center.x, center.y, 14);
+      graphics.fillStyle(0x75d5df, 0.85);
+      graphics.fillCircle(center.x, center.y, 9);
     }
-    const mark = type === 'keep' ? 'K' : type === 'fort' ? 'F' : 'M';
-    const label = this.add.text(center.x, center.y + (type === 'well' ? 0 : 18), mark, {
-      fontFamily: 'Arial, sans-serif', fontSize: type === 'well' ? '17px' : '10px', color: '#fff6df', fontStyle: 'bold',
-      stroke: '#17131b', strokeThickness: 3,
+    graphics.lineStyle(3, ownerColor, 0.95);
+    graphics.strokeCircle(center.x, center.y, type === 'well' ? 35 : 42);
+    this.boardLayer?.add(graphics);
+
+    const label = this.add.text(center.x, center.y + 42, type === 'keep' ? 'KEEP' : type === 'fort' ? 'FORT' : 'WELL', {
+      fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#fff5d4', fontStyle: 'bold',
+      stroke: '#101510', strokeThickness: 4,
     }).setOrigin(0.5);
     this.boardLayer?.add(label);
   }
@@ -216,20 +415,44 @@ export class GameScene extends Phaser.Scene {
     const center = this.center(unit.coord);
     const definition = unitDefinition(unit);
     const selected = unit.id === this.selectedUnitId;
-    const shadow = this.add.ellipse(center.x + 2, center.y + 10, 37, 15, 0x08070a, 0.45);
-    const token = this.add.circle(center.x, center.y - 1, 19, PLAYER_COLORS[unit.owner], unit.exhausted ? 0.55 : 1)
-      .setStrokeStyle(selected ? 4 : 2, selected ? 0xffffff : 0x17131b, 1);
-    const mark = this.add.text(center.x, center.y - 3, definition.mark, {
-      fontFamily: 'Georgia, serif', fontSize: '20px', color: '#101018', fontStyle: 'bold',
+    const scale = definition.id === 'commander' ? 1.12 : 1;
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0x07100a, 0.56);
+    graphics.fillEllipse(center.x + 4, center.y + 25, 58 * scale, 19 * scale);
+    const tokenPoints = [
+      new Phaser.Geom.Point(center.x, center.y - 31 * scale),
+      new Phaser.Geom.Point(center.x + 27 * scale, center.y - 14 * scale),
+      new Phaser.Geom.Point(center.x + 22 * scale, center.y + 18 * scale),
+      new Phaser.Geom.Point(center.x, center.y + 32 * scale),
+      new Phaser.Geom.Point(center.x - 22 * scale, center.y + 18 * scale),
+      new Phaser.Geom.Point(center.x - 27 * scale, center.y - 14 * scale),
+    ];
+    graphics.fillStyle(PLAYER_COLORS[unit.owner], unit.exhausted ? 0.58 : 1);
+    graphics.fillPoints(tokenPoints, true);
+    graphics.fillStyle(0xffffff, 0.14);
+    graphics.fillTriangle(
+      center.x - 18 * scale, center.y - 12 * scale,
+      center.x, center.y - 25 * scale,
+      center.x, center.y + 20 * scale,
+    );
+    graphics.lineStyle(selected ? 6 : 3, selected ? 0xffefb0 : 0x132019, 1);
+    graphics.strokePoints(tokenPoints, true);
+    this.boardLayer?.add(graphics);
+
+    const mark = this.add.text(center.x, center.y - 2, definition.mark, {
+      fontFamily: 'Georgia, serif', fontSize: definition.id === 'commander' ? '28px' : '24px',
+      color: '#0b171d', fontStyle: 'bold', stroke: '#ffffff', strokeThickness: 1,
     }).setOrigin(0.5);
-    const hpBack = this.add.rectangle(center.x, center.y + 21, 36, 5, 0x251923);
-    const hpWidth = 34 * Math.max(0, unit.hp / definition.maxHp);
-    const hp = this.add.rectangle(center.x - 17 + hpWidth / 2, center.y + 21, hpWidth, 3, 0x7ee08a);
-    this.boardLayer?.add([shadow, token, mark, hpBack, hp]);
+    const hpBadge = this.add.circle(center.x + 27, center.y + 25, 13, 0x1a241c).setStrokeStyle(2, 0xe8dab5);
+    const hp = this.add.text(center.x + 27, center.y + 25, `${unit.hp}`, {
+      fontFamily: 'Georgia, serif', fontSize: '13px', color: '#fff8e6', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    this.boardLayer?.add([mark, hpBadge, hp]);
+
     if (unit.exhausted) {
-      const exhausted = this.add.text(center.x + 15, center.y - 18, 'Z', {
+      const exhausted = this.add.text(center.x - 27, center.y - 26, 'Z', {
         fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#f5e7bd', fontStyle: 'bold',
-        backgroundColor: '#43364c', padding: { x: 3, y: 1 },
+        backgroundColor: '#43364c', padding: { x: 4, y: 2 },
       }).setOrigin(0.5);
       this.boardLayer?.add(exhausted);
     }
@@ -275,12 +498,10 @@ export class GameScene extends Phaser.Scene {
       return this.renderAll();
     }
 
-    if (selected && selected.owner === this.state.currentPlayer && occupant?.owner !== this.state.currentPlayer) {
-      if (occupant) {
-        const result = attackUnit(this.state, selected.id, occupant.id);
-        this.message = result.message;
-        return this.renderAll();
-      }
+    if (selected && selected.owner === this.state.currentPlayer && occupant?.owner !== this.state.currentPlayer && occupant) {
+      const result = attackUnit(this.state, selected.id, occupant.id);
+      this.message = result.message;
+      return this.renderAll();
     }
 
     if (selected && selected.owner === this.state.currentPlayer && !occupant) {
@@ -362,7 +583,7 @@ export class GameScene extends Phaser.Scene {
     const selectedPanel = document.querySelector<HTMLElement>('#selected-unit');
     const selected = this.selectedUnitId ? findUnit(this.state, this.selectedUnitId) : undefined;
     if (selectedPanel) {
-      if (!selected) selectedPanel.innerHTML = '<span class="muted">Select a unit on the board.</span>';
+      if (!selected) selectedPanel.innerHTML = '<span class="muted">Select a unit on the battlefield.</span>';
       else {
         const definition = unitDefinition(selected);
         const traits = [...definition.traits, ...(definition.ability ? [definition.ability] : [])];

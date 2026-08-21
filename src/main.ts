@@ -5,12 +5,16 @@ import { GameScene } from './game/GameScene';
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game-container',
-  width: 870,
-  height: 600,
-  backgroundColor: '#10131a',
+  width: window.innerWidth,
+  height: window.innerHeight,
+  backgroundColor: '#17251d',
   scene: [GameScene],
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.NO_CENTER,
+  },
   render: {
-    antialias: false,
-    pixelArt: true,
+    antialias: true,
+    pixelArt: false,
   },
 });

@@ -1,8 +1,8 @@
 # Assets
 
-Place the first game-draft asset pack here when available.
+The current prototype uses only code-drawn placeholder shapes. No external art pack is checked into the project.
 
-Recommended structure once assets are added:
+When final art is introduced, use this structure:
 
 - `assets/source/` — untouched original asset pack files.
 - `assets/game/` — processed/cropped/exported assets used by the game.

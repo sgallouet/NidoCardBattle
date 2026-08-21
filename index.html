@@ -8,47 +8,49 @@
   </head>
   <body>
     <main id="app">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">Local 1v1 prototype</p>
-          <h1>NidoCardBattle</h1>
-        </div>
+      <div id="game-container" aria-label="NidoCardBattle draggable hex battlefield"></div>
+
+      <header class="battle-header glass-panel">
+        <p class="eyebrow">Local 1v1</p>
+        <h1>NidoCardBattle</h1>
         <div id="turn-summary" class="turn-summary"></div>
       </header>
-      <section class="play-area">
-        <div id="game-container" aria-label="NidoCardBattle hex board"></div>
-        <aside class="sidebar">
-          <section class="panel">
-            <p class="panel-label">Selected unit</p>
-            <div id="selected-unit" class="selected-unit muted">Select a unit on the board.</div>
-            <div class="action-row">
-              <button id="ability-button" class="secondary" type="button" hidden></button>
-              <button id="cancel-button" class="secondary" type="button">Cancel</button>
-            </div>
-          </section>
-          <section class="panel objective-panel">
-            <p class="panel-label">Commander objective</p>
-            <div id="countdown" class="muted">No countdown is active.</div>
-          </section>
-          <section class="panel legend">
-            <p class="panel-label">Board</p>
-            <div><span class="dot move"></span> Move</div>
-            <div><span class="dot attack"></span> Attack / target</div>
-            <div><span class="dot summon"></span> Summon</div>
-          </section>
-          <button id="end-turn-button" class="end-turn" type="button">End Turn</button>
-          <div id="status" class="status" role="status">Player 1 begins.</div>
-        </aside>
+
+      <section class="objective glass-panel">
+        <p class="panel-label">Commander objective</p>
+        <div id="countdown" class="muted">No countdown is active.</div>
       </section>
-      <section class="hand-panel">
+
+      <aside class="unit-inspector glass-panel">
+        <p class="panel-label">Selected unit</p>
+        <div id="selected-unit" class="selected-unit muted">Select a unit on the battlefield.</div>
+        <div class="action-row">
+          <button id="ability-button" class="secondary" type="button" hidden></button>
+          <button id="cancel-button" class="secondary" type="button">Cancel</button>
+        </div>
+        <div id="status" class="status" role="status">Player 1 begins.</div>
+      </aside>
+
+      <nav class="map-controls glass-panel" aria-label="Map controls">
+        <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+        <span id="zoom-value">100%</span>
+        <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+        <button id="zoom-reset" type="button">Center</button>
+      </nav>
+
+      <div class="map-hint glass-panel">Drag to pan <span>·</span> Wheel to zoom</div>
+
+      <section class="hand-dock">
         <div class="hand-heading">
           <div>
             <p class="panel-label">Hand</p>
             <span id="deck-summary" class="muted"></span>
           </div>
-          <p class="hint">Select a card, then choose a highlighted hex or unit.</p>
         </div>
-        <div id="hand" class="hand"></div>
+        <div class="hand-and-turn">
+          <div id="hand" class="hand"></div>
+          <button id="end-turn-button" class="end-turn" type="button">End Turn</button>
+        </div>
       </section>
     </main>
     <script type="module" src="/src/main.ts"></script>

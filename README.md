@@ -1,17 +1,19 @@
 # NidoCardBattle
 
-A compact browser-based 2D turn-based strategy/card game built around tactical map control and summoned units.
+## Run locally
 
-## Rules
+Requires Node.js 20.19 or newer.
 
-All gameplay rules live under [`docs/rules`](docs/rules/).
+```bash
+npm install
+npm run dev
+```
 
-Each gameplay rule has a stable ID. When discussing or implementing behavior, reference that ID instead of copying the rule into another document.
+Open the local URL printed by Vite.
 
-## Assets
+## Checks
 
-The first visual asset pack belongs under `assets/`. Keep original source art separate from processed game-ready assets.
-
-## Development
-
-See [`AGENTS.md`](AGENTS.md) for Codex/project guidance and `docs/rules/ScopeRule.md` for MVP boundaries.
+```bash
+npm test
+npm run build
+```

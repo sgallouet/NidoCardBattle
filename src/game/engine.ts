@@ -139,10 +139,13 @@ export const createGameState = (random: () => number = Math.random): GameState =
   return state;
 };
 
-const movementCost = (coord: Coord): number => terrainAt(coord) === 'forest' ? 1 / 0.7 : 1;
+const movementCost = (unit: UnitState, coord: Coord): number =>
+  unitDefinition(unit).traits.includes('Flying') || terrainAt(coord) !== 'forest' ? 1 : 1 / 0.7;
 
-const isStoppedByBlocking = (state: GameState, unit: UnitState, coord: Coord): boolean => {
-  if (unitDefinition(unit).ability === 'Phase') return false;
+const canTraverse = (unit: UnitState, coord: Coord): boolean =>
+  unitDefinition(unit).traits.includes('Flying') ? isInsideMap(coord) : isPassable(coord);
+
+export const isStoppedByBlocking = (state: GameState, unit: UnitState, coord: Coord): boolean => {
   return neighbors(coord).some((neighbor) => {
     const adjacent = unitAt(state, neighbor);
     return adjacent !== undefined
@@ -166,8 +169,8 @@ export const getReachableCoords = (state: GameState, unitId: string): Map<string
     if (current.cost > (reachable.get(coordKey(current.coord)) ?? Number.POSITIVE_INFINITY)) continue;
 
     for (const next of neighbors(current.coord)) {
-      if (!isPassable(next) || unitAt(state, next)) continue;
-      const nextCost = current.cost + movementCost(next);
+      if (!canTraverse(unit, next) || unitAt(state, next)) continue;
+      const nextCost = current.cost + movementCost(unit, next);
       if (nextCost > move + 0.0001) continue;
       const key = coordKey(next);
       if (nextCost >= (reachable.get(key) ?? Number.POSITIVE_INFINITY)) continue;
@@ -241,9 +244,6 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
   const dealt = dealDamage(state, defender, attackerDef.attack, attackerDef.range > 1, attacker.owner);
   const defenderSurvived = findUnit(state, defenderId) !== undefined;
 
-  if (dealt > 0 && attackerDef.ability === 'Blood Drain') attacker.hp = Math.min(attackerDef.maxHp, attacker.hp + 1);
-  if (!defenderSurvived && attackerDef.ability === 'Feast') attacker.hp = Math.min(attackerDef.maxHp, attacker.hp + 2);
-
   if (defenderSurvived
     && defenderDef.traits.includes('Retaliates')
     && hexDistance(attacker.coord, defender.coord) <= effectiveRange(defender)) {
@@ -258,6 +258,25 @@ export const getDisplaceTargets = (state: GameState, unitId: string): UnitState[
   if (!actor || actor.owner !== state.currentPlayer || actor.exhausted || actor.attacked) return [];
   if (unitDefinition(actor).ability !== 'Displace') return [];
   return state.units.filter((target) => target.id !== actor.id && hexDistance(actor.coord, target.coord) === 1);
+};
+
+export const getRestoreTargets = (state: GameState, sourceId: string): UnitState[] => {
+  const source = findUnit(state, sourceId);
+  if (!source || unitDefinition(source).ability !== 'Restore') return [];
+  return state.units.filter((target) => target.id !== source.id
+    && target.owner === source.owner
+    && hexDistance(source.coord, target.coord) === 1
+    && target.hp < unitDefinition(target).maxHp);
+};
+
+export const restoreAdjacentAlly = (state: GameState, sourceId: string, targetId: string): ActionResult => {
+  const source = findUnit(state, sourceId);
+  const target = findUnit(state, targetId);
+  if (!source || !target || !getRestoreTargets(state, sourceId).some((candidate) => candidate.id === targetId)) {
+    return { ok: false, message: 'Choose a damaged adjacent ally.' };
+  }
+  target.hp = Math.min(unitDefinition(target).maxHp, target.hp + 2);
+  return { ok: true, message: `${unitDefinition(source).name} restored 2 HP to ${unitDefinition(target).name}.` };
 };
 
 export const getDisplaceDestinations = (state: GameState, actorId: string, targetId: string): Coord[] => {
@@ -332,9 +351,16 @@ export const playUnitCard = (state: GameState, handIndex: number, destination: C
   }
   const playerId = state.currentPlayer;
   state.players[playerId].mana -= validation.cost;
-  state.units.push(createUnit(state, validation.unitId, playerId, destination, true));
+  const definition = UNIT_DEFINITIONS[validation.unitId as UnitDefinitionId];
+  const exhausted = !definition.traits.includes('Charge');
+  const summoned = createUnit(state, validation.unitId, playerId, destination, exhausted);
+  state.units.push(summoned);
   discardPlayedCard(state, handIndex);
-  return { ok: true, message: `${validation.name} was summoned exhausted.` };
+  return {
+    ok: true,
+    message: `${validation.name} was summoned${exhausted ? ' exhausted' : ' ready to charge'}.`,
+    summonedUnitId: summoned.id,
+  };
 };
 
 export const playTacticCard = (state: GameState, handIndex: number, targetId: string): ActionResult => {

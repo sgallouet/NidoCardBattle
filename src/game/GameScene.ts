@@ -15,11 +15,11 @@ import {
   getDisplaceDestinations,
   getDisplaceTargets,
   getReachableCoords,
-  getTacticTargets,
+  getRestoreTargets,
   getValidSummonCoords,
   moveUnit,
-  playTacticCard,
   playUnitCard,
+  restoreAdjacentAlly,
   terrainAt,
   unitAt,
   unitDefinition,
@@ -42,8 +42,9 @@ const TERRAIN_PALETTES: Record<Terrain, number[]> = {
   cliff: [0x52585a, 0x606465, 0x494f51],
   bridge: [0x27779a, 0x2d84a7, 0x226d91],
 };
+const cardDefinition = (id: CardDefinitionId) => CARD_DEFINITIONS[id];
 
-type InteractionMode = 'unit' | 'card' | 'displace-target' | 'displace-destination' | null;
+type InteractionMode = 'unit' | 'card' | 'displace-target' | 'displace-destination' | 'restore-target' | null;
 
 interface DragState {
   startX: number;
@@ -59,6 +60,7 @@ export class GameScene extends Phaser.Scene {
   private selectedUnitId: string | null = null;
   private selectedCardIndex: number | null = null;
   private displaceTargetId: string | null = null;
+  private restoreSourceId: string | null = null;
   private mode: InteractionMode = null;
   private dragState: DragState | null = null;
   private suppressBoardClickUntil = 0;
@@ -177,6 +179,8 @@ export class GameScene extends Phaser.Scene {
     const selected = new Set<string>();
     const selectedUnit = this.selectedUnitId ? findUnit(this.state, this.selectedUnitId) : undefined;
     if (selectedUnit) selected.add(coordKey(selectedUnit.coord));
+    const restoreSource = this.restoreSourceId ? findUnit(this.state, this.restoreSourceId) : undefined;
+    if (restoreSource) selected.add(coordKey(restoreSource.coord));
 
     if (this.mode === 'unit' && selectedUnit) {
       for (const key of getReachableCoords(this.state, selectedUnit.id).keys()) move.add(key);
@@ -185,12 +189,8 @@ export class GameScene extends Phaser.Scene {
 
     if (this.mode === 'card' && this.selectedCardIndex !== null) {
       const cardId = this.state.players[this.state.currentPlayer].hand[this.selectedCardIndex];
-      const card = cardId ? CARD_DEFINITIONS[cardId as CardDefinitionId] : undefined;
-      if (card?.type === 'unit') {
-        for (const coord of getValidSummonCoords(this.state)) summon.add(coordKey(coord));
-      } else if (card?.type === 'tactic') {
-        for (const target of getTacticTargets(this.state, card.id)) attack.add(coordKey(target.coord));
-      }
+      const card = cardId ? cardDefinition(cardId as CardDefinitionId) : undefined;
+      if (card) for (const coord of getValidSummonCoords(this.state)) summon.add(coordKey(coord));
     }
 
     if (this.mode === 'displace-target' && selectedUnit) {
@@ -199,6 +199,10 @@ export class GameScene extends Phaser.Scene {
 
     if (this.mode === 'displace-destination' && selectedUnit && this.displaceTargetId) {
       for (const coord of getDisplaceDestinations(this.state, selectedUnit.id, this.displaceTargetId)) summon.add(coordKey(coord));
+    }
+
+    if (this.mode === 'restore-target' && restoreSource) {
+      for (const target of getRestoreTargets(this.state, restoreSource.id)) summon.add(coordKey(target.coord));
     }
     return { move, attack, summon, selected };
   }
@@ -551,18 +555,35 @@ export class GameScene extends Phaser.Scene {
 
     if (this.mode === 'card' && this.selectedCardIndex !== null) {
       const cardId = this.state.players[this.state.currentPlayer].hand[this.selectedCardIndex];
-      const card = cardId ? CARD_DEFINITIONS[cardId as CardDefinitionId] : undefined;
+      const card = cardId ? cardDefinition(cardId as CardDefinitionId) : undefined;
       if (!card) return this.cancelInteraction('That card is no longer in hand.');
-      const result = card.type === 'unit'
-        ? playUnitCard(this.state, this.selectedCardIndex, coord)
-        : occupant
-          ? playTacticCard(this.state, this.selectedCardIndex, occupant.id)
-          : { ok: false, message: 'Choose a highlighted unit.' };
+      const result = playUnitCard(this.state, this.selectedCardIndex, coord);
       this.message = result.message;
       if (result.ok) {
         this.animatePlayedCard(this.selectedCardIndex);
-        this.clearInteraction();
+        const restoreTargets = result.summonedUnitId
+          ? getRestoreTargets(this.state, result.summonedUnitId)
+          : [];
+        if (result.summonedUnitId && restoreTargets.length > 0) {
+          this.selectedCardIndex = null;
+          this.selectedUnitId = null;
+          this.displaceTargetId = null;
+          this.restoreSourceId = result.summonedUnitId;
+          this.mode = 'restore-target';
+          this.message = 'Choose a highlighted adjacent ally to restore 2 HP.';
+        } else {
+          this.clearInteraction();
+        }
       }
+      return this.renderAll();
+    }
+
+    if (this.mode === 'restore-target' && this.restoreSourceId) {
+      const result = occupant
+        ? restoreAdjacentAlly(this.state, this.restoreSourceId, occupant.id)
+        : { ok: false, message: 'Choose a highlighted adjacent ally.' };
+      this.message = result.message;
+      if (result.ok) this.clearInteraction();
       return this.renderAll();
     }
 
@@ -604,6 +625,7 @@ export class GameScene extends Phaser.Scene {
       this.selectedUnitId = occupant.id;
       this.selectedCardIndex = null;
       this.displaceTargetId = null;
+      this.restoreSourceId = null;
       this.mode = occupant.owner === this.state.currentPlayer ? 'unit' : null;
       this.message = occupant.owner === this.state.currentPlayer
         ? `${unitDefinition(occupant).name} selected.`
@@ -617,16 +639,18 @@ export class GameScene extends Phaser.Scene {
 
   private selectCard(index: number): void {
     if (this.state.winner) return;
+    if (this.mode === 'restore-target') {
+      this.message = 'Resolve the Light Mage restore first.';
+      return this.renderHud();
+    }
     if (this.selectedCardIndex === index) return this.cancelInteraction('Card selection cleared.');
     const cardId = this.state.players[this.state.currentPlayer].hand[index];
-    const card = CARD_DEFINITIONS[cardId as CardDefinitionId];
+    const card = cardDefinition(cardId as CardDefinitionId);
     this.selectedCardIndex = index;
     this.selectedUnitId = null;
     this.displaceTargetId = null;
     this.mode = 'card';
-    this.message = card.type === 'unit'
-      ? `Choose a highlighted spawn hex for ${card.name}.`
-      : `Choose a highlighted target for ${card.name}.`;
+    this.message = `Choose a highlighted spawn hex for ${card.name}.`;
     this.renderAll();
   }
 
@@ -643,6 +667,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleEndTurn(): void {
+    if (this.mode === 'restore-target') {
+      this.message = 'Resolve the Light Mage restore first.';
+      return this.renderHud();
+    }
     const result = endTurn(this.state);
     this.clearInteraction();
     this.message = result.message;
@@ -653,6 +681,7 @@ export class GameScene extends Phaser.Scene {
     this.selectedUnitId = null;
     this.selectedCardIndex = null;
     this.displaceTargetId = null;
+    this.restoreSourceId = null;
     this.mode = null;
   }
 
@@ -707,7 +736,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     const endButton = document.querySelector<HTMLButtonElement>('#end-turn-button');
-    if (endButton) endButton.disabled = this.state.winner !== null;
+    if (endButton) endButton.disabled = this.state.winner !== null || this.mode === 'restore-target';
     const status = document.querySelector<HTMLElement>('#status');
     if (status) status.textContent = this.message;
     const cancelButton = document.querySelector<HTMLButtonElement>('#cancel-button');

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
+import { CARD_DEFINITIONS, PROTOTYPE_DECK } from '../data/cards';
 import type { Coord, GameState, PlayerId, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
 import {
@@ -8,9 +9,12 @@ import {
   createGameState,
   endTurn,
   getReachableCoords,
+  getRestoreTargets,
   getValidSummonCoords,
   isPassable,
+  isStoppedByBlocking,
   playUnitCard,
+  restoreAdjacentAlly,
   terrainAt,
 } from './engine';
 
@@ -35,6 +39,42 @@ const makeUnit = (
 });
 
 const freshState = (): GameState => createGameState(fixedRandom);
+
+describe('UNR1-UNR8, CRD1, CRD2', () => {
+  it('UNR1-UNR8', () => {
+    const expected = {
+      skeletonGuard: { name: 'Skeletal Infantry', cost: 1, maxHp: 2, attack: 2, traits: ['Blocking'], ability: undefined },
+      boneArcher: { name: 'Longbow Ranger', cost: 3, maxHp: 2, attack: 2, traits: ['Ranged'], ability: undefined },
+      vampire: { name: 'Silverwing Cavalry', cost: 6, maxHp: 5, attack: 4, traits: ['Flying', 'Charge'], ability: undefined },
+      necromancer: { name: 'Necromancer', cost: 5, maxHp: 4, attack: 1, traits: ['Invoker'], ability: undefined },
+      banshee: { name: 'Banshee Displacer', cost: 4, maxHp: 3, attack: 2, traits: [], ability: 'Displace' },
+      wraith: { name: 'Light Mage', cost: 4, maxHp: 3, attack: 2, traits: [], ability: 'Restore' },
+      ghoul: { name: 'Royal Guard', cost: 2, maxHp: 3, attack: 2, traits: ['Blocking', 'Retaliates'], ability: undefined },
+      graveKnight: { name: 'Grave Knight', cost: 5, maxHp: 4, attack: 4, traits: ['Blocking', 'Retaliates'], ability: undefined },
+    } as const;
+
+    for (const [id, printed] of Object.entries(expected)) {
+      const definition = UNIT_DEFINITIONS[id as UnitDefinitionId];
+      const card = CARD_DEFINITIONS[id as keyof typeof CARD_DEFINITIONS];
+      expect({
+        name: definition.name,
+        cost: definition.cost,
+        maxHp: definition.maxHp,
+        attack: definition.attack,
+        traits: definition.traits,
+        ability: definition.ability,
+      }).toEqual(printed);
+      expect([card.name, card.cost]).toEqual([printed.name, printed.cost]);
+    }
+  });
+
+  it('CRD1, CRD2', () => {
+    expect(PROTOTYPE_DECK).toHaveLength(16);
+    for (const cardId of new Set(PROTOTYPE_DECK)) {
+      expect(PROTOTYPE_DECK.filter((candidate) => candidate === cardId)).toHaveLength(2);
+    }
+  });
+});
 
 describe('MPS2, MPL4, MPT6', () => {
   it('MPS2', () => {
@@ -75,41 +115,39 @@ describe('MPS2, MPL4, MPT6', () => {
   });
 });
 
-describe('UNT1, UNM4', () => {
+describe('UNT1, UNM4, UNT5', () => {
   it('UNT1', () => {
     const state = freshState();
-    const mover = makeUnit('mover', 'vampire', 1, { q: 0, r: 0 });
-    state.units = [mover, makeUnit('blocker', 'skeletonGuard', 2, { q: 2, r: 0 })];
-    const blocked = getReachableCoords(state, mover.id);
-    expect(blocked.has(coordKey({ q: 1, r: 0 }))).toBe(true);
-    expect(blocked.has(coordKey({ q: 2, r: 1 }))).toBe(false);
+    const mover = makeUnit('mover', 'banshee', 1, { q: 0, r: 8 });
+    state.units = [mover, makeUnit('blocker', 'skeletonGuard', 2, { q: 2, r: 8 })];
+    expect(isStoppedByBlocking(state, mover, { q: 1, r: 8 })).toBe(true);
 
-    state.units[1] = makeUnit('non-blocker', 'boneArcher', 2, { q: 2, r: 0 });
-    const open = getReachableCoords(state, mover.id);
-    expect(open.has(coordKey({ q: 2, r: 1 }))).toBe(true);
+    state.units[1] = makeUnit('non-blocker', 'boneArcher', 2, { q: 2, r: 8 });
+    expect(isStoppedByBlocking(state, mover, { q: 1, r: 8 })).toBe(false);
   });
 
-  it('UNB4', () => {
+  it('UNT5', () => {
     const state = freshState();
-    const mover = makeUnit('mover', 'wraith', 1, { q: 0, r: 0 });
-    state.units = [mover, makeUnit('blocker', 'skeletonGuard', 2, { q: 2, r: 0 })];
-    expect(getReachableCoords(state, mover.id).has(coordKey({ q: 2, r: 1 }))).toBe(true);
+    const flyer = makeUnit('flyer', 'vampire', 1, { q: 8, r: 4 });
+    state.units = [flyer];
+    expect(terrainAt({ q: 8, r: 3 })).toBe('water');
+    expect(getReachableCoords(state, flyer.id).has(coordKey({ q: 8, r: 3 }))).toBe(true);
   });
 });
 
 describe('UNT2, UNC3', () => {
   it('UNT2', () => {
     const state = freshState();
-    const attacker = makeUnit('attacker', 'ghoul', 1, { q: 2, r: 2 });
-    const defender = makeUnit('defender', 'skeletonGuard', 2, { q: 3, r: 2 });
+    const attacker = makeUnit('attacker', 'necromancer', 1, { q: 2, r: 2 });
+    const defender = makeUnit('defender', 'ghoul', 2, { q: 3, r: 2 });
     state.units = [attacker, defender];
     attackUnit(state, attacker.id, defender.id);
     expect(defender.hp).toBe(2);
-    expect(attacker.hp).toBe(5);
+    expect(attacker.hp).toBe(2);
     expect(defender.attacked).toBe(false);
   });
 
-  it('UNT2-only', () => {
+  it('UNT2, UNC3', () => {
     const state = freshState();
     const attacker = makeUnit('attacker', 'skeletonGuard', 1, { q: 2, r: 2 });
     const defender = makeUnit('defender', 'boneArcher', 2, { q: 3, r: 2 });
@@ -146,6 +184,28 @@ describe('CRU3, UNT3', () => {
     const result = playUnitCard(state, 0, target);
     expect(result.ok).toBe(true);
     expect(state.units.find((unit) => unit.coord.q === target.q && unit.coord.r === target.r)?.exhausted).toBe(true);
+  });
+
+  it('CRU4, UNT6', () => {
+    const state = freshState();
+    state.players[1].hand = ['vampire'];
+    state.players[1].mana = 6;
+    const target = getValidSummonCoords(state)[0];
+    const result = playUnitCard(state, 0, target);
+    expect(result.ok).toBe(true);
+    expect(state.units.find((unit) => unit.id === result.summonedUnitId)?.exhausted).toBe(false);
+  });
+});
+
+describe('UNB6', () => {
+  it('UNB6', () => {
+    const state = freshState();
+    const mage = makeUnit('mage', 'wraith', 1, { q: 5, r: 4 });
+    const ally = makeUnit('ally', 'ghoul', 1, { q: 6, r: 4 }, { hp: 1 });
+    state.units = [mage, ally];
+    expect(getRestoreTargets(state, mage.id).map((unit) => unit.id)).toEqual([ally.id]);
+    expect(restoreAdjacentAlly(state, mage.id, ally.id).ok).toBe(true);
+    expect(ally.hp).toBe(3);
   });
 });
 

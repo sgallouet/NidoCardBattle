@@ -1,8 +1,8 @@
 export type PlayerId = 1 | 2;
 export type Terrain = 'plain' | 'forest' | 'hill' | 'water' | 'cliff' | 'bridge';
 export type SiteType = 'keep' | 'fort' | 'well';
-export type Trait = 'Blocking' | 'Retaliates' | 'Invoker';
-export type Ability = 'Displace' | 'Blood Drain' | 'Phase' | 'Feast';
+export type Trait = 'Blocking' | 'Retaliates' | 'Invoker' | 'Ranged' | 'Flying' | 'Charge';
+export type Ability = 'Displace' | 'Restore';
 
 export interface Coord {
   q: number;
@@ -93,4 +93,5 @@ export interface GameState {
 export interface ActionResult {
   ok: boolean;
   message: string;
+  summonedUnitId?: string;
 }

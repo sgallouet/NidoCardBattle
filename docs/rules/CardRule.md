@@ -3,7 +3,7 @@
 This file owns deck, hand, card-type, and summoning rules.
 
 ## Deck
-- **CRD1** - Prototype deck size is **18 cards**.
+- **CRD1** - Prototype deck size is **16 cards**.
 - **CRD2** - A deck may contain at most 2 copies of the same card.
 - **CRD3** - When the deck is empty, shuffle the discard pile into a new deck.
 
@@ -21,7 +21,7 @@ This file owns deck, hand, card-type, and summoning rules.
 - **CRU1** - Unit Cards cost mana to play.
 - **CRU2** - A summoned unit must be placed on a free hex adjacent to a friendly spawn source.
 - **CRU3** - Friendly spawn sources are a controlled Home Keep, a controlled Fort, or a friendly unit with the **Invoker** trait.
-- **CRU4** - A summoned unit enters **Exhausted**.
+- **CRU4** - A summoned unit enters **Exhausted** unless `UNT6` applies.
 
 ## Tactic Cards
 - **CRC1** - Tactic effects should resolve immediately unless the card explicitly says otherwise.

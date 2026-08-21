@@ -17,35 +17,35 @@ export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
     traits: ['Blocking', 'Retaliates'], mark: 'C',
   },
   skeletonGuard: {
-    id: 'skeletonGuard', name: 'Skeleton Guard', cost: 2, maxHp: 5, attack: 2, move: 2, range: 1,
-    traits: ['Blocking', 'Retaliates'], mark: 'S',
+    id: 'skeletonGuard', name: 'Skeletal Infantry', cost: 1, maxHp: 2, attack: 2, move: 2, range: 1,
+    traits: ['Blocking'], mark: 'S',
   },
   boneArcher: {
-    id: 'boneArcher', name: 'Bone Archer', cost: 3, maxHp: 3, attack: 3, move: 2, range: 3,
-    traits: [], mark: 'A',
+    id: 'boneArcher', name: 'Longbow Ranger', cost: 3, maxHp: 2, attack: 2, move: 2, range: 3,
+    traits: ['Ranged'], mark: 'L',
   },
   vampire: {
-    id: 'vampire', name: 'Vampire', cost: 5, maxHp: 6, attack: 3, move: 4, range: 1,
-    traits: ['Blocking', 'Retaliates'], ability: 'Blood Drain', mark: 'V',
+    id: 'vampire', name: 'Silverwing Cavalry', cost: 6, maxHp: 5, attack: 4, move: 4, range: 1,
+    traits: ['Flying', 'Charge'], mark: 'S',
   },
   necromancer: {
-    id: 'necromancer', name: 'Necromancer', cost: 4, maxHp: 4, attack: 2, move: 2, range: 2,
+    id: 'necromancer', name: 'Necromancer', cost: 5, maxHp: 4, attack: 1, move: 2, range: 2,
     traits: ['Invoker'], mark: 'N',
   },
   banshee: {
-    id: 'banshee', name: 'Banshee', cost: 3, maxHp: 3, attack: 1, move: 3, range: 1,
+    id: 'banshee', name: 'Banshee Displacer', cost: 4, maxHp: 3, attack: 2, move: 3, range: 1,
     traits: [], ability: 'Displace', mark: 'B',
   },
   wraith: {
-    id: 'wraith', name: 'Wraith', cost: 3, maxHp: 3, attack: 2, move: 5, range: 1,
-    traits: [], ability: 'Phase', mark: 'W',
+    id: 'wraith', name: 'Light Mage', cost: 4, maxHp: 3, attack: 2, move: 2, range: 2,
+    traits: [], ability: 'Restore', mark: 'M',
   },
   ghoul: {
-    id: 'ghoul', name: 'Ghoul', cost: 4, maxHp: 7, attack: 3, move: 3, range: 1,
-    traits: ['Blocking'], ability: 'Feast', mark: 'G',
+    id: 'ghoul', name: 'Royal Guard', cost: 2, maxHp: 3, attack: 2, move: 2, range: 1,
+    traits: ['Blocking', 'Retaliates'], mark: 'R',
   },
   graveKnight: {
-    id: 'graveKnight', name: 'Grave Knight', cost: 7, maxHp: 9, attack: 4, move: 2, range: 1,
+    id: 'graveKnight', name: 'Grave Knight', cost: 5, maxHp: 4, attack: 4, move: 2, range: 1,
     traits: ['Blocking', 'Retaliates'], mark: 'K',
   },
 };

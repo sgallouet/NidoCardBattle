@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { CARD_ART } from '../data/cardArt';
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import { MAP_DECORATIONS, MAP_HEIGHT, MAP_WIDTH, type MapDecoration } from '../data/map';
 import type { CardDefinition, Coord, PlayerId, Terrain, UnitState } from '../data/types';
@@ -61,6 +62,7 @@ export class GameScene extends Phaser.Scene {
   private mode: InteractionMode = null;
   private dragState: DragState | null = null;
   private suppressBoardClickUntil = 0;
+  private lastHandSignature = '';
   private message = 'Player 1 begins. Move a unit or play a card.';
 
   constructor() {
@@ -557,7 +559,10 @@ export class GameScene extends Phaser.Scene {
           ? playTacticCard(this.state, this.selectedCardIndex, occupant.id)
           : { ok: false, message: 'Choose a highlighted unit.' };
       this.message = result.message;
-      if (result.ok) this.clearInteraction();
+      if (result.ok) {
+        this.animatePlayedCard(this.selectedCardIndex);
+        this.clearInteraction();
+      }
       return this.renderAll();
     }
 
@@ -714,30 +719,106 @@ export class GameScene extends Phaser.Scene {
     const hand = document.querySelector<HTMLElement>('#hand');
     if (!hand) return;
     const player = this.state.players[this.state.currentPlayer];
+    const handSignature = `${this.state.currentPlayer}:${player.hand.join('|')}`;
+    const shouldDeal = handSignature !== this.lastHandSignature;
     hand.replaceChildren();
     player.hand.forEach((cardId, index) => {
       const card = CARD_DEFINITIONS[cardId as CardDefinitionId];
+      const cardArt = CARD_ART[cardId as CardDefinitionId];
+      const unit = card.type === 'unit'
+        ? unitDefinition({ definitionId: card.unitId } as UnitState)
+        : null;
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = `card${this.selectedCardIndex === index ? ' selected' : ''}`;
+      button.className = [
+        'card',
+        this.selectedCardIndex === index ? 'selected' : '',
+        shouldDeal ? 'deal-in' : '',
+      ].filter(Boolean).join(' ');
       button.disabled = card.cost > player.mana || this.state.winner !== null;
+      button.dataset.handIndex = `${index}`;
+      button.setAttribute('aria-label', `${card.name}, ${card.cost} mana`);
+      const fanOffset = index - (player.hand.length - 1) / 2;
+      button.style.setProperty('--fan-angle', `${fanOffset * 1.6}deg`);
+      button.style.setProperty('--fan-y', `${Math.abs(fanOffset) * 2.5}px`);
+      button.style.setProperty('--deal-delay', `${index * 70}ms`);
       button.innerHTML = `
-        <span class="card-cost">${card.cost}</span>
-        <span class="card-type">${card.type}</span>
-        <span class="card-name">${card.name}</span>
-        <span class="card-copy">${this.cardCopy(card)}</span>`;
+        <span class="card-surface">
+          <span class="card-aura"></span>
+          <span class="card-art-window">
+            <img class="card-art" src="${cardArt}" alt="" draggable="false">
+            <span class="card-art-vignette"></span>
+          </span>
+          <span class="card-cost" aria-hidden="true">${card.cost}</span>
+          <span class="card-name">${card.name}</span>
+          <span class="card-type">${card.type === 'unit' ? 'Undead unit' : 'Tactic'}</span>
+          <span class="card-copy">${this.cardCopy(card)}</span>
+          ${unit ? `<span class="card-stat card-attack" title="Attack">${unit.attack}</span>` : ''}
+          ${unit ? `<span class="card-stat card-health" title="Health">${unit.maxHp}</span>` : ''}
+          <span class="card-crest" aria-hidden="true">${card.type === 'unit' ? '☠' : '✦'}</span>
+          <span class="card-foil"></span>
+        </span>`;
+      button.addEventListener('pointermove', (event) => this.tiltCard(button, event));
+      button.addEventListener('pointerleave', () => this.resetCardTilt(button));
       button.addEventListener('click', () => this.selectCard(index));
       hand.append(button);
     });
+    this.lastHandSignature = handSignature;
   }
 
   private cardCopy(card: CardDefinition): string {
     if (card.type === 'unit') {
       const definition = unitDefinition({ definitionId: card.unitId } as UnitState);
-      const traits = [...definition.traits, ...(definition.ability ? [definition.ability] : [])].join(', ');
-      return `${definition.maxHp} HP · ${definition.attack} ATK · ${definition.move} MOV · ${definition.range} RNG${traits ? `<br>${traits}` : ''}`;
+      const traits = [...definition.traits, ...(definition.ability ? [definition.ability] : [])];
+      return `<strong>${traits.join(' · ') || 'Ready'}</strong><small>Move ${definition.move} · Range ${definition.range}</small>`;
     }
     const verb = card.effect.kind === 'damage' ? 'Deal' : 'Heal';
-    return `${verb} ${card.effect.amount} to a ${card.effect.target} unit.`;
+    return `<strong>${verb} ${card.effect.amount}</strong><small>${card.effect.target} unit</small>`;
+  }
+
+  private tiltCard(card: HTMLButtonElement, event: PointerEvent): void {
+    if (card.disabled) return;
+    const rect = card.getBoundingClientRect();
+    const x = Phaser.Math.Clamp((event.clientX - rect.left) / rect.width, 0, 1);
+    const y = Phaser.Math.Clamp((event.clientY - rect.top) / rect.height, 0, 1);
+    card.style.setProperty('--tilt-x', `${(0.5 - y) * 12}deg`);
+    card.style.setProperty('--tilt-y', `${(x - 0.5) * 15}deg`);
+    card.style.setProperty('--shine-x', `${x * 100}%`);
+    card.style.setProperty('--shine-y', `${y * 100}%`);
+  }
+
+  private resetCardTilt(card: HTMLButtonElement): void {
+    card.style.setProperty('--tilt-x', '0deg');
+    card.style.setProperty('--tilt-y', '0deg');
+    card.style.setProperty('--shine-x', '50%');
+    card.style.setProperty('--shine-y', '50%');
+  }
+
+  private animatePlayedCard(index: number): void {
+    const source = document.querySelector<HTMLButtonElement>(`.card[data-hand-index="${index}"]`);
+    if (!source) return;
+    const rect = source.getBoundingClientRect();
+    const ghost = source.cloneNode(true) as HTMLButtonElement;
+    ghost.disabled = false;
+    ghost.classList.remove('selected', 'deal-in');
+    ghost.classList.add('card-play-ghost');
+    ghost.style.left = `${rect.left}px`;
+    ghost.style.top = `${rect.top}px`;
+    ghost.style.width = `${rect.width}px`;
+    ghost.style.height = `${rect.height}px`;
+    document.body.append(ghost);
+
+    const travelX = window.innerWidth / 2 - (rect.left + rect.width / 2);
+    const travelY = window.innerHeight * 0.34 - (rect.top + rect.height / 2);
+    const animation = ghost.animate([
+      { transform: 'translate3d(0, 0, 0) rotate(0deg) scale(1)', opacity: 1, filter: 'brightness(1)' },
+      { offset: 0.34, transform: `translate3d(${travelX * 0.3}px, ${travelY * 0.34 - 70}px, 0) rotate(-4deg) scale(1.24)`, opacity: 1, filter: 'brightness(1.55)' },
+      { transform: `translate3d(${travelX}px, ${travelY}px, 0) rotate(9deg) scale(.28)`, opacity: 0, filter: 'brightness(2.1) blur(1px)' },
+    ], {
+      duration: 720,
+      easing: 'cubic-bezier(.18,.88,.22,1)',
+      fill: 'forwards',
+    });
+    void animation.finished.finally(() => ghost.remove());
   }
 }

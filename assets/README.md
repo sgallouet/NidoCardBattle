@@ -1,10 +1,7 @@
 # Assets
 
-The current prototype uses only code-drawn placeholder shapes. No external art pack is checked into the project.
+- `assets/source/cards/` contains the eight distinct user-supplied card images, copied without image processing.
+- Exact duplicate attachments were not copied a second time.
+- `assets/game/` remains reserved for processed, cropped, or exported game-ready assets.
 
-When final art is introduced, use this structure:
-
-- `assets/source/` — untouched original asset pack files.
-- `assets/game/` — processed/cropped/exported assets used by the game.
-
-Keep source art separate from generated game-ready files so Codex or other tools can safely automate processing later.
+Keep source art separate from generated game-ready files so automated processing remains safe and reversible.

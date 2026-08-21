@@ -1,45 +1,29 @@
 # CardRule.md
 
+This file owns deck, hand, card-type, and summoning rules.
+
 ## Deck
-- Prototype deck size: **18 cards**.
-- Use a fixed prebuilt deck for the MVP.
-- Maximum 2 copies of the same card.
-- When the deck is empty, shuffle the discard pile into a new deck.
+- **CRD1** - Prototype deck size is **18 cards**.
+- **CRD2** - A deck may contain at most 2 copies of the same card.
+- **CRD3** - When the deck is empty, shuffle the discard pile into a new deck.
 
 ## Hand
-- Start with 4 cards.
-- Draw 1 card each turn.
-- Maximum hand size: 6.
-- Extra cards drawn above 6 are discarded.
+- **CRH1** - Start the match with 4 cards.
+- **CRH2** - Maximum hand size is 6 cards.
+- **CRH3** - Cards drawn above the hand limit are discarded.
 
 ## Card Types
-- Only 2 card types in MVP:
-  - **Unit Card** — summons a unit.
-  - **Tactic Card** — creates one immediate effect.
-- No equipment cards.
-- No permanent enchantments.
-- No card rarity.
-- No card upgrades.
+- **CRT1** - The MVP has only 2 card types: **Unit** and **Tactic**.
+- **CRT2** - A Unit Card summons a unit.
+- **CRT3** - A Tactic Card resolves one immediate effect, then goes to discard.
 
 ## Unit Cards
-- Cost mana to play.
-- Can only be summoned beside a controlled Home Keep or Fort.
-- Summoned units enter Exhausted.
-- Expensive units should be stronger, not mechanically more complicated.
+- **CRU1** - Unit Cards cost mana to play.
+- **CRU2** - A summoned unit must be placed on a free hex adjacent to a friendly spawn source.
+- **CRU3** - Friendly spawn sources are a controlled Home Keep, a controlled Fort, or a friendly unit with the **Invoker** trait.
+- **CRU4** - A summoned unit enters **Exhausted**.
 
 ## Tactic Cards
-- Resolve immediately, then go to discard.
-- Effects should be short and tactical.
-- Good examples:
-  - Deal 1 damage.
-  - Heal 2 HP.
-  - Move a unit 1 extra hex.
-  - Give +1 attack for one attack.
-  - Draw 2 cards, then discard 1.
-- Avoid cards that require remembering effects for many turns.
-
-## Card Design Rule
-- Every card should create a board decision.
-- Cards should help change tactics, not replace map strategy.
-- Most cards should contain **one effect and one number**.
-- Maximum one special keyword per card.
+- **CRC1** - Tactic effects should resolve immediately unless the card explicitly says otherwise.
+- **CRC2** - Avoid effects that require remembering state across many turns.
+- **CRC3** - Prefer short tactical effects such as damage, healing, repositioning, temporary attack bonuses, or draw/discard.

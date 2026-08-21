@@ -154,11 +154,19 @@ export const isStoppedByBlocking = (state: GameState, unit: UnitState, coord: Co
   });
 };
 
-export const getReachableCoords = (state: GameState, unitId: string): Map<string, number> => {
+interface MovementSearch {
+  reachable: Map<string, number>;
+  previous: Map<string, Coord>;
+}
+
+const searchMovement = (state: GameState, unitId: string): MovementSearch => {
   const unit = findUnit(state, unitId);
-  if (!unit || unit.owner !== state.currentPlayer || unit.exhausted || unit.moved || unit.attacked) return new Map();
+  if (!unit || unit.owner !== state.currentPlayer || unit.exhausted || unit.moved || unit.attacked) {
+    return { reachable: new Map(), previous: new Map() };
+  }
 
   const reachable = new Map<string, number>([[coordKey(unit.coord), 0]]);
+  const previous = new Map<string, Coord>();
   const queue: Array<{ coord: Coord; cost: number }> = [{ coord: unit.coord, cost: 0 }];
   const move = unitDefinition(unit).move;
 
@@ -175,10 +183,18 @@ export const getReachableCoords = (state: GameState, unitId: string): Map<string
       const key = coordKey(next);
       if (nextCost >= (reachable.get(key) ?? Number.POSITIVE_INFINITY)) continue;
       reachable.set(key, nextCost);
+      previous.set(key, current.coord);
       if (!isStoppedByBlocking(state, unit, next)) queue.push({ coord: next, cost: nextCost });
     }
   }
 
+  return { reachable, previous };
+};
+
+export const getReachableCoords = (state: GameState, unitId: string): Map<string, number> => {
+  const unit = findUnit(state, unitId);
+  if (!unit) return new Map();
+  const { reachable } = searchMovement(state, unitId);
   reachable.delete(coordKey(unit.coord));
   return reachable;
 };
@@ -187,12 +203,23 @@ export const moveUnit = (state: GameState, unitId: string, destination: Coord): 
   if (state.winner) return { ok: false, message: 'The match is over.' };
   const unit = findUnit(state, unitId);
   if (!unit) return { ok: false, message: 'That unit is no longer on the board.' };
-  if (!getReachableCoords(state, unitId).has(coordKey(destination))) {
+  const start = { ...unit.coord };
+  const movement = searchMovement(state, unitId);
+  if (!movement.reachable.has(coordKey(destination)) || sameCoord(start, destination)) {
     return { ok: false, message: 'That hex is not reachable.' };
   }
+
+  const path = [{ ...destination }];
+  while (!sameCoord(path[path.length - 1], start)) {
+    const previous = movement.previous.get(coordKey(path[path.length - 1]));
+    if (!previous) throw new Error('Reachable movement destination is missing its resolved path.');
+    path.push({ ...previous });
+  }
+  path.reverse();
+
   unit.coord = { ...destination };
   unit.moved = true;
-  return { ok: true, message: `${unitDefinition(unit).name} moved.` };
+  return { ok: true, message: `${unitDefinition(unit).name} moved.`, path };
 };
 
 export const effectiveRange = (unit: UnitState): number => {

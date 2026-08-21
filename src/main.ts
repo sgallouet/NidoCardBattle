@@ -2,6 +2,28 @@ import Phaser from 'phaser';
 import './style.css';
 import { GameScene } from './game/GameScene';
 
+const app = document.querySelector<HTMLElement>('#app');
+const fullscreenButton = document.querySelector<HTMLButtonElement>('#fullscreen-button');
+
+const updateFullscreenButton = (): void => {
+  if (!fullscreenButton) return;
+  const isFullscreen = document.fullscreenElement === app;
+  const label = isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
+  fullscreenButton.setAttribute('aria-label', label);
+  fullscreenButton.setAttribute('aria-pressed', `${isFullscreen}`);
+  fullscreenButton.title = label;
+};
+
+fullscreenButton?.addEventListener('click', async () => {
+  if (document.fullscreenElement) {
+    await document.exitFullscreen();
+  } else {
+    await app?.requestFullscreen();
+  }
+});
+document.addEventListener('fullscreenchange', updateFullscreenButton);
+updateFullscreenButton();
+
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game-container',

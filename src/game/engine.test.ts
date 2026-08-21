@@ -13,6 +13,7 @@ import {
   getValidSummonCoords,
   isPassable,
   isStoppedByBlocking,
+  moveUnit,
   playUnitCard,
   restoreAdjacentAlly,
   terrainAt,
@@ -132,6 +133,21 @@ describe('UNT1, UNM4, UNT5', () => {
     state.units = [flyer];
     expect(terrainAt({ q: 8, r: 3 })).toBe('water');
     expect(getReachableCoords(state, flyer.id).has(coordKey({ q: 8, r: 3 }))).toBe(true);
+  });
+
+  it('returns the exact authoritative path used by movement', () => {
+    const state = freshState();
+    const mover = makeUnit('mover', 'skeletonGuard', 1, { q: 2, r: 7 });
+    state.units = [mover];
+    const destination = { q: 4, r: 7 };
+
+    const result = moveUnit(state, mover.id, destination);
+
+    expect(result.ok).toBe(true);
+    expect(result.path?.[0]).toEqual({ q: 2, r: 7 });
+    expect(result.path?.at(-1)).toEqual(destination);
+    expect(result.path?.length).toBeGreaterThan(1);
+    expect(mover.coord).toEqual(destination);
   });
 });
 

@@ -37,7 +37,7 @@ body,
 
 body {
   margin: 0;
-  min-width: 900px;
+  min-width: 600px;
   min-height: 620px;
   overflow: hidden;
   background: #17251d;
@@ -80,7 +80,7 @@ button { font: inherit; }
   position: absolute;
   z-index: 7;
   right: 18px;
-  bottom: 18px;
+  bottom: 70px;
   width: 230px;
   padding: 13px 15px;
   border-radius: 12px 4px 4px 12px;
@@ -170,22 +170,22 @@ button:disabled { cursor: not-allowed; opacity: .38; }
   bottom: 0;
   left: 0;
   min-height: 298px;
-  padding: 47px 240px 14px 82px;
+  padding: 47px 18px 14px;
   background: linear-gradient(transparent, rgba(7, 11, 8, .86) 28%, rgba(5, 7, 6, .99) 82%);
   pointer-events: none;
 }
 
 .hand-and-turn {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
-  gap: 15px;
+  gap: clamp(10px, 1.2vw, 22px);
   pointer-events: auto;
 }
 
 .hand {
+  grid-column: 2;
   display: flex;
-  flex: 1 1 auto;
   align-items: flex-end;
   justify-content: center;
   gap: 7px;
@@ -357,9 +357,42 @@ button:disabled { cursor: not-allowed; opacity: .38; }
 .end-turn:hover:not(:disabled) { background: linear-gradient(#36945d, #1b623b); }
 
 .turn-control {
+  grid-column: 3;
+  justify-self: center;
   flex: 0 0 178px;
   text-align: center;
 }
+
+.fullscreen-button {
+  position: absolute;
+  z-index: 20;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 9px;
+  border-color: rgba(233, 197, 110, .5);
+  border-radius: 8px;
+  background: rgba(9, 15, 11, .78);
+  box-shadow: 0 5px 15px #0008;
+  backdrop-filter: blur(7px);
+}
+
+.fullscreen-button svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #f5ead0;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.fullscreen-exit-icon { display: none; }
+:fullscreen .fullscreen-enter-icon { display: none; }
+:fullscreen .fullscreen-exit-icon { display: block; }
 
 .turn-indicator {
   margin-top: 7px;
@@ -372,7 +405,7 @@ button:disabled { cursor: not-allowed; opacity: .38; }
 
 @media (max-width: 1150px) {
   .unit-inspector { width: 215px; }
-  .hand-dock { min-height: 235px; padding: 42px 190px 10px 66px; }
+  .hand-dock { min-height: 235px; padding: 42px 14px 10px; }
   .hand { min-height: 207px; gap: 5px; padding-top: 25px; }
   .card { flex-basis: clamp(116px, 12vw, 140px); width: clamp(116px, 12vw, 140px); height: auto; }
   .card + .card { margin-left: -30px; }

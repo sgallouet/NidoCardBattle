@@ -94,4 +94,5 @@ export interface ActionResult {
   ok: boolean;
   message: string;
   summonedUnitId?: string;
+  path?: Coord[];
 }

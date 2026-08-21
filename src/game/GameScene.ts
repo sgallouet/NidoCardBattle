@@ -5,6 +5,13 @@ import { MAP_DECORATIONS, MAP_HEIGHT, MAP_WIDTH, type MapDecoration } from '../d
 import { FOREST_TERRAIN_ART, PLAIN_TERRAIN_ART } from '../data/terrainArt';
 import type { Coord, PlayerId, Terrain, UnitState } from '../data/types';
 import {
+  UNIT_ART,
+  type UnitAnimationState,
+  type UnitArtDefinition,
+  type UnitFacing,
+} from '../data/unitArt';
+import type { UnitDefinitionId } from '../data/units';
+import {
   attackUnit,
   coordKey,
   createGameState,
@@ -26,14 +33,17 @@ import {
   unitDefinition,
 } from './engine';
 
-const HEX_SIZE = 56;
+const HEX_SIZE = 46;
 const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
-const ORIGIN_X = 230;
-const ORIGIN_Y = 180;
-const WORLD_WIDTH = 2200;
-const WORLD_HEIGHT = 1450;
-const MIN_ZOOM = 0.62;
-const MAX_ZOOM = 1.35;
+const ORIGIN_X = 200;
+const ORIGIN_Y = 120;
+const WORLD_WIDTH = 1800;
+const WORLD_HEIGHT = 1100;
+const MIN_ZOOM = 0.52;
+const MAX_ZOOM = 1.25;
+const TOKEN_MOVEMENT_MS_PER_HEX = 190;
+const TOKEN_ATTACK_DURATION_MS = 500;
+const TOKEN_ATTACK_IMPACT_MS = 320;
 const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x55b9f3, 2: 0xf05b67 };
 const TERRAIN_PALETTES: Record<Exclude<Terrain, 'plain' | 'forest'>, number[]> = {
   hill: [0x756648, 0x806f4e, 0x6c6046],
@@ -53,6 +63,12 @@ interface DragState {
   moved: boolean;
 }
 
+interface RenderedUnitView {
+  container: Phaser.GameObjects.Container;
+  sprite?: Phaser.GameObjects.Sprite;
+  art?: UnitArtDefinition;
+}
+
 export class GameScene extends Phaser.Scene {
   private state = createGameState();
   private boardLayer?: Phaser.GameObjects.Container;
@@ -64,6 +80,9 @@ export class GameScene extends Phaser.Scene {
   private dragState: DragState | null = null;
   private suppressBoardClickUntil = 0;
   private lastHandSignature = '';
+  private animationInProgress = false;
+  private renderedUnits = new Map<string, RenderedUnitView>();
+  private unitFacings = new Map<string, UnitFacing>();
   private message = 'Player 1 begins. Move a unit or play a card.';
 
   constructor() {
@@ -74,6 +93,15 @@ export class GameScene extends Phaser.Scene {
     this.load.image(PLAIN_TERRAIN_ART.textureKey, PLAIN_TERRAIN_ART.url);
     this.load.image(FOREST_TERRAIN_ART.ground.textureKey, FOREST_TERRAIN_ART.ground.url);
     this.load.image(FOREST_TERRAIN_ART.overlay.textureKey, FOREST_TERRAIN_ART.overlay.url);
+    for (const art of Object.values(UNIT_ART)) {
+      if (!art) continue;
+      for (const animation of Object.values(art.animations)) {
+        this.load.spritesheet(animation.textureKey, animation.url, {
+          frameWidth: art.frameSize,
+          frameHeight: art.frameSize,
+        });
+      }
+    }
   }
 
   create(): void {
@@ -83,14 +111,32 @@ export class GameScene extends Phaser.Scene {
     document.querySelector<HTMLButtonElement>('#zoom-in')?.addEventListener('click', () => this.zoomBy(0.12));
     document.querySelector<HTMLButtonElement>('#zoom-out')?.addEventListener('click', () => this.zoomBy(-0.12));
     document.querySelector<HTMLButtonElement>('#zoom-reset')?.addEventListener('click', () => this.resetCamera());
+    this.createUnitAnimations();
     this.setupCameraControls();
     this.renderAll();
     this.resetCamera();
   }
 
+  private createUnitAnimations(): void {
+    for (const art of Object.values(UNIT_ART)) {
+      if (!art) continue;
+      for (const animation of Object.values(art.animations)) {
+        if (this.anims.exists(animation.animationKey)) continue;
+        this.anims.create({
+          key: animation.animationKey,
+          frames: this.anims.generateFrameNumbers(animation.textureKey, {
+            start: 0,
+            end: animation.frameCount - 1,
+          }),
+          frameRate: animation.frameRate,
+          repeat: animation.repeat,
+        });
+      }
+    }
+  }
+
   private setupCameraControls(): void {
     const camera = this.cameras.main;
-    camera.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
     this.input.on('wheel', (
       pointer: Phaser.Input.Pointer,
@@ -102,6 +148,7 @@ export class GameScene extends Phaser.Scene {
       const zoom = Phaser.Math.Clamp(camera.zoom - deltaY * 0.0012, MIN_ZOOM, MAX_ZOOM);
       camera.setZoom(zoom);
       camera.setScroll(worldPoint.x - pointer.x / zoom, worldPoint.y - pointer.y / zoom);
+      this.constrainCamera();
       this.updateZoomLabel();
     });
 
@@ -127,6 +174,7 @@ export class GameScene extends Phaser.Scene {
         this.dragState.scrollX - dx / camera.zoom,
         this.dragState.scrollY - dy / camera.zoom,
       );
+      this.constrainCamera();
     });
 
     this.input.on('pointerup', () => {
@@ -136,12 +184,15 @@ export class GameScene extends Phaser.Scene {
       this.dragState = null;
       this.game.canvas.classList.remove('dragging');
     });
+
+    this.scale.on(Phaser.Scale.Events.RESIZE, () => this.resetCamera());
   }
 
   private resetCamera(): void {
     const fit = Math.min(this.scale.width / (WORLD_WIDTH - 120), this.scale.height / (WORLD_HEIGHT - 100));
-    this.cameras.main.setZoom(Phaser.Math.Clamp(fit * 1.1, MIN_ZOOM, 0.86));
+    this.cameras.main.setZoom(Phaser.Math.Clamp(fit * 0.9, MIN_ZOOM, 0.72));
     this.cameras.main.centerOn(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+    this.constrainCamera();
     this.updateZoomLabel();
   }
 
@@ -152,7 +203,23 @@ export class GameScene extends Phaser.Scene {
     const zoom = Phaser.Math.Clamp(camera.zoom + change, MIN_ZOOM, MAX_ZOOM);
     camera.setZoom(zoom);
     camera.setScroll(worldPoint.x - pointer.x / zoom, worldPoint.y - pointer.y / zoom);
+    this.constrainCamera();
     this.updateZoomLabel();
+  }
+
+  private constrainCamera(): void {
+    const camera = this.cameras.main;
+    const halfVisibleWidth = this.scale.width / camera.zoom / 2;
+    const halfVisibleHeight = this.scale.height / camera.zoom / 2;
+    const currentCenter = camera.getWorldPoint(this.scale.width / 2, this.scale.height / 2);
+    const centerX = halfVisibleWidth >= WORLD_WIDTH / 2
+      ? WORLD_WIDTH / 2
+      : Phaser.Math.Clamp(currentCenter.x, halfVisibleWidth, WORLD_WIDTH - halfVisibleWidth);
+    const centerY = halfVisibleHeight >= WORLD_HEIGHT / 2
+      ? halfVisibleHeight
+      : Phaser.Math.Clamp(currentCenter.y, halfVisibleHeight, WORLD_HEIGHT - halfVisibleHeight);
+
+    camera.centerOn(centerX, centerY);
   }
 
   private updateZoomLabel(): void {
@@ -218,6 +285,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private renderBoard(): void {
+    this.renderedUnits.clear();
     this.boardLayer?.destroy(true);
     this.boardLayer = this.add.container(0, 0);
     const highlight = this.highlights();
@@ -499,50 +567,245 @@ export class GameScene extends Phaser.Scene {
     const definition = unitDefinition(unit);
     const selected = unit.id === this.selectedUnitId;
     const scale = definition.id === 'commander' ? 1.12 : 1;
+    const art = UNIT_ART[definition.id as UnitDefinitionId];
+    const container = this.add.container(center.x, center.y);
     const graphics = this.add.graphics();
-    graphics.fillStyle(0x07100a, 0.56);
-    graphics.fillEllipse(center.x + 4, center.y + 25, 58 * scale, 19 * scale);
-    const tokenPoints = [
-      new Phaser.Geom.Point(center.x, center.y - 31 * scale),
-      new Phaser.Geom.Point(center.x + 27 * scale, center.y - 14 * scale),
-      new Phaser.Geom.Point(center.x + 22 * scale, center.y + 18 * scale),
-      new Phaser.Geom.Point(center.x, center.y + 32 * scale),
-      new Phaser.Geom.Point(center.x - 22 * scale, center.y + 18 * scale),
-      new Phaser.Geom.Point(center.x - 27 * scale, center.y - 14 * scale),
-    ];
-    graphics.fillStyle(PLAYER_COLORS[unit.owner], unit.exhausted ? 0.58 : 1);
-    graphics.fillPoints(tokenPoints, true);
-    graphics.fillStyle(0xffffff, 0.14);
-    graphics.fillTriangle(
-      center.x - 18 * scale, center.y - 12 * scale,
-      center.x, center.y - 25 * scale,
-      center.x, center.y + 20 * scale,
-    );
-    graphics.lineStyle(selected ? 6 : 3, selected ? 0xffefb0 : 0x132019, 1);
-    graphics.strokePoints(tokenPoints, true);
-    this.boardLayer?.add(graphics);
+    if (art) {
+      const shadow = art.shadow;
+      graphics.fillStyle(0x07100a, shadow.alpha);
+      graphics.fillEllipse(
+        shadow.offsetX,
+        shadow.offsetY,
+        shadow.width,
+        shadow.height,
+      );
+      if (selected) {
+        graphics.lineStyle(2, 0xffefb0, 0.9);
+        graphics.strokeEllipse(
+          shadow.offsetX,
+          shadow.offsetY,
+          shadow.width + 8,
+          shadow.height + 6,
+        );
+      }
+    } else {
+      graphics.fillStyle(0x07100a, 0.56);
+      graphics.fillEllipse(4, 25, 58 * scale, 19 * scale);
+      const tokenPoints = [
+        new Phaser.Geom.Point(0, -31 * scale),
+        new Phaser.Geom.Point(27 * scale, -14 * scale),
+        new Phaser.Geom.Point(22 * scale, 18 * scale),
+        new Phaser.Geom.Point(0, 32 * scale),
+        new Phaser.Geom.Point(-22 * scale, 18 * scale),
+        new Phaser.Geom.Point(-27 * scale, -14 * scale),
+      ];
+      graphics.fillStyle(PLAYER_COLORS[unit.owner], unit.exhausted ? 0.58 : 1);
+      graphics.fillPoints(tokenPoints, true);
+      graphics.fillStyle(0xffffff, 0.14);
+      graphics.fillTriangle(
+        -18 * scale, -12 * scale,
+        0, -25 * scale,
+        0, 20 * scale,
+      );
+      graphics.lineStyle(selected ? 6 : 3, selected ? 0xffefb0 : 0x132019, 1);
+      graphics.strokePoints(tokenPoints, true);
+    }
+    container.add(graphics);
 
-    const mark = this.add.text(center.x, center.y - 2, definition.mark, {
-      fontFamily: 'Georgia, serif', fontSize: definition.id === 'commander' ? '28px' : '24px',
-      color: '#0b171d', fontStyle: 'bold', stroke: '#ffffff', strokeThickness: 1,
-    }).setOrigin(0.5);
-    const hpBadge = this.add.circle(center.x + 27, center.y + 25, 13, 0x1a241c).setStrokeStyle(2, 0xe8dab5);
-    const hp = this.add.text(center.x + 27, center.y + 25, `${unit.hp}`, {
+    let unitVisual: Phaser.GameObjects.Sprite | Phaser.GameObjects.Text;
+    let sprite: Phaser.GameObjects.Sprite | undefined;
+    if (art) {
+      sprite = this.add.sprite(
+        art.offsetX,
+        art.offsetY,
+        art.animations.idle.textureKey,
+      ).setOrigin(art.anchorX, art.anchorY);
+      sprite.setScale(art.scale * scale);
+      const facing = this.unitFacings.get(unit.id)
+        ?? (unit.owner === 1 ? art.defaultFacing : 'north-west');
+      this.unitFacings.set(unit.id, facing);
+      sprite.setFlipX(art.mirroredFacings.includes(facing));
+      sprite.play(art.animations.idle.animationKey);
+      const idleFrames = art.animations.idle.frameCount;
+      if (idleFrames > 1) {
+        const phase = [...unit.id].reduce((total, character) => total + character.charCodeAt(0), 0) % idleFrames;
+        sprite.anims.setProgress(phase / idleFrames);
+      }
+      unitVisual = sprite;
+    } else {
+      unitVisual = this.add.text(0, -2, definition.mark, {
+        fontFamily: 'Georgia, serif', fontSize: definition.id === 'commander' ? '28px' : '24px',
+        color: '#0b171d', fontStyle: 'bold', stroke: '#ffffff', strokeThickness: 1,
+      }).setOrigin(0.5);
+    }
+    const hpBadge = this.add.circle(27, 25, 13, 0x1a241c)
+      .setStrokeStyle(2, art ? PLAYER_COLORS[unit.owner] : 0xe8dab5);
+    const hp = this.add.text(27, 25, `${unit.hp}`, {
       fontFamily: 'Georgia, serif', fontSize: '13px', color: '#fff8e6', fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.boardLayer?.add([mark, hpBadge, hp]);
+    container.add([unitVisual, hpBadge, hp]);
 
     if (unit.exhausted) {
-      const exhausted = this.add.text(center.x - 27, center.y - 26, 'Z', {
+      const exhausted = this.add.text(-27, -26, 'Z', {
         fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#f5e7bd', fontStyle: 'bold',
         backgroundColor: '#43364c', padding: { x: 4, y: 2 },
       }).setOrigin(0.5);
-      this.boardLayer?.add(exhausted);
+      container.add(exhausted);
     }
+    this.boardLayer?.add(container);
+    this.renderedUnits.set(unit.id, { container, sprite, art });
   }
 
-  private handleHexClick(coord: Coord): void {
-    if (this.state.winner) return;
+  private setAnimationLock(locked: boolean): void {
+    this.animationInProgress = locked;
+    this.renderHud();
+  }
+
+  private wait(duration: number): Promise<void> {
+    return new Promise((resolve) => this.time.delayedCall(duration, resolve));
+  }
+
+  private tweenPosition(
+    target: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    duration: number,
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      this.tweens.add({
+        targets: target,
+        x,
+        y,
+        duration,
+        ease: 'Sine.easeInOut',
+        onComplete: () => resolve(),
+      });
+    });
+  }
+
+  private faceUnit(unitId: string, from: Phaser.Math.Vector2, to: Phaser.Math.Vector2): void {
+    const previous = this.unitFacings.get(unitId) ?? 'south-east';
+    const vertical = to.y < from.y ? 'north' : 'south';
+    const horizontal = to.x < from.x
+      ? 'west'
+      : to.x > from.x
+        ? 'east'
+        : previous.endsWith('west') ? 'west' : 'east';
+    const facing = `${vertical}-${horizontal}` as UnitFacing;
+    this.unitFacings.set(unitId, facing);
+    const view = this.renderedUnits.get(unitId);
+    if (view?.sprite && view.art) view.sprite.setFlipX(view.art.mirroredFacings.includes(facing));
+  }
+
+  private playUnitAnimation(unitId: string, state: UnitAnimationState): void {
+    const view = this.renderedUnits.get(unitId);
+    if (!view?.sprite || !view.art) return;
+    view.sprite.play(view.art.animations[state].animationKey, true);
+  }
+
+  private async animateMovement(unitId: string, path: Coord[]): Promise<void> {
+    const view = this.renderedUnits.get(unitId);
+    if (!view) throw new Error(`Moving unit ${unitId} has no rendered view.`);
+    this.boardLayer?.bringToTop(view.container);
+    this.playUnitAnimation(unitId, 'walk');
+    for (let index = 1; index < path.length; index += 1) {
+      const from = this.center(path[index - 1]);
+      const to = this.center(path[index]);
+      this.faceUnit(unitId, from, to);
+      const duration = view.art ? view.art.movementMsPerHex : TOKEN_MOVEMENT_MS_PER_HEX;
+      await this.tweenPosition(view.container, to.x, to.y, duration);
+    }
+    this.playUnitAnimation(unitId, 'idle');
+  }
+
+  private showHitFeedback(unitId: string, damage: number): void {
+    const view = this.renderedUnits.get(unitId);
+    if (!view) return;
+    if (view.sprite) {
+      view.sprite.setTintFill(0xffffff);
+      this.time.delayedCall(90, () => view.sprite?.clearTint());
+    }
+    this.tweens.add({
+      targets: view.container,
+      alpha: 0.48,
+      duration: 70,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+    });
+    const number = this.add.text(view.container.x, view.container.y - 55, `-${damage}`, {
+      fontFamily: 'Georgia, serif',
+      fontSize: '19px',
+      color: '#fff4e5',
+      fontStyle: 'bold',
+      stroke: '#8c1727',
+      strokeThickness: 5,
+    }).setOrigin(0.5);
+    this.boardLayer?.add(number);
+    this.tweens.add({
+      targets: number,
+      y: number.y - 24,
+      alpha: 0,
+      duration: 420,
+      ease: 'Cubic.easeOut',
+      onComplete: () => number.destroy(),
+    });
+  }
+
+  private async animateAttackMotion(
+    attackerId: string,
+    targetCoord: Coord,
+    onImpact: () => void,
+  ): Promise<void> {
+    const view = this.renderedUnits.get(attackerId);
+    if (!view) throw new Error(`Attacking unit ${attackerId} has no rendered view.`);
+    const source = new Phaser.Math.Vector2(view.container.x, view.container.y);
+    const target = this.center(targetCoord);
+    this.faceUnit(attackerId, source, target);
+    this.playUnitAnimation(attackerId, 'attack');
+    this.boardLayer?.bringToTop(view.container);
+
+    const direction = target.clone().subtract(source).normalize().scale(10);
+    const duration = view.art ? view.art.attackDurationMs : TOKEN_ATTACK_DURATION_MS;
+    const impact = view.art ? view.art.attackImpactMs : TOKEN_ATTACK_IMPACT_MS;
+    const advanceDuration = Math.round(impact * 0.55);
+    await this.tweenPosition(
+      view.container,
+      source.x + direction.x,
+      source.y + direction.y,
+      advanceDuration,
+    );
+    await this.wait(impact - advanceDuration);
+    onImpact();
+    await this.tweenPosition(view.container, source.x, source.y, duration - impact);
+    this.playUnitAnimation(attackerId, 'idle');
+  }
+
+  private async resolveAnimatedAttack(attackerId: string, defenderId: string): Promise<void> {
+    const attacker = findUnit(this.state, attackerId);
+    const defender = findUnit(this.state, defenderId);
+    if (!attacker || !defender) return;
+    const defenderCoord = { ...defender.coord };
+    const attackerCoord = { ...attacker.coord };
+    const attackerHpBefore = attacker.hp;
+    const defenderHpBefore = defender.hp;
+    let result = { ok: false, message: 'That attack is no longer available.' };
+
+    await this.animateAttackMotion(attackerId, defenderCoord, () => {
+      result = attackUnit(this.state, attackerId, defenderId);
+      if (result.ok) this.showHitFeedback(defenderId, Math.max(0, defenderHpBefore - defender.hp));
+    });
+
+    const retaliationDamage = Math.max(0, attackerHpBefore - attacker.hp);
+    if (result.ok && retaliationDamage > 0 && findUnit(this.state, defenderId)) {
+      await this.animateAttackMotion(defenderId, attackerCoord, () => {
+        this.showHitFeedback(attackerId, retaliationDamage);
+      });
+    }
+    this.message = result.message;
+  }
+
+  private async handleHexClick(coord: Coord): Promise<void> {
+    if (this.state.winner || this.animationInProgress) return;
     const occupant = unitAt(this.state, coord);
 
     if (this.mode === 'card' && this.selectedCardIndex !== null) {
@@ -602,15 +865,38 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (selected && selected.owner === this.state.currentPlayer && occupant?.owner !== this.state.currentPlayer && occupant) {
-      const result = attackUnit(this.state, selected.id, occupant.id);
-      this.message = result.message;
-      return this.renderAll();
+      if (!getAttackTargets(this.state, selected.id).some((target) => target.id === occupant.id)) {
+        const result = attackUnit(this.state, selected.id, occupant.id);
+        this.message = result.message;
+        this.renderAll();
+        return;
+      }
+      this.setAnimationLock(true);
+      try {
+        await this.resolveAnimatedAttack(selected.id, occupant.id);
+      } finally {
+        this.setAnimationLock(false);
+        this.renderAll();
+      }
+      return;
     }
 
     if (selected && selected.owner === this.state.currentPlayer && !occupant) {
       const result = moveUnit(this.state, selected.id, coord);
       this.message = result.message;
-      return this.renderAll();
+      if (!result.ok) {
+        this.renderAll();
+        return;
+      }
+      if (!result.path) throw new Error('Successful movement did not return its resolved path.');
+      this.setAnimationLock(true);
+      try {
+        await this.animateMovement(selected.id, result.path);
+      } finally {
+        this.setAnimationLock(false);
+        this.renderAll();
+      }
+      return;
     }
 
     if (occupant) {
@@ -630,7 +916,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private selectCard(index: number): void {
-    if (this.state.winner) return;
+    if (this.state.winner || this.animationInProgress) return;
     if (this.mode === 'restore-target') {
       this.message = 'Resolve the Light Mage restore first.';
       return this.renderHud();
@@ -647,6 +933,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private beginDisplace(): void {
+    if (this.animationInProgress) return;
     const selected = this.selectedUnitId ? findUnit(this.state, this.selectedUnitId) : undefined;
     if (!selected || getDisplaceTargets(this.state, selected.id).length === 0) {
       this.message = 'No adjacent unit can be displaced.';
@@ -659,6 +946,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleEndTurn(): void {
+    if (this.animationInProgress) return;
     if (this.mode === 'restore-target') {
       this.message = 'Resolve the Light Mage restore first.';
       return this.renderHud();
@@ -678,6 +966,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cancelInteraction(message: string): void {
+    if (this.animationInProgress) return;
     this.clearInteraction();
     this.message = message;
     this.renderAll();
@@ -724,15 +1013,23 @@ export class GameScene extends Phaser.Scene {
         && unitDefinition(selected).ability === 'Displace';
       abilityButton.hidden = !isDisplacer;
       abilityButton.textContent = 'Use Displace';
-      abilityButton.disabled = !isDisplacer || selected.exhausted || selected.attacked || this.state.winner !== null;
+      abilityButton.disabled = !isDisplacer
+        || selected.exhausted
+        || selected.attacked
+        || this.state.winner !== null
+        || this.animationInProgress;
     }
 
     const endButton = document.querySelector<HTMLButtonElement>('#end-turn-button');
-    if (endButton) endButton.disabled = this.state.winner !== null || this.mode === 'restore-target';
+    if (endButton) {
+      endButton.disabled = this.state.winner !== null
+        || this.mode === 'restore-target'
+        || this.animationInProgress;
+    }
     const status = document.querySelector<HTMLElement>('#status');
     if (status) status.textContent = this.message;
     const cancelButton = document.querySelector<HTMLButtonElement>('#cancel-button');
-    if (cancelButton) cancelButton.disabled = !selected;
+    if (cancelButton) cancelButton.disabled = !selected || this.animationInProgress;
     this.renderHand();
   }
 
@@ -744,7 +1041,7 @@ export class GameScene extends Phaser.Scene {
     const shouldDeal = handSignature !== this.lastHandSignature;
     hand.replaceChildren();
     player.hand.forEach((cardId, index) => {
-      const card = CARD_DEFINITIONS[cardId as CardDefinitionId];
+      const card = cardDefinition(cardId as CardDefinitionId);
       const cardArt = CARD_ART[cardId as CardDefinitionId];
       const button = document.createElement('button');
       button.type = 'button';
@@ -753,7 +1050,7 @@ export class GameScene extends Phaser.Scene {
         this.selectedCardIndex === index ? 'selected' : '',
         shouldDeal ? 'deal-in' : '',
       ].filter(Boolean).join(' ');
-      button.disabled = card.cost > player.mana || this.state.winner !== null;
+      button.disabled = card.cost > player.mana || this.state.winner !== null || this.animationInProgress;
       button.dataset.handIndex = `${index}`;
       button.setAttribute('aria-label', `${card.name}, ${card.cost} mana`);
       const fanOffset = index - (player.hand.length - 1) / 2;

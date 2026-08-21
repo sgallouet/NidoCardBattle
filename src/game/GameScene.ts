@@ -574,19 +574,26 @@ export class GameScene extends Phaser.Scene {
 
   private renderHud(): void {
     const current = this.state.players[this.state.currentPlayer];
-    const wells = this.state.sites.filter((site) => site.type === 'well' && site.owner === this.state.currentPlayer).length;
-    const turnSummary = document.querySelector<HTMLElement>('#turn-summary');
-    if (turnSummary) {
-      turnSummary.innerHTML = `<span class="unit-owner-${this.state.currentPlayer}">Player ${this.state.currentPlayer}</span> · Turn ${this.state.turnNumber}<small>${current.mana} mana · ${wells} Mana Well${wells === 1 ? '' : 's'}</small>`;
-    }
+    const manaCount = document.querySelector<HTMLElement>('#mana-count');
+    if (manaCount) manaCount.textContent = `${current.mana}`;
+    const turnIndicator = document.querySelector<HTMLElement>('#turn-indicator');
+    if (turnIndicator) turnIndicator.textContent = `Player ${this.state.currentPlayer} turn`;
 
     const selectedPanel = document.querySelector<HTMLElement>('#selected-unit');
     const selected = this.selectedUnitId ? findUnit(this.state, this.selectedUnitId) : undefined;
+    const inspector = document.querySelector<HTMLElement>('#unit-inspector');
+    if (inspector) inspector.hidden = !selected;
     if (selectedPanel) {
       if (!selected) selectedPanel.innerHTML = '<span class="muted">Select a unit on the battlefield.</span>';
       else {
         const definition = unitDefinition(selected);
         const traits = [...definition.traits, ...(definition.ability ? [definition.ability] : [])];
+        const states = [
+          selected.exhausted ? 'Exhausted' : '',
+          selected.moved ? 'Moved' : '',
+          selected.attacked ? 'Attacked' : '',
+        ].filter(Boolean);
+        const detailTags = [...traits, ...states];
         selectedPanel.innerHTML = `
           <div class="unit-name unit-owner-${selected.owner}">${definition.name}</div>
           <div class="unit-stats">
@@ -595,7 +602,7 @@ export class GameScene extends Phaser.Scene {
             <span>Move <strong>${definition.move}</strong></span>
             <span>Range <strong>${effectiveRange(selected)}</strong></span>
           </div>
-          <div class="traits">${traits.length ? traits.join(' · ') : 'No traits'}${selected.exhausted ? ' · Exhausted' : ''}${selected.moved ? ' · Moved' : ''}${selected.attacked ? ' · Attacked' : ''}</div>`;
+          ${detailTags.length ? `<div class="traits">${detailTags.join(' · ')}</div>` : ''}`;
       }
     }
 
@@ -609,22 +616,12 @@ export class GameScene extends Phaser.Scene {
       abilityButton.disabled = !isDisplacer || selected.exhausted || selected.attacked || this.state.winner !== null;
     }
 
-    const countdown = document.querySelector<HTMLElement>('#countdown');
-    if (countdown) {
-      if (this.state.winner) countdown.innerHTML = `<span class="winner">Player ${this.state.winner} won.</span>`;
-      else if (this.state.countdown) {
-        countdown.innerHTML = `<span class="countdown-active">Player ${this.state.countdown.player}: ${this.state.countdown.checkpoints}/3 checkpoints</span>`;
-      } else countdown.innerHTML = '<span class="muted">No countdown is active.</span>';
-    }
-
-    const status = document.querySelector<HTMLElement>('#status');
-    if (status) status.textContent = this.message;
     const endButton = document.querySelector<HTMLButtonElement>('#end-turn-button');
     if (endButton) endButton.disabled = this.state.winner !== null;
+    const status = document.querySelector<HTMLElement>('#status');
+    if (status) status.textContent = this.message;
     const cancelButton = document.querySelector<HTMLButtonElement>('#cancel-button');
-    if (cancelButton) cancelButton.disabled = this.mode === null;
-    const deckSummary = document.querySelector<HTMLElement>('#deck-summary');
-    if (deckSummary) deckSummary.textContent = `${current.deck.length} deck · ${current.discard.length} discard`;
+    if (cancelButton) cancelButton.disabled = !selected;
     this.renderHand();
   }
 

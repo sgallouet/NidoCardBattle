@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CARD_ART } from '../data/cardArt';
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import { MAP_DECORATIONS, MAP_HEIGHT, MAP_WIDTH, type MapDecoration } from '../data/map';
+import { FOREST_TERRAIN_ART, PLAIN_TERRAIN_ART } from '../data/terrainArt';
 import type { Coord, PlayerId, Terrain, UnitState } from '../data/types';
 import {
   attackUnit,
@@ -34,9 +35,7 @@ const WORLD_HEIGHT = 1450;
 const MIN_ZOOM = 0.62;
 const MAX_ZOOM = 1.35;
 const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x55b9f3, 2: 0xf05b67 };
-const TERRAIN_PALETTES: Record<Terrain, number[]> = {
-  plain: [0x66804b, 0x708852, 0x5d7946, 0x78905a],
-  forest: [0x315638, 0x294a32, 0x3b6240],
+const TERRAIN_PALETTES: Record<Exclude<Terrain, 'plain' | 'forest'>, number[]> = {
   hill: [0x756648, 0x806f4e, 0x6c6046],
   water: [0x27779a, 0x2d84a7, 0x226d91],
   cliff: [0x52585a, 0x606465, 0x494f51],
@@ -69,6 +68,12 @@ export class GameScene extends Phaser.Scene {
 
   constructor() {
     super('game');
+  }
+
+  preload(): void {
+    this.load.image(PLAIN_TERRAIN_ART.textureKey, PLAIN_TERRAIN_ART.url);
+    this.load.image(FOREST_TERRAIN_ART.ground.textureKey, FOREST_TERRAIN_ART.ground.url);
+    this.load.image(FOREST_TERRAIN_ART.overlay.textureKey, FOREST_TERRAIN_ART.overlay.url);
   }
 
   create(): void {
@@ -226,16 +231,35 @@ export class GameScene extends Phaser.Scene {
         const key = coordKey(coord);
         const center = this.center(coord);
         const points = this.hexPoints(center);
-        const hex = this.add.graphics();
-        const palette = TERRAIN_PALETTES[terrainAt(coord)];
-        const fill = palette[(q * 17 + r * 31) % palette.length];
-        hex.fillStyle(0x101a13, 0.42);
-        hex.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x + 4, center.y + 6), 0), true);
-        hex.fillStyle(fill, 1);
-        hex.fillPoints(points, true);
-        hex.fillStyle(0xffffff, 0.035);
-        hex.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x - 3, center.y - 4), 9), true);
+        const terrain = terrainAt(coord);
+        const base = this.add.graphics();
+        base.fillStyle(0x101a13, 0.42);
+        base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x + 4, center.y + 6), 0), true);
+        if (terrain === 'plain') {
+          this.boardLayer.add(base);
+          const tile = this.add.image(center.x, center.y, PLAIN_TERRAIN_ART.textureKey)
+            .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
+          this.boardLayer.add(tile);
+        } else if (terrain === 'forest') {
+          this.boardLayer.add(base);
+          const ground = this.add.image(center.x, center.y, FOREST_TERRAIN_ART.ground.textureKey)
+            .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
+          const canopy = this.add.image(center.x, center.y, FOREST_TERRAIN_ART.overlay.textureKey)
+            .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2)
+            .setAngle(((q * 17 + r * 31) % 6) * 60)
+            .setAlpha(FOREST_TERRAIN_ART.overlay.alpha);
+          this.boardLayer.add([ground, canopy]);
+        } else {
+          const palette = TERRAIN_PALETTES[terrain];
+          const fill = palette[(q * 17 + r * 31) % palette.length];
+          base.fillStyle(fill, 1);
+          base.fillPoints(points, true);
+          base.fillStyle(0xffffff, 0.035);
+          base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x - 3, center.y - 4), 9), true);
+          this.boardLayer.add(base);
+        }
 
+        const hex = this.add.graphics();
         let stroke = 0x263828;
         let strokeWidth = 2;
         if (highlight.move.has(key)) {
@@ -267,7 +291,7 @@ export class GameScene extends Phaser.Scene {
           if (!this.dragState?.moved && performance.now() >= this.suppressBoardClickUntil) this.handleHexClick(coord);
         });
         this.boardLayer.add(hex);
-        this.addTerrainDetail(coord, center);
+        if (terrain !== 'plain' && terrain !== 'forest') this.addTerrainDetail(coord, center);
       }
     }
 
@@ -309,38 +333,6 @@ export class GameScene extends Phaser.Scene {
     const terrain = terrainAt(coord);
     const graphics = this.add.graphics();
     const seed = coord.q * 41 + coord.r * 73;
-
-    if (terrain === 'plain') {
-      graphics.lineStyle(2, 0xb1c37a, 0.28);
-      for (let index = 0; index < 4; index += 1) {
-        const x = center.x - 28 + ((seed + index * 19) % 54);
-        const y = center.y - 19 + ((seed + index * 29) % 38);
-        graphics.lineBetween(x, y + 5, x + 2, y - 4);
-        graphics.lineBetween(x + 2, y - 4, x + 6, y + 2);
-      }
-    }
-
-    if (terrain === 'forest') {
-      graphics.fillStyle(0x142b20, 0.35);
-      graphics.fillEllipse(center.x, center.y + 15, 74, 25);
-      const trees = [[-22, 4, 18], [0, -8, 23], [23, 6, 17], [3, 13, 18]];
-      for (const [dx, dy, size] of trees) {
-        graphics.fillStyle(0x402f20, 0.9);
-        graphics.fillRect(center.x + dx - 2, center.y + dy, 4, 18);
-        graphics.fillStyle(0x183f29, 1);
-        graphics.fillTriangle(
-          center.x + dx, center.y + dy - size,
-          center.x + dx - size * 0.58, center.y + dy + 5,
-          center.x + dx + size * 0.58, center.y + dy + 5,
-        );
-        graphics.lineStyle(1, 0x6b8f55, 0.45);
-        graphics.strokeTriangle(
-          center.x + dx, center.y + dy - size,
-          center.x + dx - size * 0.58, center.y + dy + 5,
-          center.x + dx + size * 0.58, center.y + dy + 5,
-        );
-      }
-    }
 
     if (terrain === 'hill') {
       graphics.fillStyle(0x4e4534, 0.48);

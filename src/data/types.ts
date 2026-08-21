@@ -1,5 +1,5 @@
 export type PlayerId = 1 | 2;
-export type Terrain = 'plain' | 'forest' | 'hill' | 'water' | 'cliff';
+export type Terrain = 'plain' | 'forest' | 'hill' | 'water' | 'cliff' | 'bridge';
 export type SiteType = 'keep' | 'fort' | 'well';
 export type Trait = 'Blocking' | 'Retaliates' | 'Invoker';
 export type Ability = 'Displace' | 'Blood Drain' | 'Phase' | 'Feast';

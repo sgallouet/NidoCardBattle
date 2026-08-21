@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
-import { MAP_HEIGHT, MAP_WIDTH } from '../data/map';
+import { MAP_DECORATIONS, MAP_HEIGHT, MAP_WIDTH, type MapDecoration } from '../data/map';
 import type { CardDefinition, Coord, PlayerId, Terrain, UnitState } from '../data/types';
 import {
   attackUnit,
@@ -27,10 +27,10 @@ import {
 const HEX_SIZE = 56;
 const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
 const ORIGIN_X = 230;
-const ORIGIN_Y = 170;
-const WORLD_WIDTH = 1670;
-const WORLD_HEIGHT = 1060;
-const MIN_ZOOM = 0.72;
+const ORIGIN_Y = 180;
+const WORLD_WIDTH = 2200;
+const WORLD_HEIGHT = 1450;
+const MIN_ZOOM = 0.62;
 const MAX_ZOOM = 1.35;
 const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x55b9f3, 2: 0xf05b67 };
 const TERRAIN_PALETTES: Record<Terrain, number[]> = {
@@ -39,6 +39,7 @@ const TERRAIN_PALETTES: Record<Terrain, number[]> = {
   hill: [0x756648, 0x806f4e, 0x6c6046],
   water: [0x27779a, 0x2d84a7, 0x226d91],
   cliff: [0x52585a, 0x606465, 0x494f51],
+  bridge: [0x27779a, 0x2d84a7, 0x226d91],
 };
 
 type InteractionMode = 'unit' | 'card' | 'displace-target' | 'displace-destination' | null;
@@ -129,8 +130,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resetCamera(): void {
-    const fit = Math.min(this.scale.width / 1500, this.scale.height / 950);
-    this.cameras.main.setZoom(Phaser.Math.Clamp(fit, MIN_ZOOM, 1));
+    const fit = Math.min(this.scale.width / (WORLD_WIDTH - 120), this.scale.height / (WORLD_HEIGHT - 100));
+    this.cameras.main.setZoom(Phaser.Math.Clamp(fit * 1.1, MIN_ZOOM, 0.86));
     this.cameras.main.centerOn(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
     this.updateZoomLabel();
   }
@@ -264,6 +265,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    for (const decoration of MAP_DECORATIONS) this.addMapDecoration(decoration);
     for (const site of this.state.sites) this.addSite(site.coord, site.type, site.owner);
     for (const unit of this.state.units) this.addUnit(unit);
 
@@ -354,6 +356,23 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    if (terrain === 'bridge') {
+      graphics.lineStyle(2, 0x8bd7e4, 0.4);
+      graphics.lineBetween(center.x - 43, center.y - 28, center.x + 43, center.y - 28);
+      graphics.lineBetween(center.x - 43, center.y + 28, center.x + 43, center.y + 28);
+      graphics.fillStyle(0x3d2d1c, 0.92);
+      graphics.fillRect(center.x - 49, center.y - 20, 98, 40);
+      graphics.fillStyle(0x9b7242, 1);
+      graphics.fillRect(center.x - 49, center.y - 16, 98, 32);
+      graphics.lineStyle(2, 0x50351d, 0.9);
+      for (let x = -42; x <= 42; x += 12) {
+        graphics.lineBetween(center.x + x, center.y - 16, center.x + x, center.y + 16);
+      }
+      graphics.lineStyle(3, 0xc29a5f, 0.7);
+      graphics.lineBetween(center.x - 47, center.y - 17, center.x + 47, center.y - 17);
+      graphics.lineBetween(center.x - 47, center.y + 17, center.x + 47, center.y + 17);
+    }
+
     if (terrain === 'cliff') {
       graphics.fillStyle(0x303638, 0.9);
       graphics.fillTriangle(center.x - 39, center.y + 24, center.x - 13, center.y - 28, center.x + 6, center.y + 24);
@@ -362,6 +381,55 @@ export class GameScene extends Phaser.Scene {
       graphics.lineStyle(2, 0xaeb1aa, 0.38);
       graphics.lineBetween(center.x - 13, center.y - 28, center.x - 3, center.y + 3);
       graphics.lineBetween(center.x + 17, center.y - 21, center.x + 13, center.y + 8);
+    }
+    this.boardLayer?.add(graphics);
+  }
+
+  private addMapDecoration(decoration: MapDecoration): void {
+    const center = this.center(decoration.coord);
+    const graphics = this.add.graphics();
+
+    if (decoration.type === 'road' && terrainAt(decoration.coord) !== 'bridge') {
+      const angles = [0, Math.PI / 3, -Math.PI / 3];
+      const angle = angles[(decoration.coord.q + decoration.coord.r * 2) % angles.length];
+      const dx = Math.cos(angle) * 52;
+      const dy = Math.sin(angle) * 52;
+      graphics.lineStyle(18, 0x4a3520, 0.38);
+      graphics.lineBetween(center.x - dx, center.y - dy, center.x + dx, center.y + dy);
+      graphics.lineStyle(11, 0xa17c4e, 0.48);
+      graphics.lineBetween(center.x - dx, center.y - dy, center.x + dx, center.y + dy);
+      graphics.lineStyle(2, 0xc8a46c, 0.28);
+      graphics.lineBetween(center.x - dx, center.y - dy - 3, center.x + dx, center.y + dy - 3);
+    }
+
+    if (decoration.type === 'village') {
+      graphics.fillStyle(0x132017, 0.45);
+      graphics.fillEllipse(center.x, center.y + 22, 76, 21);
+      for (const [dx, dy, scale] of [[-22, 5, 1], [12, -7, 0.85]] as const) {
+        graphics.fillStyle(0xc8b98e, 1);
+        graphics.fillRect(center.x + dx - 13 * scale, center.y + dy - 7 * scale, 26 * scale, 24 * scale);
+        graphics.fillStyle(0x7b3024, 1);
+        graphics.fillTriangle(
+          center.x + dx - 17 * scale, center.y + dy - 7 * scale,
+          center.x + dx, center.y + dy - 24 * scale,
+          center.x + dx + 17 * scale, center.y + dy - 7 * scale,
+        );
+        graphics.fillStyle(0x473326, 1);
+        graphics.fillRect(center.x + dx - 3 * scale, center.y + dy + 5 * scale, 7 * scale, 12 * scale);
+      }
+    }
+
+    if (decoration.type === 'ruin') {
+      graphics.fillStyle(0x252b27, 0.38);
+      graphics.fillEllipse(center.x, center.y + 22, 77, 22);
+      graphics.fillStyle(0x8c8b78, 1);
+      graphics.fillRect(center.x - 28, center.y - 19, 10, 40);
+      graphics.fillRect(center.x + 9, center.y - 8, 10, 31);
+      graphics.fillRect(center.x - 31, center.y - 23, 17, 7);
+      graphics.fillRect(center.x + 6, center.y - 12, 17, 7);
+      graphics.fillTriangle(center.x - 9, center.y + 7, center.x + 3, center.y - 1, center.x + 7, center.y + 14);
+      graphics.lineStyle(2, 0xc2bea0, 0.34);
+      graphics.lineBetween(center.x - 24, center.y - 18, center.x - 23, center.y + 16);
     }
     this.boardLayer?.add(graphics);
   }
@@ -384,12 +452,29 @@ export class GameScene extends Phaser.Scene {
       graphics.fillStyle(0x101713, 1);
       graphics.fillRect(center.x - 7, center.y + 7, 14, 24);
     } else if (type === 'fort') {
-      graphics.fillStyle(0x5b6257, 1);
-      graphics.fillRect(center.x - 30, center.y - 14, 60, 39);
-      graphics.fillStyle(0x909681, 1);
-      for (const x of [-29, -9, 11]) graphics.fillRect(center.x + x, center.y - 24, 17, 16);
-      graphics.fillStyle(0x252c27, 1);
-      graphics.fillRect(center.x - 6, center.y + 4, 12, 21);
+      graphics.fillStyle(0x252c2a, 0.95);
+      graphics.fillCircle(center.x, center.y, 47);
+      graphics.lineStyle(6, 0x9a9d8b, 1);
+      graphics.strokeCircle(center.x, center.y, 43);
+      graphics.fillStyle(0x777d73, 1);
+      graphics.fillRect(center.x - 34, center.y - 19, 68, 46);
+      graphics.fillStyle(0x969b8d, 1);
+      for (const [dx, dy] of [[-32, -26], [32, -26], [-39, 13], [39, 13]] as const) {
+        graphics.fillCircle(center.x + dx, center.y + dy, 13);
+        graphics.fillRect(center.x + dx - 11, center.y + dy - 10, 22, 25);
+        for (const tooth of [-9, 0, 9]) {
+          graphics.fillRect(center.x + dx + tooth - 3, center.y + dy - 18, 6, 9);
+        }
+      }
+      graphics.fillStyle(0x555d55, 1);
+      graphics.fillRect(center.x - 22, center.y - 31, 44, 47);
+      for (const x of [-20, -7, 7, 20]) graphics.fillRect(center.x + x - 3, center.y - 39, 7, 10);
+      graphics.fillStyle(0x202723, 1);
+      graphics.fillRect(center.x - 8, center.y - 5, 16, 32);
+      graphics.lineStyle(3, 0x34291c, 1);
+      graphics.lineBetween(center.x + 2, center.y - 58, center.x + 2, center.y - 28);
+      graphics.fillStyle(ownerColor, 1);
+      graphics.fillTriangle(center.x + 4, center.y - 56, center.x + 26, center.y - 48, center.x + 4, center.y - 40);
     } else {
       graphics.fillStyle(0x283c3b, 1);
       graphics.fillCircle(center.x, center.y, 29);
@@ -401,10 +486,10 @@ export class GameScene extends Phaser.Scene {
       graphics.fillCircle(center.x, center.y, 9);
     }
     graphics.lineStyle(3, ownerColor, 0.95);
-    graphics.strokeCircle(center.x, center.y, type === 'well' ? 35 : 42);
+    graphics.strokeCircle(center.x, center.y, type === 'well' ? 35 : type === 'fort' ? 51 : 42);
     this.boardLayer?.add(graphics);
 
-    const label = this.add.text(center.x, center.y + 42, type === 'keep' ? 'KEEP' : type === 'fort' ? 'FORT' : 'WELL', {
+    const label = this.add.text(center.x, center.y + (type === 'fort' ? 55 : 42), type === 'keep' ? 'KEEP' : type === 'fort' ? 'FORT' : 'WELL', {
       fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#fff5d4', fontStyle: 'bold',
       stroke: '#101510', strokeThickness: 4,
     }).setOrigin(0.5);

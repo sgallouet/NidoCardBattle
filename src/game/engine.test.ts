@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
 import type { Coord, GameState, PlayerId, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
 import {
@@ -8,7 +9,9 @@ import {
   endTurn,
   getReachableCoords,
   getValidSummonCoords,
+  isPassable,
   playUnitCard,
+  terrainAt,
 } from './engine';
 
 const fixedRandom = () => 0.25;
@@ -32,6 +35,45 @@ const makeUnit = (
 });
 
 const freshState = (): GameState => createGameState(fixedRandom);
+
+describe('MPS2, MPL4, MPT6', () => {
+  it('MPS2', () => {
+    expect(MAP_WIDTH).toBe(18);
+    expect(MAP_HEIGHT).toBe(13);
+    expect(TERRAIN.flat()).toHaveLength(234);
+  });
+
+  it('MPL1, MPL2, MPL3', () => {
+    expect(MAP_SITES.filter((site) => site.type === 'keep')).toHaveLength(2);
+    expect(MAP_SITES.filter((site) => site.type === 'fort')).toHaveLength(2);
+    expect(MAP_SITES.filter((site) => site.type === 'well')).toHaveLength(4);
+    for (const site of MAP_SITES) expect(isPassable(site.coord)).toBe(true);
+    for (const unit of STARTING_UNITS) expect(isPassable(unit.coord)).toBe(true);
+  });
+
+  it('MPT6', () => {
+    expect(terrainAt({ q: 8, r: 4 })).toBe('bridge');
+    expect(isPassable({ q: 8, r: 4 })).toBe(true);
+    expect(isPassable({ q: 8, r: 3 })).toBe(false);
+  });
+
+  it('MPT5, MPT6', () => {
+    for (const row of TERRAIN) {
+      expect(row.some((terrain) => terrain === 'water' || terrain === 'bridge')).toBe(true);
+    }
+  });
+
+  it('MPL4', () => {
+    const northernFort = MAP_SITES.find((site) => site.id === 'fort-north');
+    const southernFort = MAP_SITES.find((site) => site.id === 'fort-south');
+    expect(northernFort).toBeDefined();
+    expect(southernFort).toBeDefined();
+    expect(southernFort?.coord).not.toEqual({
+      q: MAP_WIDTH - 1 - northernFort!.coord.q,
+      r: MAP_HEIGHT - 1 - northernFort!.coord.r,
+    });
+  });
+});
 
 describe('UNT1, UNM4', () => {
   it('UNT1', () => {

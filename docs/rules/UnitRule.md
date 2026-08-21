@@ -1,54 +1,44 @@
 # UnitRule.md
 
-## Unit Stats
-- Every unit has only:
-  - Mana Cost.
-  - HP.
-  - Attack.
-  - Move.
-  - Range.
-  - Optional single ability.
+This file owns unit stats, activation, combat, movement, traits, abilities, and the first prototype roster.
 
-## Suggested Core Units
-- **Soldier**
-  - Cheap, balanced melee unit.
-- **Guardian**
-  - Slow, high HP, protects objectives.
-- **Archer**
-  - Ranged, fragile.
-- **Rider**
-  - Fast flanking unit.
-- **Mage**
-  - Expensive ranged damage unit.
-- **Scout**
-  - Cheap, very mobile, weak in combat.
+## Unit Data
+- **UNS1** - Every unit has Mana Cost, HP, Attack, Move, Range, Traits, and at most one special Ability.
+
+## Activation
+- **UNA1** - A unit may Move once and Attack once during its activation.
+- **UNA2** - Movement must happen before the attack; either action may be skipped.
+- **UNA3** - An Exhausted unit cannot Move or Attack until its owner's next turn.
 
 ## Combat
-- Attack damage is fixed.
-- HP reaching 0 removes the unit immediately.
-- Defender retaliates if alive and attacker is within defender range.
-- A unit may attack only once per turn.
-- Friendly units block movement.
-- Enemy units block movement.
-- A unit cannot move through occupied hexes.
+- **UNC1** - Attacks deal deterministic damage; there is no hit/miss roll.
+- **UNC2** - A unit whose HP reaches 0 is removed immediately.
+- **UNC3** - Retaliation is a reaction and does not consume the defender's normal attack on its next activation.
 
 ## Movement
-- Movement is measured in hexes.
-- No facing direction.
-- No action points.
-- No diagonal rules beyond normal hex adjacency.
-- Terrain does not change movement cost in MVP.
+- **UNM1** - Movement uses movement points; entering a normal hex costs 1 point unless terrain says otherwise.
+- **UNM2** - Units have no facing direction.
+- **UNM3** - Units cannot enter or pass through occupied hexes.
+- **UNM4** - Movement must obey enemy **Blocking** traits.
 
-## Abilities
-- A unit may have at most one simple ability.
-- Examples:
-  - **Guard:** adjacent allies take 1 less melee damage.
-  - **Charge:** +1 attack if the unit moved 3+ hexes before attacking.
-  - **Pierce:** ignores Forest ranged protection.
-  - **Swift:** +1 Move.
-- Avoid status-effect stacks and triggered ability chains.
+## Traits
+- **UNT1** - **Blocking:** when an enemy enters a hex adjacent to this unit, that enemy's movement ends immediately. Most close-range units should have this trait.
+- **UNT2** - **Retaliates:** after surviving an attack, this unit immediately deals its Attack damage back if the attacker is within its Range.
+- **UNT3** - **Invoker:** this trait makes the unit a valid spawn source under `CRU3`.
 
-## Unit Design Goal
-- Players should identify a unit's role at a glance.
-- Positioning should matter more than stat calculation.
-- A normal unit should need only one short tooltip.
+## Special Abilities
+- **UNB1** - **Displace:** instead of attacking, move one adjacent unit, allied or enemy, to another free hex adjacent to the Displacer.
+- **UNB2** - Displacement is repositioning, not normal movement, so it ignores Blocking.
+- **UNB3** - **Blood Drain:** when this unit's normal attack deals damage, heal this unit by 1 HP.
+- **UNB4** - **Phase:** this unit ignores Blocking while moving.
+- **UNB5** - **Feast:** when this unit kills another unit with a normal attack, heal this unit by 2 HP.
+
+## Suggested First Army — Undead
+- **UNR1** - **Skeleton Guard:** cheap melee; Traits: Blocking, Retaliates.
+- **UNR2** - **Bone Archer:** fragile ranged attacker; no defensive trait.
+- **UNR3** - **Vampire:** fast melee; Traits: Blocking, Retaliates; Ability: Blood Drain.
+- **UNR4** - **Necromancer:** fragile ranged support; Trait: Invoker.
+- **UNR5** - **Banshee:** fragile control unit; Ability: Displace.
+- **UNR6** - **Wraith:** very mobile scout; Ability: Phase.
+- **UNR7** - **Ghoul:** medium melee bruiser; Trait: Blocking; Ability: Feast.
+- **UNR8** - **Grave Knight:** expensive heavy melee; Traits: Blocking, Retaliates.

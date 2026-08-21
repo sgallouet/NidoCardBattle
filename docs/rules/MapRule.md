@@ -21,7 +21,7 @@ This file owns map geometry, capture, and terrain rules.
 ## Terrain
 - **MPT1** - Plain hexes have no modifier and cost 1 movement point to enter.
 - **MPT2** - A unit on a Tree/Forest hex takes **30% less damage from ranged attacks**.
-- **MPT3** - A Tree/Forest hex costs **1.3 movement points** to enter.
+- **MPT3** - Movement through Tree/Forest is **30% slower**; entering one costs about **1.43 movement points** (`1 / 0.70`).
 - **MPT4** - A ranged unit on a Hill gains **+1 Range**.
 - **MPT5** - Water and Cliff hexes are impassable.
 

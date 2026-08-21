@@ -1,52 +1,21 @@
 # ScopeRule.md
 
-## MVP Must Have
-- 1 game mode: 1v1.
-- 1 small map.
-- 1 shared prebuilt deck.
-- 6 unit types.
-- Around 6 tactic cards.
-- 2 Home Keeps.
-- 2 Forts.
-- 4 Mana Wells.
-- 1 Crown Shrine.
-- Basic enemy AI or local hot-seat play.
-- Clear turn, mana, hand, HP, and objective UI.
+This file owns MVP scope and prototype constraints.
 
-## Explicitly Not in MVP
-- No online multiplayer.
-- No campaign.
-- No story system.
-- No deck builder.
-- No card packs.
-- No rarity.
-- No progression tree.
-- No unit leveling.
-- No hero equipment.
-- No fog of war.
-- No procedural maps.
-- No weather.
-- No diplomacy.
-- No multiple resources.
-- No complicated status effects.
-- No more than one ability per unit.
+## MVP
+- **SCM1** - MVP is local **1v1**, using hot-seat play or a simple AI opponent.
+- **SCM2** - MVP uses one handcrafted map and one prebuilt prototype deck.
+- **SCM3** - MVP is a browser-based 2D game.
+- **SCM4** - Target match length is **20–30 minutes**.
 
-## Expansion Only After the Core Is Fun
-- Additional maps.
-- Distinct factions.
-- Deck construction.
-- More Commanders.
-- New terrain.
-- Single-player campaign.
-- Online multiplayer.
+## Explicitly Out of MVP
+- **SCN1** - No online multiplayer, accounts, or backend services.
+- **SCN2** - No campaign, story system, progression tree, or unit leveling.
+- **SCN3** - No deck builder, card packs, rarity system, or card upgrades.
+- **SCN4** - No fog of war, procedural maps, weather, or diplomacy.
+- **SCN5** - No complex status-effect stacks or triggered ability chains.
 
 ## Prototype Test
-- Build the game first with colored hexes and simple icons.
-- Do not create final art until the basic loop is fun.
-- A prototype succeeds only if:
-  - The first fight happens quickly.
-  - Capturing a Fort feels exciting.
-  - Losing a Mana Well creates a meaningful response.
-  - Drawing a card creates a new tactical option.
-  - Most turns take less than 60 seconds.
-  - A losing player still has a plausible comeback.
+- **SCT1** - Use placeholder art until the core match loop is fun.
+- **SCT2** - Most player turns should take less than 60 seconds.
+- **SCT3** - A losing player should still have a plausible tactical comeback.

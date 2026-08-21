@@ -2,34 +2,31 @@
 
 ## Project Intent
 
-NidoCardBattle is deliberately a small game. Prefer the simplest implementation that makes the core match fun.
+NidoCardBattle is deliberately small. Prefer the simplest implementation that makes the core match fun.
 
-## Before Changing Gameplay
+## Rule Source of Truth
 
-- Read every file in `docs/rules/`.
-- Preserve the core loop: Draw → Summon → Move/Fight → Capture → Expand.
-- Keep combat deterministic unless a rule document explicitly changes it.
-- Keep the MVP 1v1 and browser-based.
+- Read all files in `docs/rules/` before changing gameplay.
+- Every gameplay rule has a stable rule ID.
+- Never duplicate a gameplay rule in another document, code comment, test description, or prompt; reference its rule ID instead.
+- When gameplay changes, edit the single rule that owns that behavior and update references only when necessary.
+- If two rules appear to overlap, consolidate them before implementation.
 
-## Scope Discipline
+## Implementation
 
-- Do not add campaign systems, progression, card rarity, equipment, online accounts, backend services, procedural maps, or complex status systems unless explicitly requested.
-- Do not introduce a large framework or service when a lightweight browser implementation is enough.
-- Prefer data-driven cards, units, and maps so balance changes do not require rewriting gameplay code.
-- Keep individual rules and abilities easy to explain in one short tooltip.
+- Follow `ScopeRule.md` for MVP boundaries instead of restating them here.
+- Prefer data-driven cards, units, maps, traits, and abilities so balance changes do not require rewriting gameplay code.
+- Keep rules and abilities easy to inspect and test individually.
+- Avoid introducing large frameworks or services unless the current scope genuinely requires them.
 
 ## Assets
 
-- Treat files under `assets/source/` as source material when that folder is introduced.
+- Treat `assets/source/` as untouched source material when that folder is introduced.
 - Do not overwrite or destructively edit source art.
-- Generated/cropped/processed game-ready assets should live separately from originals.
+- Put generated, cropped, converted, or processed game-ready assets under `assets/game/`.
 
-## Development Priorities
+## Development Order
 
-1. Playable board and turn flow.
-2. Summoning and mana.
-3. Movement and deterministic combat.
-4. Capturable Mana Wells and Forts.
-5. Crown Shrine / Home Keep victory.
-6. Cards and basic balance.
-7. Presentation and final art only after the loop is fun.
+- Build the smallest playable vertical slice first.
+- Validate the rules with placeholder visuals before spending time on polish.
+- Add presentation only after the core match is enjoyable.

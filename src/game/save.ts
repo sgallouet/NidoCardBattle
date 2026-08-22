@@ -14,15 +14,18 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isPlayerId = (value: unknown): value is PlayerId => value === 1 || value === 2;
 
+const isPositiveInteger = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 1;
+
 const isCurrentGameState = (value: unknown): value is GameState => {
   if (!isRecord(value)) return false;
   if (!isPlayerId(value.currentPlayer)) return false;
-  if (!Number.isInteger(value.turnNumber) || (value.turnNumber as number) < 1) return false;
+  if (!isPositiveInteger(value.turnNumber)) return false;
   if (!isRecord(value.players) || !isRecord(value.players['1']) || !isRecord(value.players['2'])) return false;
   if (!Array.isArray(value.units) || !Array.isArray(value.sites)) return false;
   if (!Array.isArray(value.builtBridges) || !Array.isArray(value.scorchedForests)) return false;
   if (!Array.isArray(value.pendingManaWells) || !Array.isArray(value.tileEffects)) return false;
-  if (!Number.isInteger(value.nextUnitId) || !Number.isInteger(value.nextSiteId)) return false;
+  if (!isPositiveInteger(value.nextUnitId) || !isPositiveInteger(value.nextSiteId)) return false;
   if (value.winner !== null && !isPlayerId(value.winner)) return false;
 
   for (const playerId of ['1', '2'] as const) {

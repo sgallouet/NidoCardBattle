@@ -5,6 +5,7 @@ import {
   findUnit,
   getAttackTargets,
   getCurseTargets,
+  getDisplaceDestinations,
   getDisplaceTargets,
   getRallyTargets,
   getReachableCoords,
@@ -19,6 +20,7 @@ interface RenderedUnitView {
 export interface ActionReadabilitySceneInternals {
   state: GameState;
   boardLayer?: Phaser.GameObjects.Container;
+  animationInProgress: boolean;
   selectedUnitId: string | null;
   mode: string | null;
   renderedUnits: Map<string, RenderedUnitView>;
@@ -54,7 +56,7 @@ export class ActionReadabilityLayer {
     for (const view of this.game.renderedUnits.values()) view.container.setAlpha(1);
 
     const board = this.game.boardLayer;
-    if (!board || this.game.state.winner) return;
+    if (!board || this.game.state.winner || this.game.animationInProgress) return;
     this.layer = this.scene.add.container(0, 0);
     board.add(this.layer);
 
@@ -86,7 +88,8 @@ export class ActionReadabilityLayer {
   private hasLegalSpell(unit: UnitState): boolean {
     switch (unitDefinition(unit).ability) {
       case 'Displace':
-        return getDisplaceTargets(this.game.state, unit.id).length > 0;
+        return getDisplaceTargets(this.game.state, unit.id)
+          .some((target) => getDisplaceDestinations(this.game.state, unit.id, target.id).length > 0);
       case 'Rally':
         return getRallyTargets(this.game.state, unit.id).length > 0;
       case 'SoulLink':

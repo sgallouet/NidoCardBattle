@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { Coord, GameState, PlayerId, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
 import {
-  MOBILE_AI_OPTIONS,
+  COMMON_AI_OPTIONS,
   buildThreatMap,
   generateLegalAiActions,
+  getBrowserAiSearchOptions,
   planSmartAiTurn,
   runSmartAiTurn,
 } from './ai';
@@ -163,7 +164,7 @@ describe('smart enemy AI', () => {
   it('respects a tiny node budget and still completes the enemy turn', () => {
     const state = minimalAiTurnState();
     const result = runSmartAiTurn(state, fixedRandom, {
-      ...MOBILE_AI_OPTIONS,
+      ...COMMON_AI_OPTIONS,
       maxNodes: 20,
       maxPlanningMs: 5_000,
     });
@@ -174,9 +175,10 @@ describe('smart enemy AI', () => {
     expect(state.currentPlayer).toBe(1);
   });
 
-  it('keeps the phone profile intentionally bounded', () => {
-    expect(MOBILE_AI_OPTIONS.maxPlanningMs).toBeLessThanOrEqual(60);
-    expect(MOBILE_AI_OPTIONS.maxNodes).toBeLessThanOrEqual(3_000);
-    expect(MOBILE_AI_OPTIONS.responseMaxNodes).toBeLessThanOrEqual(700);
+  it('uses one common mobile-safe profile on every browser', () => {
+    expect(getBrowserAiSearchOptions()).toBe(COMMON_AI_OPTIONS);
+    expect(COMMON_AI_OPTIONS.maxPlanningMs).toBeLessThanOrEqual(60);
+    expect(COMMON_AI_OPTIONS.maxNodes).toBeLessThanOrEqual(3_000);
+    expect(COMMON_AI_OPTIONS.responseMaxNodes).toBeLessThanOrEqual(700);
   });
 });

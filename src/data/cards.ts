@@ -46,28 +46,53 @@ export const CARD_DEFINITIONS = {
     cost: 2,
     effect: { kind: 'buildBridge', target: 'water' },
   },
+  scorch: {
+    id: 'scorch',
+    name: 'Scorch',
+    faction: 'human',
+    type: 'tactic',
+    cost: 1,
+    effect: { kind: 'scorch', target: 'forest' },
+  },
+  raiseFort: {
+    id: 'raiseFort',
+    name: 'Raise Fort',
+    faction: 'human',
+    type: 'tactic',
+    cost: 4,
+    effect: { kind: 'raiseFort', target: 'constructibleLand' },
+  },
+  profaneWell: {
+    id: 'profaneWell',
+    name: 'Profane Well',
+    faction: 'undead',
+    type: 'tactic',
+    cost: 2,
+    effect: { kind: 'profaneWell', target: 'friendlyUnit' },
+  },
 } as const satisfies Record<string, CardDefinition>;
 
 export type CardDefinitionId = keyof typeof CARD_DEFINITIONS;
 
 export const FACTION_DECKS: Record<Faction, CardDefinitionId[]> = {
   human: [
-    'royalGuard', 'royalGuard',
+    'royalGuard',
     'longbowRanger',
     'silverwingCavalry',
     'lightMage',
     'bannerCaptain',
-    'windAdept',
+    'scorch',
+    'raiseFort',
     'buildBridge',
   ],
   undead: [
     'skeletalInfantry',
     'boneArcher',
     'necromancer',
-    'banshee',
     'vampire',
     'graveKnight',
     'graveLock',
+    'profaneWell',
     'buildBridge',
   ],
 };

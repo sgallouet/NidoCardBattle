@@ -74,7 +74,7 @@ describe('smart enemy AI', () => {
     const state = minimalAiTurnState();
     state.units = [
       makeUnit('human-commander', 'commander', 1, { q: 4, r: 4 }, { hp: 1 }),
-      makeUnit('undead-attacker', 'skeletonGuard', 2, { q: 3, r: 4 }),
+      makeUnit('undead-attacker', 'skeletalInfantry', 2, { q: 3, r: 4 }),
       makeUnit('undead-commander', 'commander', 2, { q: 10, r: 8 }),
     ];
 
@@ -100,7 +100,7 @@ describe('smart enemy AI', () => {
 
   it('builds a next-turn threat map from movement plus attack range', () => {
     const state = minimalAiTurnState();
-    state.units.push(makeUnit('human-ranger', 'boneArcher', 1, { q: 9, r: 6 }));
+    state.units.push(makeUnit('human-ranger', 'longbowRanger', 1, { q: 9, r: 6 }));
     const threatened = { q: 13, r: 6 };
 
     const threatMap = buildThreatMap(state, 1);
@@ -112,7 +112,7 @@ describe('smart enemy AI', () => {
     const state = minimalAiTurnState();
     state.units = [
       makeUnit('human-commander', 'commander', 1, { q: 5, r: 4 }, { hp: 2 }),
-      makeUnit('undead-attacker', 'skeletonGuard', 2, { q: 2, r: 4 }),
+      makeUnit('undead-attacker', 'skeletalInfantry', 2, { q: 2, r: 4 }),
       makeUnit('undead-commander', 'commander', 2, { q: 12, r: 8 }),
     ];
 
@@ -127,7 +127,7 @@ describe('smart enemy AI', () => {
     const state = minimalAiTurnState();
     state.units = [
       makeUnit('human-commander', 'commander', 1, { q: 8, r: 5 }),
-      makeUnit('human-guard', 'ghoul', 1, { q: 7, r: 5 }),
+      makeUnit('human-guard', 'royalGuard', 1, { q: 7, r: 5 }),
       makeUnit('undead-banshee', 'banshee', 2, { q: 6, r: 5 }),
       makeUnit('undead-commander', 'commander', 2, { q: 12, r: 8 }),
     ];
@@ -151,8 +151,8 @@ describe('smart enemy AI', () => {
   it('does not change its plan when only the hidden Human hand changes', () => {
     const first = minimalAiTurnState();
     const second = minimalAiTurnState();
-    first.players[1].hand = ['boneArcher'];
-    second.players[1].hand = ['vampire', 'wraith', 'ghoul', 'boneArcher'];
+    first.players[1].hand = ['longbowRanger'];
+    second.players[1].hand = ['silverwingCavalry', 'lightMage', 'royalGuard', 'longbowRanger'];
 
     const firstPlan = planSmartAiTurn(first, deterministicSearch);
     const secondPlan = planSmartAiTurn(second, deterministicSearch);

@@ -22,4 +22,6 @@ export const CARD_ART: Partial<Record<CardDefinitionId, string>> = {
   vampire: silverwingCavalry,
   wraith: lightMage,
   graveKnight,
+  graveLock: necromancer,
+  buildBridge: royalGuard,
 };

@@ -31,6 +31,18 @@ type MapRenderMode = 'tiled' | 'authored';
 
 Do not scatter mode checks throughout gameplay code. The scene should delegate terrain presentation to a renderer/adapter with a shared contract while gameplay consumes the same map model.
 
+## Current Prototype Switch
+
+The current prototype centralizes the selection in `src/data/mapRenderMode.ts`.
+
+- Default: `authored`.
+- Add `?map=authored` to force the authored presentation.
+- Add `?map=tiled` to force the original tiled presentation.
+
+The first authored pass intentionally renders only a neutral large grass presentation plus independent Bridge overlays. Mountain, Forest, Road, and River authored patches are omitted until their large AI-authored assets exist.
+
+The logical terrain map is unchanged in either mode.
+
 ## Authored Map Layer Stack
 
 Render authored maps in this order:

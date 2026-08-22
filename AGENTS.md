@@ -19,6 +19,10 @@ NidoCardBattle is deliberately small. Prefer the simplest implementation that ma
 - Keep rules and abilities easy to inspect and test individually.
 - Avoid introducing large frameworks or services unless the current scope genuinely requires them.
 
+## Git Workflow
+
+- Never create a new Git branch or worktree branch unless the user explicitly asks you to create one. Work on the currently checked-out branch by default.
+
 ## Assets
 
 - Treat `assets/source/` as untouched source material when that folder is introduced.

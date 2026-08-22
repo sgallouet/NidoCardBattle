@@ -27,6 +27,21 @@ export const isPassable = (coord: Coord): boolean => {
   return terrain !== 'water' && terrain !== 'cliff';
 };
 
+export const isBuiltBridge = (state: GameState, coord: Coord): boolean =>
+  state.builtBridges.some((bridge) => sameCoord(bridge, coord));
+
+export const effectiveTerrainAt = (state: GameState, coord: Coord): Terrain =>
+  isBuiltBridge(state, coord) ? 'bridge' : terrainAt(coord);
+
+export const isPassableInState = (state: GameState, coord: Coord): boolean => {
+  if (!isInsideMap(coord)) return false;
+  const terrain = effectiveTerrainAt(state, coord);
+  return terrain !== 'water' && terrain !== 'cliff';
+};
+
+export const isGraveLocked = (state: GameState, coord: Coord): boolean =>
+  state.tileEffects.some((effect) => effect.kind === 'graveLock' && sameCoord(effect.coord, coord));
+
 export const neighbors = (coord: Coord): Coord[] => {
   const even = [[1, 0], [0, -1], [-1, -1], [-1, 0], [-1, 1], [0, 1]];
   const odd = [[1, 0], [1, -1], [0, -1], [-1, 0], [0, 1], [1, 1]];
@@ -117,6 +132,7 @@ const drawCard = (state: GameState, playerId: PlayerId, random: () => number): v
 };
 
 const beginTurn = (state: GameState, random: () => number): void => {
+  state.tileEffects = state.tileEffects.filter((effect) => effect.expiresAtTurn > state.turnNumber);
   const playerId = state.currentPlayer;
   for (const unit of state.units) {
     if (unit.owner !== playerId) continue;
@@ -143,6 +159,8 @@ export const createGameState = (random: () => number = Math.random): GameState =
     },
     units: [],
     sites: MAP_SITES.map((site) => ({ ...site, coord: { ...site.coord }, owner: site.initialOwner })),
+    builtBridges: [],
+    tileEffects: [],
     countdown: null,
     winner: null,
     nextUnitId: 1,
@@ -162,8 +180,8 @@ export const createGameState = (random: () => number = Math.random): GameState =
 const movementCost = (unit: UnitState, coord: Coord): number =>
   unitDefinition(unit).traits.includes('Flying') || terrainAt(coord) !== 'forest' ? 1 : 1 / 0.7;
 
-const canTraverse = (unit: UnitState, coord: Coord): boolean =>
-  unitDefinition(unit).traits.includes('Flying') ? isInsideMap(coord) : isPassable(coord);
+const canTraverse = (state: GameState, unit: UnitState, coord: Coord): boolean =>
+  unitDefinition(unit).traits.includes('Flying') ? isInsideMap(coord) : isPassableInState(state, coord);
 
 export const effectiveMove = (unit: UnitState): number => unitDefinition(unit).move + (unit.moveBonus ?? 0);
 
@@ -192,7 +210,7 @@ const canStartMovementPhase = (unit: UnitState): boolean => {
 
 const searchMovement = (state: GameState, unitId: string): MovementSearch => {
   const unit = findUnit(state, unitId);
-  if (!unit || unit.owner !== state.currentPlayer || !canStartMovementPhase(unit)) {
+  if (!unit || unit.owner !== state.currentPlayer || !canStartMovementPhase(unit) || isGraveLocked(state, unit.coord)) {
     return { reachable: new Map(), previous: new Map() };
   }
 
@@ -208,7 +226,7 @@ const searchMovement = (state: GameState, unitId: string): MovementSearch => {
     if (current.cost > (reachable.get(coordKey(current.coord)) ?? Number.POSITIVE_INFINITY)) continue;
 
     for (const next of neighbors(current.coord)) {
-      if (!canTraverse(unit, next) || unitAt(state, next)) continue;
+      if (isGraveLocked(state, next) || !canTraverse(state, unit, next) || unitAt(state, next)) continue;
       const nextCost = current.cost + movementCost(unit, next);
       if (nextCost > moveRemaining + 0.0001) continue;
       const key = coordKey(next);
@@ -409,7 +427,7 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
   const killedByPrimaryAttack = findUnit(state, defenderId) === undefined;
 
   if (killedByPrimaryAttack && attackerDef.traits.includes('Necromancy') && !unitAt(state, defenderCoord)) {
-    state.units.push(createUnit(state, 'skeletonGuard', attacker.owner, defenderCoord, true));
+    state.units.push(createUnit(state, 'skeletalInfantry', attacker.owner, defenderCoord, true));
   }
 
   for (const targetId of cleaveTargetIds) {
@@ -456,7 +474,9 @@ export const getDisplaceTargets = (state: GameState, unitId: string): UnitState[
   const actor = findUnit(state, unitId);
   if (!actor || actor.owner !== state.currentPlayer || actor.exhausted || actor.attacked) return [];
   if (unitDefinition(actor).ability !== 'Displace') return [];
-  return state.units.filter((target) => target.id !== actor.id && hexDistance(actor.coord, target.coord) === 1);
+  return state.units.filter((target) => target.id !== actor.id
+    && !isGraveLocked(state, target.coord)
+    && hexDistance(actor.coord, target.coord) === 1);
 };
 
 export const getRestoreTargets = (state: GameState, sourceId: string): UnitState[] => {
@@ -482,7 +502,10 @@ export const getDisplaceDestinations = (state: GameState, actorId: string, targe
   const actor = findUnit(state, actorId);
   const target = findUnit(state, targetId);
   if (!actor || !target || !getDisplaceTargets(state, actorId).some((candidate) => candidate.id === targetId)) return [];
-  return neighbors(actor.coord).filter((coord) => isPassable(coord) && !unitAt(state, coord) && !sameCoord(coord, target.coord));
+  return neighbors(actor.coord).filter((coord) => isPassableInState(state, coord)
+    && !isGraveLocked(state, coord)
+    && !unitAt(state, coord)
+    && !sameCoord(coord, target.coord));
 };
 
 export const displaceUnit = (state: GameState, actorId: string, targetId: string, destination: Coord): ActionResult => {
@@ -570,7 +593,9 @@ export const getValidSummonCoords = (state: GameState, playerId: PlayerId = stat
   const valid = new Map<string, Coord>();
   for (const source of spawnSourceCoords(state, playerId)) {
     for (const coord of neighbors(source)) {
-      if (isPassable(coord) && !unitAt(state, coord)) valid.set(coordKey(coord), coord);
+      if (isPassableInState(state, coord) && !isGraveLocked(state, coord) && !unitAt(state, coord)) {
+        valid.set(coordKey(coord), coord);
+      }
     }
   }
   return [...valid.values()];
@@ -579,9 +604,30 @@ export const getValidSummonCoords = (state: GameState, playerId: PlayerId = stat
 export const getTacticTargets = (state: GameState, cardId: string): UnitState[] => {
   const card = cardDefinition(cardId);
   if (card.type !== 'tactic') return [];
-  return state.units.filter((unit) => card.effect.target === 'friendly'
-    ? unit.owner === state.currentPlayer && unit.hp < unitDefinition(unit).maxHp
-    : unit.owner !== state.currentPlayer);
+  if (card.effect.target === 'friendly') {
+    return state.units.filter((unit) => unit.owner === state.currentPlayer && unit.hp < unitDefinition(unit).maxHp);
+  }
+  if (card.effect.target === 'enemy') {
+    return state.units.filter((unit) => unit.owner !== state.currentPlayer);
+  }
+  return [];
+};
+
+export const getTacticTargetCoords = (state: GameState, cardId: string): Coord[] => {
+  const card = cardDefinition(cardId);
+  if (card.type !== 'tactic') return [];
+  const targets: Coord[] = [];
+  for (let r = 0; r < MAP_HEIGHT; r += 1) {
+    for (let q = 0; q < MAP_WIDTH; q += 1) {
+      const coord = { q, r };
+      if (card.effect.kind === 'graveLock') {
+        if (isPassableInState(state, coord) && !isGraveLocked(state, coord)) targets.push(coord);
+      } else if (card.effect.kind === 'buildBridge') {
+        if (terrainAt(coord) === 'water' && !isBuiltBridge(state, coord) && !unitAt(state, coord)) targets.push(coord);
+      }
+    }
+  }
+  return targets;
 };
 
 const validateCardPlay = (state: GameState, handIndex: number): CardDefinition | ActionResult => {
@@ -590,7 +636,9 @@ const validateCardPlay = (state: GameState, handIndex: number): CardDefinition |
   const cardId = player.hand[handIndex];
   if (!cardId) return { ok: false, message: 'That card is no longer in hand.' };
   const card = cardDefinition(cardId);
-  if (card.faction !== player.faction) return { ok: false, message: `That card belongs to the ${card.faction} faction.` };
+  if (card.faction !== 'shared' && card.faction !== player.faction) {
+    return { ok: false, message: `That card belongs to the ${card.faction} faction.` };
+  }
   if (player.mana < card.cost) return { ok: false, message: 'Not enough mana.' };
   return card;
 };
@@ -624,6 +672,9 @@ export const playTacticCard = (state: GameState, handIndex: number, targetId: st
   const validation = validateCardPlay(state, handIndex);
   if ('ok' in validation) return validation;
   if (validation.type !== 'tactic') return { ok: false, message: 'That card is not a tactic.' };
+  if (validation.effect.kind !== 'damage' && validation.effect.kind !== 'heal') {
+    return { ok: false, message: 'That tactic targets a battlefield hex.' };
+  }
   const target = findUnit(state, targetId);
   if (!target || !getTacticTargets(state, validation.id).some((unit) => unit.id === targetId)) {
     return { ok: false, message: 'Choose a highlighted unit.' };
@@ -634,6 +685,32 @@ export const playTacticCard = (state: GameState, handIndex: number, targetId: st
     dealDamage(state, target, validation.effect.amount, false, playerId);
   } else {
     target.hp = Math.min(unitDefinition(target).maxHp, target.hp + validation.effect.amount);
+  }
+  discardPlayedCard(state, handIndex);
+  return { ok: true, message: `${validation.name} resolved.` };
+};
+
+export const playTacticCardAtCoord = (state: GameState, handIndex: number, destination: Coord): ActionResult => {
+  const validation = validateCardPlay(state, handIndex);
+  if ('ok' in validation) return validation;
+  if (validation.type !== 'tactic') return { ok: false, message: 'That card is not a tactic.' };
+  if (!getTacticTargetCoords(state, validation.id).some((coord) => sameCoord(coord, destination))) {
+    return { ok: false, message: 'Choose a highlighted battlefield hex.' };
+  }
+
+  const playerId = state.currentPlayer;
+  state.players[playerId].mana -= validation.cost;
+  if (validation.effect.kind === 'graveLock') {
+    state.tileEffects.push({
+      kind: 'graveLock',
+      coord: { ...destination },
+      sourcePlayer: playerId,
+      expiresAtTurn: state.turnNumber + 2,
+    });
+  } else if (validation.effect.kind === 'buildBridge') {
+    state.builtBridges.push({ ...destination });
+  } else {
+    return { ok: false, message: 'That tactic requires a unit target.' };
   }
   discardPlayedCard(state, handIndex);
   return { ok: true, message: `${validation.name} resolved.` };

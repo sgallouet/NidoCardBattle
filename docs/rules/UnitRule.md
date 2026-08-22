@@ -28,7 +28,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNT2** - **Retaliates:** after surviving an attack, this unit immediately deals its Attack damage back if the attacker is within its Range.
 - **UNT3** - **Invoker:** this trait makes the unit a valid spawn source under `CRU3`.
 - **UNT4** - **Ranged:** this label identifies a unit with base Range 3; its attacks use ranged terrain rules.
-- **UNT5** - **Flying:** terrain does not restrict this unit's movement; every terrain hex costs 1 movement point to enter.
+- **UNT5** - **Flying:** terrain does not restrict this unit's movement except for Mountain under `MPT5`; every terrain hex it can enter costs 1 movement point.
 - **UNT6** - **Agile Assault:** this unit may split its Move around its attack, moving before and again after attacking; total movement spent across both movement phases cannot exceed its Move stat. Retaliation damage received by this unit is reduced by 50%, rounded up.
 - **UNT7** - **Dark Reflection:** when an enemy directly damages this unit, that attacker immediately takes 30% of the damage actually dealt, rounded to the nearest whole HP. Redirected damage does not trigger Dark Reflection.
 - **UNT8** - **Necromancy:** when this unit personally kills an enemy with its attack, summon an Exhausted Skeletal Infantry on the defeated unit's hex if that hex is free after death resolution.

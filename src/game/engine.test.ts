@@ -125,10 +125,12 @@ describe('map baseline', () => {
     for (const unit of STARTING_UNITS) expect(isPassable(unit.coord)).toBe(true);
   });
 
-  it('keeps bridges passable and water blocked for normal units', () => {
+  it('keeps bridges passable and water and mountains blocked for normal units', () => {
     expect(terrainAt({ q: 8, r: 4 })).toBe('bridge');
     expect(isPassable({ q: 8, r: 4 })).toBe(true);
     expect(isPassable({ q: 8, r: 3 })).toBe(false);
+    expect(terrainAt({ q: 5, r: 5 })).toBe('mountain');
+    expect(isPassable({ q: 5, r: 5 })).toBe(false);
   });
 });
 
@@ -144,11 +146,13 @@ describe('Blocking, Flying and Phase', () => {
     expect(isStoppedByBlocking(state, phase, { q: 1, r: 8 })).toBe(false);
   });
 
-  it('Flying can cross water', () => {
+  it('Flying can cross water but not mountains', () => {
     const state = freshState();
     const flyer = makeUnit('flyer', 'silverwingCavalry', 1, { q: 8, r: 4 });
     state.units = [flyer];
     expect(getReachableCoords(state, flyer.id).has(coordKey({ q: 8, r: 3 }))).toBe(true);
+    flyer.coord = { q: 4, r: 5 };
+    expect(getReachableCoords(state, flyer.id).has(coordKey({ q: 5, r: 5 }))).toBe(false);
   });
 });
 

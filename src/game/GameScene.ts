@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { CARD_ART } from '../data/cardArt';
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import { MAP_DECORATIONS, MAP_HEIGHT, MAP_WIDTH, type MapDecoration } from '../data/map';
-import { FOREST_TERRAIN_ART, PLAIN_TERRAIN_ART } from '../data/terrainArt';
+import { FOREST_TERRAIN_ART, MOUNTAIN_TERRAIN_ART, PLAIN_TERRAIN_ART } from '../data/terrainArt';
 import type { Coord, PlayerId, Terrain, UnitState } from '../data/types';
 import {
   UNIT_ART,
@@ -49,6 +49,7 @@ const TERRAIN_PALETTES: Record<Exclude<Terrain, 'plain' | 'forest'>, number[]> =
   hill: [0x756648, 0x806f4e, 0x6c6046],
   water: [0x27779a, 0x2d84a7, 0x226d91],
   cliff: [0x52585a, 0x606465, 0x494f51],
+  mountain: [0x52585a, 0x606465, 0x494f51],
   bridge: [0x27779a, 0x2d84a7, 0x226d91],
 };
 const cardDefinition = (id: CardDefinitionId) => CARD_DEFINITIONS[id];
@@ -93,6 +94,7 @@ export class GameScene extends Phaser.Scene {
     this.load.image(PLAIN_TERRAIN_ART.textureKey, PLAIN_TERRAIN_ART.url);
     this.load.image(FOREST_TERRAIN_ART.ground.textureKey, FOREST_TERRAIN_ART.ground.url);
     this.load.image(FOREST_TERRAIN_ART.overlay.textureKey, FOREST_TERRAIN_ART.overlay.url);
+    this.load.image(MOUNTAIN_TERRAIN_ART.textureKey, MOUNTAIN_TERRAIN_ART.url);
     for (const art of Object.values(UNIT_ART)) {
       if (!art) continue;
       for (const animation of Object.values(art.animations)) {
@@ -317,6 +319,11 @@ export class GameScene extends Phaser.Scene {
             .setAngle(((q * 17 + r * 31) % 6) * 60)
             .setAlpha(FOREST_TERRAIN_ART.overlay.alpha);
           this.boardLayer.add([ground, canopy]);
+        } else if (terrain === 'mountain') {
+          this.boardLayer.add(base);
+          const tile = this.add.image(center.x, center.y, MOUNTAIN_TERRAIN_ART.textureKey)
+            .setDisplaySize(HEX_WIDTH * 1.035, HEX_SIZE * 2.07);
+          this.boardLayer.add(tile);
         } else {
           const palette = TERRAIN_PALETTES[terrain];
           const fill = palette[(q * 17 + r * 31) % palette.length];
@@ -352,7 +359,8 @@ export class GameScene extends Phaser.Scene {
           stroke = 0xffffff;
           strokeWidth = 5;
         }
-        hex.lineStyle(strokeWidth, stroke, 0.95);
+        const joinsMountainMassif = terrain === 'mountain' && strokeWidth === 2;
+        hex.lineStyle(joinsMountainMassif ? 0 : strokeWidth, stroke, joinsMountainMassif ? 0 : 0.95);
         hex.strokePoints(points, true);
         hex.setInteractive(new Phaser.Geom.Polygon(points), Phaser.Geom.Polygon.Contains);
         hex.on('pointerup', () => {

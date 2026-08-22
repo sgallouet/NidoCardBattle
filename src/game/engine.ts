@@ -27,7 +27,7 @@ export const terrainAt = (coord: Coord): Terrain => TERRAIN[coord.r][coord.q];
 export const isPassable = (coord: Coord): boolean => {
   if (!isInsideMap(coord)) return false;
   const terrain = terrainAt(coord);
-  return terrain !== 'water' && terrain !== 'cliff';
+  return terrain !== 'water' && terrain !== 'cliff' && terrain !== 'mountain';
 };
 
 export const isBuiltBridge = (state: GameState, coord: Coord): boolean =>
@@ -45,7 +45,7 @@ export const effectiveTerrainAt = (state: GameState, coord: Coord): Terrain => {
 export const isPassableInState = (state: GameState, coord: Coord): boolean => {
   if (!isInsideMap(coord)) return false;
   const terrain = effectiveTerrainAt(state, coord);
-  return terrain !== 'water' && terrain !== 'cliff';
+  return terrain !== 'water' && terrain !== 'cliff' && terrain !== 'mountain';
 };
 
 export const isGraveLocked = (state: GameState, coord: Coord): boolean =>
@@ -191,8 +191,11 @@ export const createGameState = (random: () => number = Math.random): GameState =
 const movementCost = (state: GameState, unit: UnitState, coord: Coord): number =>
   unitDefinition(unit).traits.includes('Flying') || effectiveTerrainAt(state, coord) !== 'forest' ? 1 : 1 / 0.7;
 
-const canTraverse = (state: GameState, unit: UnitState, coord: Coord): boolean =>
-  unitDefinition(unit).traits.includes('Flying') ? isInsideMap(coord) : isPassableInState(state, coord);
+const canTraverse = (state: GameState, unit: UnitState, coord: Coord): boolean => {
+  if (!isInsideMap(coord)) return false;
+  if (effectiveTerrainAt(state, coord) === 'mountain') return false;
+  return unitDefinition(unit).traits.includes('Flying') || isPassableInState(state, coord);
+};
 
 export const effectiveMove = (unit: UnitState): number => unitDefinition(unit).move + (unit.moveBonus ?? 0);
 

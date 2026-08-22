@@ -1,5 +1,6 @@
 import forestCanopyOverlay from '../../assets/game/terrain/forest-canopy-overlay.png?url';
 import forestGround from '../../assets/game/terrain/forest-ground-hex.png?url';
+import mountainMassif from '../../assets/game/terrain/mountain-massif-hex.png?url';
 import plainMeadow from '../../assets/game/terrain/plain-meadow-hex.png?url';
 
 export const PLAIN_TERRAIN_ART = {
@@ -17,4 +18,9 @@ export const FOREST_TERRAIN_ART = {
     url: forestCanopyOverlay,
     alpha: 0.58,
   },
+} as const;
+
+export const MOUNTAIN_TERRAIN_ART = {
+  textureKey: 'terrain-mountain-massif',
+  url: mountainMassif,
 } as const;

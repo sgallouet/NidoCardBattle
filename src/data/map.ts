@@ -28,7 +28,7 @@ const terrainOverrides: Array<[Terrain, Coord[]]> = [
     { q: 11, r: 1 }, { q: 12, r: 3 }, { q: 14, r: 5 }, { q: 13, r: 6 },
     { q: 10, r: 8 }, { q: 11, r: 9 }, { q: 9, r: 11 }, { q: 10, r: 12 },
   ]],
-  ['cliff', [
+  ['mountain', [
     { q: 5, r: 5 }, { q: 6, r: 5 }, { q: 5, r: 6 }, { q: 6, r: 7 },
     { q: 11, r: 5 }, { q: 12, r: 6 }, { q: 11, r: 7 }, { q: 12, r: 7 },
     { q: 4, r: 11 }, { q: 11, r: 2 },

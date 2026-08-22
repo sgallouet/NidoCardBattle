@@ -40,6 +40,17 @@ export type GameAction =
   | { kind: 'soulLink'; unitId: string; targetId: string }
   | { kind: 'curse'; unitId: string; targetId: string };
 
+export const GAME_ACTION_KINDS: GameAction['kind'][] = [
+  'summon',
+  'tactic',
+  'move',
+  'attack',
+  'displace',
+  'rally',
+  'soulLink',
+  'curse',
+];
+
 export interface LegalActionOptions {
   includeCards?: boolean;
 }

@@ -57,6 +57,7 @@ const damageTaken = (before: UnitState, after: GameState): number =>
 export class TacticalReadabilityLayer {
   private layer?: Phaser.GameObjects.Container;
   private hoveredCoord: Coord | null = null;
+  private captureMarkers: Phaser.GameObjects.GameObject[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -66,15 +67,19 @@ export class TacticalReadabilityLayer {
   install(): void {
     this.scene.input.on('pointermove', this.handlePointerMove);
     this.scene.input.on('gameout', this.handleGameOut);
+    this.scene.events.on('update', this.handleUpdate);
     this.scene.events.once('shutdown', () => {
       this.scene.input.off('pointermove', this.handlePointerMove);
       this.scene.input.off('gameout', this.handleGameOut);
+      this.scene.events.off('update', this.handleUpdate);
+      this.captureMarkers = [];
       this.layer = undefined;
     });
   }
 
   render(): void {
     if (this.layer?.active) this.layer.destroy(true);
+    this.captureMarkers = [];
     const board = this.game.boardLayer;
     if (!board) return;
 
@@ -91,6 +96,14 @@ export class TacticalReadabilityLayer {
     this.renderAttackContext();
     this.renderTacticContext();
   }
+
+  private readonly handleUpdate = (): void => {
+    if (this.captureMarkers.length === 0) return;
+    const alpha = 0.5 + Math.sin(this.scene.time.now / 330) * 0.28;
+    for (const marker of this.captureMarkers) {
+      if (marker.active) marker.setAlpha(alpha);
+    }
+  };
 
   private readonly handlePointerMove = (pointer: Phaser.Input.Pointer): void => {
     if (pointer.isDown) return;
@@ -158,7 +171,12 @@ export class TacticalReadabilityLayer {
       const midX = (from.x + to.x) / 2;
       const midY = (from.y + to.y) / 2 - 7;
       graphics.fillStyle(0xe5c8ff, 0.85);
-      graphics.fillDiamond(midX, midY, 10, 10);
+      graphics.fillPoints([
+        new Phaser.Geom.Point(midX, midY - 6),
+        new Phaser.Geom.Point(midX + 6, midY),
+        new Phaser.Geom.Point(midX, midY + 6),
+        new Phaser.Geom.Point(midX - 6, midY),
+      ], true);
       this.add(graphics);
     }
   }
@@ -198,13 +216,7 @@ export class TacticalReadabilityLayer {
         graphics.lineBetween(x1, y1, x2, y2);
       }
       this.add(graphics);
-      this.scene.tweens.add({
-        targets: graphics,
-        alpha: 0.35,
-        duration: 700,
-        yoyo: true,
-        repeat: -1,
-      });
+      this.captureMarkers.push(graphics);
     }
   }
 
@@ -345,11 +357,13 @@ export class TacticalReadabilityLayer {
       const target = findUnit(this.game.state, splash.unitId);
       if (!target) continue;
       const center = this.game.center(target.coord);
+      const isSoulLinked = defender.soulLinkTargetId === target.id;
+      const color = isSoulLinked ? CURSE_COLOR : SPLASH_COLOR;
       const splashRing = this.scene.add.graphics();
-      splashRing.lineStyle(4, SPLASH_COLOR, 0.82);
+      splashRing.lineStyle(4, color, 0.82);
       splashRing.strokeCircle(center.x, center.y, 39);
       this.add(splashRing);
-      this.addBadge(target.coord, `−${splash.damage}`, 0xa9652e, 0, -43, 11);
+      this.addBadge(target.coord, `−${splash.damage}`, isSoulLinked ? 0x67367e : 0xa9652e, 0, -43, 11);
     }
 
     for (const counter of preview.friendlyCounterDamage) {

@@ -1,8 +1,12 @@
 import Phaser from 'phaser';
-import type { Coord, GameState } from '../data/types';
+import type { Coord, GameState, PlayerId } from '../data/types';
 import { PersistentAiGameScene } from './PersistentAiGameScene';
+import {
+  TacticalReadabilityLayer,
+  type TacticalSceneInternals,
+} from './TacticalReadability';
 
-interface PrototypeSceneInternals {
+interface PrototypeSceneInternals extends TacticalSceneInternals {
   state: GameState;
   boardLayer?: Phaser.GameObjects.Container;
   renderedUnits: Map<string, { container: Phaser.GameObjects.Container }>;
@@ -14,20 +18,30 @@ interface PrototypeSceneInternals {
 const LOCK_COLOR = 0x8d55d8;
 const RITUAL_COLOR = 0xb76cff;
 const HUMAN_ACCENT = 0x55b9f3;
+const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x55b9f3, 2: 0xf05b67 };
 
 export class PrototypeGameScene extends PersistentAiGameScene {
+  private readability?: TacticalReadabilityLayer;
+
   create(): void {
     super.create();
     const scene = this as unknown as PrototypeSceneInternals;
     const originalRenderAll = scene.renderAll.bind(this);
+    this.readability = new TacticalReadabilityLayer(this, scene);
 
     scene.renderAll = () => {
       originalRenderAll();
       this.renderTacticPlaceholders(scene);
+      this.readability?.render();
     };
 
+    this.readability.install();
+    this.events.once('shutdown', () => {
+      this.readability = undefined;
+    });
+
     // The base scene has already rendered once during create(). Redraw once so
-    // a resumed match immediately shows its board-changing tactic placeholders.
+    // resumed matches immediately show board state and tactical readability.
     scene.renderAll();
   }
 
@@ -58,7 +72,12 @@ export class PrototypeGameScene extends PersistentAiGameScene {
     }
 
     for (const pending of scene.state.pendingManaWells) {
-      const { graphics, label } = this.drawPendingManaWell(scene, pending.coord, pending.remainingTurns);
+      const { graphics, label } = this.drawPendingManaWell(
+        scene,
+        pending.coord,
+        pending.remainingTurns,
+        pending.owner,
+      );
       addTerrainObject(graphics);
       addTerrainObject(label);
     }
@@ -135,15 +154,20 @@ export class PrototypeGameScene extends PersistentAiGameScene {
     scene: PrototypeSceneInternals,
     coord: Coord,
     remainingTurns: number,
+    owner: PlayerId,
   ): { graphics: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text } {
     const center = scene.center(coord);
     const graphics = this.add.graphics();
+    const completion = Phaser.Math.Clamp((4 - remainingTurns) / 3, 0.34, 1);
+    const ownerColor = PLAYER_COLORS[owner];
 
-    graphics.fillStyle(0x160e20, 0.62);
+    graphics.fillStyle(0x160e20, 0.52 + completion * 0.16);
     graphics.fillCircle(center.x, center.y, 34);
-    graphics.lineStyle(4, RITUAL_COLOR, 0.9);
+    graphics.lineStyle(3, ownerColor, 0.55 + completion * 0.35);
+    graphics.strokeCircle(center.x, center.y, 35);
+    graphics.lineStyle(4, RITUAL_COLOR, 0.5 + completion * 0.45);
     graphics.strokeCircle(center.x, center.y, 31);
-    graphics.lineStyle(2, 0xe1b7ff, 0.75);
+    graphics.lineStyle(2, 0xe1b7ff, 0.4 + completion * 0.5);
     graphics.strokeCircle(center.x, center.y, 18);
 
     const runeRadius = 26;
@@ -151,11 +175,11 @@ export class PrototypeGameScene extends PersistentAiGameScene {
       const angle = Phaser.Math.DegToRad(index * 60 - 30);
       const x = center.x + Math.cos(angle) * runeRadius;
       const y = center.y + Math.sin(angle) * runeRadius;
-      graphics.fillStyle(index % 2 === 0 ? RITUAL_COLOR : 0x6f3ca4, 0.95);
+      graphics.fillStyle(index % 2 === 0 ? RITUAL_COLOR : 0x6f3ca4, 0.5 + completion * 0.45);
       graphics.fillTriangle(x, y - 4, x - 4, y + 4, x + 4, y + 4);
     }
 
-    graphics.lineStyle(2, RITUAL_COLOR, 0.55);
+    graphics.lineStyle(2, RITUAL_COLOR, 0.3 + completion * 0.5);
     graphics.lineBetween(center.x - 22, center.y - 13, center.x + 22, center.y + 13);
     graphics.lineBetween(center.x + 22, center.y - 13, center.x - 22, center.y + 13);
 
@@ -166,7 +190,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
       fontStyle: 'bold',
       stroke: '#1b0b28',
       strokeThickness: 5,
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setAlpha(0.62 + completion * 0.38);
     return { graphics, label };
   }
 

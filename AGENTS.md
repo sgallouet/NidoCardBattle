@@ -29,6 +29,14 @@ NidoCardBattle is deliberately small. Prefer the simplest implementation that ma
 - Do not overwrite or destructively edit source art.
 - Put generated, cropped, converted, or processed game-ready assets under `assets/game/`.
 
+## Local AI Audio
+
+- Use `$nidocardbattle-audio-pipeline` when a feature needs new or changed SFX, UI audio, tactical/ability audio, ambience, or authored music.
+- During gameplay feature design, explicitly decide whether the action, impact, state change, warning, reward, or environment benefits from audio feedback; do not add sound mechanically to every feature.
+- Generate candidates outside the repository with the local Stable Audio 3 / ACE-Step pipelines defined by the skill. Only accepted runtime audio belongs under `assets/game/audio/`.
+- Keep `assets/game/audio/AUDIO_MAP.md` synchronized with accepted files and exact playback triggers.
+- Do not call generated audio polished without semantic audition; automated validation is necessary but not sufficient.
+
 ## Development Order
 
 - Build the smallest playable vertical slice first.

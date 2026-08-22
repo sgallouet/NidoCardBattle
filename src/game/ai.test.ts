@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Coord, GameState, PlayerId, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
 import {
+  MOBILE_AI_OPTIONS,
   buildThreatMap,
   generateLegalAiActions,
   planSmartAiTurn,
@@ -44,11 +45,22 @@ const minimalAiTurnState = (): GameState => {
   return state;
 };
 
+const deterministicSearch = {
+  beamWidth: 4,
+  maxDepth: 3,
+  maxNodes: 700,
+  maxPlanningMs: 5_000,
+  candidatePlans: 2,
+  responseBeamWidth: 2,
+  responseDepth: 2,
+  responseMaxNodes: 120,
+} as const;
+
 describe('smart enemy AI', () => {
   it('takes Player 2 turn and returns control to Player 1', () => {
     const state = minimalAiTurnState();
 
-    const result = runSmartAiTurn(state, fixedRandom);
+    const result = runSmartAiTurn(state, fixedRandom, deterministicSearch);
 
     expect(result.endedTurn).toBe(true);
     expect(state.currentPlayer).toBe(1);
@@ -65,7 +77,7 @@ describe('smart enemy AI', () => {
       makeUnit('undead-commander', 'commander', 2, { q: 10, r: 8 }),
     ];
 
-    runSmartAiTurn(state, fixedRandom);
+    runSmartAiTurn(state, fixedRandom, deterministicSearch);
 
     expect(state.units.some((unit) => unit.id === 'human-commander')).toBe(false);
     expect(state.countdown?.player).toBe(2);
@@ -78,7 +90,7 @@ describe('smart enemy AI', () => {
     state.units = [makeUnit('undead-commander', 'commander', 2, { q: 10, r: 8 })];
     state.countdown = { player: 2, checkpoints: 2 };
 
-    const result = runSmartAiTurn(state, fixedRandom);
+    const result = runSmartAiTurn(state, fixedRandom, deterministicSearch);
 
     expect(result.endedTurn).toBe(true);
     expect(state.winner).toBe(2);
@@ -103,7 +115,7 @@ describe('smart enemy AI', () => {
       makeUnit('undead-commander', 'commander', 2, { q: 12, r: 8 }),
     ];
 
-    const plan = planSmartAiTurn(state, { beamWidth: 12, maxDepth: 4 });
+    const plan = planSmartAiTurn(state, { ...deterministicSearch, beamWidth: 12, maxDepth: 4 });
 
     expect(plan.actions.some((action) => action.kind === 'move' && action.unitId === 'undead-attacker')).toBe(true);
     expect(plan.actions.some((action) => action.kind === 'attack' && action.targetId === 'human-commander')).toBe(true);
@@ -124,14 +136,47 @@ describe('smart enemy AI', () => {
     expect(actions.some((action) => action.kind === 'displace' && action.targetId === 'human-guard')).toBe(true);
   });
 
-  it('still works after a normal Human end-turn transition', () => {
+  it('runs a shallow visible-board Human response search', () => {
     const state = createGameState(fixedRandom);
     endTurn(state, fixedRandom);
     expect(state.currentPlayer).toBe(2);
 
-    const plan = planSmartAiTurn(state, { beamWidth: 4, maxDepth: 2 });
+    const plan = planSmartAiTurn(state, deterministicSearch);
 
-    expect(plan.searchedStates).toBeGreaterThan(0);
+    expect(plan.responseStates).toBeGreaterThan(0);
     expect(Number.isFinite(plan.score)).toBe(true);
+  });
+
+  it('does not change its plan when only the hidden Human hand changes', () => {
+    const first = minimalAiTurnState();
+    const second = minimalAiTurnState();
+    first.players[1].hand = ['boneArcher'];
+    second.players[1].hand = ['vampire', 'wraith', 'ghoul', 'boneArcher'];
+
+    const firstPlan = planSmartAiTurn(first, deterministicSearch);
+    const secondPlan = planSmartAiTurn(second, deterministicSearch);
+
+    expect(secondPlan.actions).toEqual(firstPlan.actions);
+    expect(secondPlan.score).toBe(firstPlan.score);
+  });
+
+  it('respects a tiny node budget and still completes the enemy turn', () => {
+    const state = minimalAiTurnState();
+    const result = runSmartAiTurn(state, fixedRandom, {
+      ...MOBILE_AI_OPTIONS,
+      maxNodes: 20,
+      maxPlanningMs: 5_000,
+    });
+
+    expect(result.searchedStates).toBeLessThanOrEqual(20);
+    expect(result.timedOut).toBe(true);
+    expect(result.endedTurn).toBe(true);
+    expect(state.currentPlayer).toBe(1);
+  });
+
+  it('keeps the phone profile intentionally bounded', () => {
+    expect(MOBILE_AI_OPTIONS.maxPlanningMs).toBeLessThanOrEqual(60);
+    expect(MOBILE_AI_OPTIONS.maxNodes).toBeLessThanOrEqual(3_000);
+    expect(MOBILE_AI_OPTIONS.responseMaxNodes).toBeLessThanOrEqual(700);
   });
 });

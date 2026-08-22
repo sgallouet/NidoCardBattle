@@ -20,7 +20,9 @@ export class PersistentAiGameScene extends AiGameScene {
     super.create();
 
     const originalRenderAll = scene.renderAll.bind(this);
+    let persistenceEnabled = true;
     const persist = (): void => {
+      if (!persistenceEnabled) return;
       if (scene.state.winner) clearSavedGameState();
       else saveGameState(scene.state);
     };
@@ -33,6 +35,19 @@ export class PersistentAiGameScene extends AiGameScene {
     persist();
     const flush = (): void => persist();
     window.addEventListener('pagehide', flush);
-    this.events.once('shutdown', () => window.removeEventListener('pagehide', flush));
+
+    const newGameButton = document.querySelector<HTMLButtonElement>('#new-game-button');
+    const startNewGame = (): void => {
+      if (!window.confirm('Start a new game? Your current match will be discarded.')) return;
+      persistenceEnabled = false;
+      clearSavedGameState();
+      window.location.reload();
+    };
+    newGameButton?.addEventListener('click', startNewGame);
+
+    this.events.once('shutdown', () => {
+      window.removeEventListener('pagehide', flush);
+      newGameButton?.removeEventListener('click', startNewGame);
+    });
   }
 }

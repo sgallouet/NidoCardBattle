@@ -191,16 +191,25 @@ export class AiGameScene extends GameScene {
         : scene.state.players[scene.state.currentPlayer].hand[scene.selectedCardIndex] as CardDefinitionId | undefined;
       const card = cardId ? CARD_DEFINITIONS[cardId] : undefined;
       if (scene.mode === 'card' && card?.type === 'tactic') {
-        const tacticPrompt: Record<typeof card.effect.kind, string> = {
-          damage: 'Choose a highlighted enemy.',
-          heal: 'Choose a highlighted friendly unit.',
-          graveLock: 'Choose a highlighted passable hex for Grave Lock.',
-          buildBridge: 'Choose a highlighted Water hex to build a Bridge.',
-          scorch: 'Choose a highlighted Forest hex to Scorch.',
-          raiseFort: 'Choose a highlighted empty Plain or Hill hex to Raise a Fort.',
-          profaneWell: 'Choose a highlighted friendly non-Commander unit to sacrifice.',
-        };
-        scene.message = tacticPrompt[card.effect.kind];
+        switch (card.effect.kind) {
+          case 'graveLock':
+            scene.message = 'Choose a highlighted passable hex for Grave Lock.';
+            break;
+          case 'buildBridge':
+            scene.message = 'Choose a highlighted Water hex to build a Bridge.';
+            break;
+          case 'scorch':
+            scene.message = 'Choose a highlighted Forest hex to Scorch.';
+            break;
+          case 'raiseFort':
+            scene.message = 'Choose a highlighted empty Plain or Hill hex to Raise a Fort.';
+            break;
+          case 'profaneWell':
+            scene.message = 'Choose a highlighted friendly non-Commander unit to sacrifice.';
+            break;
+          default:
+            scene.message = 'Choose a highlighted target for this tactic.';
+        }
         const status = document.querySelector<HTMLElement>('#status');
         if (status) status.textContent = scene.message;
       }

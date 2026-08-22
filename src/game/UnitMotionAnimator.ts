@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { Coord, UnitState } from '../data/types';
 import type { UnitArtDefinition } from '../data/unitArt';
+import { COMBAT_VFX_ART, SWORD_SWING_CONTRACT } from '../data/vfxArt';
 import { unitDefinition } from './engine';
 
 export type UnitMotionStyle = 'standard' | 'heavy' | 'agile' | 'ranged' | 'flying' | 'spectral';
@@ -21,6 +22,8 @@ interface TweenValues {
 }
 
 export class UnitMotionAnimator {
+  private hunterArrowTexturePromise?: Promise<void>;
+
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly board: () => Phaser.GameObjects.Container | undefined,
@@ -143,6 +146,7 @@ export class UnitMotionAnimator {
         scaleY: 0.93,
         angle: direction.x * (style === 'heavy' ? 3 : 5),
       }, Math.round((counter ? 78 : 105) * speed), 'Expo.easeIn');
+      this.spawnSwordSwingFallback(source, target, counter);
     }
 
     return { source, ranged };
@@ -367,25 +371,80 @@ export class UnitMotionAnimator {
   private async launchProjectile(unit: UnitState, source: Phaser.Math.Vector2, target: Phaser.Math.Vector2, counter: boolean): Promise<void> {
     const definition = unitDefinition(unit);
     const arrow = definition.id === 'longbowRanger' || definition.id === 'boneArcher';
-    const projectile = this.scene.add.graphics();
-    if (arrow) {
-      projectile.lineStyle(3, 0xe8d7aa, 1);
-      projectile.lineBetween(-10, 0, 8, 0);
-      projectile.fillStyle(0xf4e6bd, 1);
-      projectile.fillTriangle(11, 0, 5, -4, 5, 4);
-    } else {
-      projectile.fillStyle(unit.owner === 2 ? 0xac64e7 : 0x8ce7ff, 0.95);
-      projectile.fillCircle(0, 0, 6);
-      projectile.lineStyle(2, unit.owner === 2 ? 0xe0b8ff : 0xd8fbff, 0.9);
-      projectile.strokeCircle(0, 0, 9);
+    if (arrow && await this.ensureHunterArrowTexture()) {
+      const angle = Math.atan2(target.y - source.y, target.x - source.x);
+      const projectile = this.scene.add.image(
+        source.x,
+        source.y - 8,
+        COMBAT_VFX_ART.hunterArrow.textureKey,
+      ).setDisplaySize(30, 11).setRotation(angle);
+      this.board()?.add(projectile);
+
+      const distance = Phaser.Math.Distance.Between(source.x, source.y, target.x, target.y);
+      const duration = Phaser.Math.Clamp(distance * (counter ? 0.8 : 1.02), 120, counter ? 190 : 260);
+      const midX = Phaser.Math.Linear(source.x, target.x, 0.5);
+      const midY = Phaser.Math.Linear(source.y - 8, target.y - 8, 0.5) - 7;
+      await this.tween(projectile, { x: midX, y: midY }, Math.round(duration * 0.5), 'Sine.easeOut');
+      await this.tween(projectile, { x: target.x, y: target.y - 8 }, Math.round(duration * 0.5), 'Sine.easeIn');
+      projectile.destroy();
+      return;
     }
+
+    const projectile = this.scene.add.graphics();
+    projectile.fillStyle(unit.owner === 2 ? 0xac64e7 : 0x8ce7ff, 0.95);
+    projectile.fillCircle(0, 0, 6);
+    projectile.lineStyle(2, unit.owner === 2 ? 0xe0b8ff : 0xd8fbff, 0.9);
+    projectile.strokeCircle(0, 0, 9);
     projectile.setPosition(source.x, source.y - 8);
-    projectile.setRotation(Math.atan2(target.y - source.y, target.x - source.x));
     this.board()?.add(projectile);
     const distance = Phaser.Math.Distance.Between(source.x, source.y, target.x, target.y);
     const duration = Phaser.Math.Clamp(distance * (counter ? 0.75 : 0.9), 90, counter ? 170 : 220);
     await this.tween(projectile, { x: target.x, y: target.y - 8 }, duration, 'Linear');
     projectile.destroy();
+  }
+
+  private async ensureHunterArrowTexture(): Promise<boolean> {
+    const { textureKey, url } = COMBAT_VFX_ART.hunterArrow;
+    if (this.scene.textures.exists(textureKey)) return true;
+    if (!this.hunterArrowTexturePromise) {
+      this.hunterArrowTexturePromise = new Promise<void>((resolve) => {
+        const image = new Image();
+        image.onload = () => {
+          if (!this.scene.textures.exists(textureKey)) this.scene.textures.addImage(textureKey, image);
+          resolve();
+        };
+        image.onerror = () => resolve();
+        image.src = url;
+      });
+    }
+    await this.hunterArrowTexturePromise;
+    return this.scene.textures.exists(textureKey);
+  }
+
+  private spawnSwordSwingFallback(source: Phaser.Math.Vector2, target: Phaser.Math.Vector2, counter: boolean): void {
+    const direction = target.clone().subtract(source).normalize();
+    const center = source.clone().add(direction.clone().scale(25));
+    const angle = Math.atan2(direction.y, direction.x);
+    const graphics = this.scene.add.graphics();
+    graphics.setPosition(center.x, center.y - 7);
+    graphics.lineStyle(9, 0xfff1c5, 0.28);
+    graphics.beginPath();
+    graphics.arc(0, 0, 32, angle - 1.05, angle + 1.05, false);
+    graphics.strokePath();
+    graphics.lineStyle(4, 0xfffcf0, 0.92);
+    graphics.beginPath();
+    graphics.arc(0, 0, 30, angle - 0.92, angle + 0.92, false);
+    graphics.strokePath();
+    this.board()?.add(graphics);
+    this.scene.tweens.add({
+      targets: graphics,
+      alpha: 0,
+      scaleX: 1.15,
+      scaleY: 1.15,
+      duration: counter ? Math.round(SWORD_SWING_CONTRACT.durationMs * 0.7) : SWORD_SWING_CONTRACT.durationMs,
+      ease: 'Quad.easeOut',
+      onComplete: () => graphics.destroy(),
+    });
   }
 
   private showDamageNumber(point: Phaser.Math.Vector2, damage: number, lethal: boolean): void {

@@ -1,4 +1,6 @@
 export type PlayerId = 1 | 2;
+export type Faction = 'human' | 'undead';
+export type UnitFaction = Faction | 'shared';
 export type Terrain = 'plain' | 'forest' | 'hill' | 'water' | 'cliff' | 'bridge';
 export type SiteType = 'keep' | 'fort' | 'well';
 export type Trait = 'Blocking' | 'Retaliates' | 'Invoker' | 'Ranged' | 'Flying' | 'Charge';
@@ -12,6 +14,7 @@ export interface Coord {
 export interface UnitDefinition {
   id: string;
   name: string;
+  faction: UnitFaction;
   cost: number;
   maxHp: number;
   attack: number;
@@ -47,6 +50,7 @@ export interface SiteState extends MapSite {
 export interface UnitCard {
   id: string;
   name: string;
+  faction: Faction;
   type: 'unit';
   cost: number;
   unitId: string;
@@ -55,6 +59,7 @@ export interface UnitCard {
 export interface TacticCard {
   id: string;
   name: string;
+  faction: Faction;
   type: 'tactic';
   cost: number;
   effect: {
@@ -68,6 +73,7 @@ export type CardDefinition = UnitCard | TacticCard;
 
 export interface PlayerState {
   id: PlayerId;
+  faction: Faction;
   mana: number;
   deck: string[];
   hand: string[];

@@ -58,7 +58,12 @@ export interface AiSearchOptions {
   responseMaxNodes?: number;
 }
 
-export const MOBILE_AI_OPTIONS: Required<AiSearchOptions> = {
+/**
+ * One common mobile-safe intelligence budget for every device.
+ * Device speed may still affect whether the wall-clock safety cap is hit first,
+ * but PC users never receive wider/deeper search settings.
+ */
+export const COMMON_AI_OPTIONS: Required<AiSearchOptions> = {
   beamWidth: 9,
   maxDepth: 7,
   maxNodes: 2_800,
@@ -69,23 +74,11 @@ export const MOBILE_AI_OPTIONS: Required<AiSearchOptions> = {
   responseMaxNodes: 650,
 };
 
-export const DESKTOP_AI_OPTIONS: Required<AiSearchOptions> = {
-  beamWidth: 18,
-  maxDepth: 10,
-  maxNodes: 9_000,
-  maxPlanningMs: 170,
-  candidatePlans: 6,
-  responseBeamWidth: 7,
-  responseDepth: 5,
-  responseMaxNodes: 1_800,
-};
+/** Backwards-compatible alias while existing tests/callers migrate to the common name. */
+export const MOBILE_AI_OPTIONS = COMMON_AI_OPTIONS;
 
-export const getBrowserAiSearchOptions = (): Required<AiSearchOptions> => {
-  if (typeof navigator === 'undefined') return DESKTOP_AI_OPTIONS;
-  const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-  const lowCoreDevice = (navigator.hardwareConcurrency || 4) <= 4;
-  return mobileUserAgent || lowCoreDevice ? MOBILE_AI_OPTIONS : DESKTOP_AI_OPTIONS;
-};
+/** Backwards-compatible helper: all browsers now receive the exact same profile. */
+export const getBrowserAiSearchOptions = (): Required<AiSearchOptions> => COMMON_AI_OPTIONS;
 
 const nowMs = (): number => typeof performance !== 'undefined' ? performance.now() : Date.now();
 
@@ -528,7 +521,7 @@ export const planSmartAiTurn = (state: GameState, overrides: AiSearchOptions = {
     };
   }
 
-  const options: Required<AiSearchOptions> = { ...getBrowserAiSearchOptions(), ...overrides };
+  const options: Required<AiSearchOptions> = { ...COMMON_AI_OPTIONS, ...overrides };
   const budget: SearchBudget = {
     deadline: nowMs() + options.maxPlanningMs,
     maxNodes: options.maxNodes,

@@ -1,20 +1,18 @@
-import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
+import { CARD_DEFINITIONS } from '../data/cards';
 import { MAP_HEIGHT, MAP_WIDTH } from '../data/map';
 import type { ActionResult, Coord, GameState, PlayerId, UnitState } from '../data/types';
 import {
-  attackUnit,
+  actionTargetId,
+  applyGameAction,
+  getLegalGameActions,
+  type GameAction,
+} from './actions';
+import {
   coordKey,
-  displaceUnit,
   endTurn,
   findUnit,
-  getAttackTargets,
-  getDisplaceDestinations,
-  getDisplaceTargets,
   getReachableCoords,
-  getValidSummonCoords,
   hexDistance,
-  moveUnit,
-  playUnitCard,
   terrainAt,
   unitDefinition,
 } from './engine';
@@ -32,11 +30,8 @@ export interface AiTurnResult {
   timedOut: boolean;
 }
 
-export type AiAction =
-  | { kind: 'summon'; handIndex: number; cardId: CardDefinitionId; destination: Coord }
-  | { kind: 'move'; unitId: string; destination: Coord }
-  | { kind: 'attack'; unitId: string; targetId: string }
-  | { kind: 'displace'; unitId: string; targetId: string; destination: Coord };
+/** AI actions are exactly the engine's legal gameplay actions. */
+export type AiAction = GameAction;
 
 export interface AiPlan {
   actions: AiAction[];
@@ -75,36 +70,20 @@ export const SIMULATION_AI_OPTIONS: Required<AiSearchOptions> = {
   maxPlanningMs: 60_000,
 };
 
-/** Backwards-compatible aliases while older callers migrate. */
+/** Backwards-compatible alias while older callers migrate. */
 export const MOBILE_AI_OPTIONS = COMMON_AI_OPTIONS;
 export const getBrowserAiSearchOptions = (): Required<AiSearchOptions> => COMMON_AI_OPTIONS;
 
 const nowMs = (): number => typeof performance !== 'undefined' ? performance.now() : Date.now();
 
-/** Hot-path clone: faster and less allocation-heavy than structuredClone for this small state shape. */
-const cloneState = (state: GameState): GameState => ({
-  currentPlayer: state.currentPlayer,
-  turnNumber: state.turnNumber,
-  players: {
-    1: {
-      ...state.players[1],
-      deck: [...state.players[1].deck],
-      hand: [...state.players[1].hand],
-      discard: [...state.players[1].discard],
-    },
-    2: {
-      ...state.players[2],
-      deck: [...state.players[2].deck],
-      hand: [...state.players[2].hand],
-      discard: [...state.players[2].discard],
-    },
-  },
-  units: state.units.map((unit) => ({ ...unit, coord: { ...unit.coord } })),
-  sites: state.sites.map((site) => ({ ...site, coord: { ...site.coord } })),
-  countdown: state.countdown ? { ...state.countdown } : null,
-  winner: state.winner,
-  nextUnitId: state.nextUnitId,
-});
+/**
+ * Correctness-first simulation clone. New state-bearing traits/abilities are copied automatically,
+ * so adding a new serializable field to GameState/UnitState does not require an AI change.
+ */
+const cloneState = (state: GameState): GameState => {
+  if (typeof structuredClone === 'function') return structuredClone(state);
+  return JSON.parse(JSON.stringify(state)) as GameState;
+};
 
 const coordFromKey = (key: string): Coord => {
   const [q, r] = key.split(',').map(Number);
@@ -136,7 +115,7 @@ const potentialRangeFrom = (unit: UnitState, origin: Coord): number => {
     : definition.range;
 };
 
-/** Exact visible-board threat map; intentionally never considers hidden cards. */
+/** Exact visible-board physical threat map; hidden cards are intentionally excluded. */
 export const buildThreatMap = (state: GameState, attackerPlayer: PlayerId): Map<string, number> => {
   const planning = cloneState(state);
   planning.currentPlayer = attackerPlayer;
@@ -145,6 +124,9 @@ export const buildThreatMap = (state: GameState, attackerPlayer: PlayerId): Map<
     unit.exhausted = false;
     unit.moved = false;
     unit.attacked = false;
+    unit.movementSpent = 0;
+    unit.postAttackMoved = false;
+    unit.moveBonus = 0;
   }
 
   const pressure = new Map<string, number>();
@@ -240,7 +222,7 @@ export const evaluatePosition = (state: GameState, perspective: PlayerId): numbe
   return score;
 };
 
-/** Legacy Player-2 evaluator retained for the live enemy scene/tests. */
+/** Legacy Player-2 evaluator retained for live enemy scene/tests. */
 export const evaluateAiPosition = (state: GameState): number => evaluatePosition(state, UNDEAD_PLAYER);
 
 const exactCommanderThreatAdjustment = (state: GameState, perspective: PlayerId): number => {
@@ -259,82 +241,48 @@ const exactCommanderThreatAdjustment = (state: GameState, perspective: PlayerId)
   return adjustment;
 };
 
+/**
+ * Search-cache signature serializes full UnitState objects, so new serializable status fields are
+ * considered automatically rather than accidentally merging strategically different positions.
+ */
 const stateSignature = (state: GameState, includeCurrentHand: boolean): string => {
   const units = [...state.units]
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((unit) => [
-      unit.id, unit.definitionId, unit.owner, unit.hp, unit.coord.q, unit.coord.r,
-      unit.exhausted ? 1 : 0, unit.moved ? 1 : 0, unit.attacked ? 1 : 0,
-    ].join(':'))
+    .map((unit) => JSON.stringify(unit))
     .join('|');
   const sites = state.sites.map((site) => `${site.id}:${site.owner ?? 0}`).join('|');
   const current = state.players[state.currentPlayer];
-  const hand = includeCurrentHand ? `;${current.hand.join(',')}` : '';
-  return `${state.currentPlayer};${current.mana}${hand};${units};${sites};${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`;
+  const hand = includeCurrentHand ? current.hand.join(',') : '';
+  return [
+    state.currentPlayer,
+    current.mana,
+    hand,
+    units,
+    sites,
+    `${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`,
+    state.winner ?? 0,
+    state.nextUnitId,
+  ].join(';');
 };
 
+/** AI delegates legal-action knowledge entirely to the gameplay engine. */
 export const generateLegalActionsForPlayer = (
   state: GameState,
   playerId: PlayerId,
   includeCards: boolean,
-): AiAction[] => {
-  if (state.winner || state.currentPlayer !== playerId) return [];
-  const actions: AiAction[] = [];
-  const player = state.players[playerId];
-
-  if (includeCards) {
-    const seenCards = new Set<CardDefinitionId>();
-    player.hand.forEach((rawCardId, handIndex) => {
-      const cardId = rawCardId as CardDefinitionId;
-      const card = CARD_DEFINITIONS[cardId];
-      if (!card || seenCards.has(cardId) || card.type !== 'unit' || card.faction !== player.faction || card.cost > player.mana) return;
-      seenCards.add(cardId);
-      for (const destination of getValidSummonCoords(state, playerId)) {
-        actions.push({ kind: 'summon', handIndex, cardId, destination });
-      }
-    });
-  }
-
-  for (const unit of state.units.filter((candidate) => candidate.owner === playerId && !candidate.exhausted)) {
-    for (const target of getAttackTargets(state, unit.id)) {
-      actions.push({ kind: 'attack', unitId: unit.id, targetId: target.id });
-    }
-    for (const key of getReachableCoords(state, unit.id).keys()) {
-      actions.push({ kind: 'move', unitId: unit.id, destination: coordFromKey(key) });
-    }
-    if (unitDefinition(unit).ability === 'Displace' && !unit.attacked) {
-      for (const target of getDisplaceTargets(state, unit.id)) {
-        for (const destination of getDisplaceDestinations(state, unit.id, target.id)) {
-          actions.push({ kind: 'displace', unitId: unit.id, targetId: target.id, destination });
-        }
-      }
-    }
-  }
-  return actions;
-};
+): AiAction[] => getLegalGameActions(state, playerId, { includeCards });
 
 export const generateLegalAiActions = (state: GameState): AiAction[] =>
   generateLegalActionsForPlayer(state, UNDEAD_PLAYER, true);
 
-export const applyAiAction = (state: GameState, action: AiAction): ActionResult => {
-  switch (action.kind) {
-    case 'summon': {
-      if (state.players[state.currentPlayer].hand[action.handIndex] !== action.cardId) {
-        return { ok: false, message: 'Planned summon card is no longer at that hand index.' };
-      }
-      return playUnitCard(state, action.handIndex, action.destination);
-    }
-    case 'move':
-      return moveUnit(state, action.unitId, action.destination);
-    case 'attack':
-      return attackUnit(state, action.unitId, action.targetId);
-    case 'displace':
-      return displaceUnit(state, action.unitId, action.targetId, action.destination);
-  }
-};
+/** AI delegates action resolution entirely to the gameplay engine. */
+export const applyAiAction = (state: GameState, action: AiAction): ActionResult =>
+  applyGameAction(state, action);
 
+/** Cheap ordering only controls which legal actions are explored first; final scoring uses simulated states. */
 const actionPriority = (state: GameState, action: AiAction, actor: PlayerId): number => {
   const opponent = opponentOf(actor);
+
   if (action.kind === 'attack') {
     const target = findUnit(state, action.targetId);
     const attacker = findUnit(state, action.unitId);
@@ -349,30 +297,38 @@ const actionPriority = (state: GameState, action: AiAction, actor: PlayerId): nu
     const card = CARD_DEFINITIONS[action.cardId];
     const enemyCommander = commander(state, opponent);
     const proximity = enemyCommander ? 12 - hexDistance(action.destination, enemyCommander.coord) : 0;
-    return card.cost * 300 + proximity * 30;
+    const restoreTarget = action.restoreTargetId ? findUnit(state, action.restoreTargetId) : undefined;
+    const restoreBonus = restoreTarget
+      ? Math.max(0, unitDefinition(restoreTarget).maxHp - restoreTarget.hp) * 180
+      : 0;
+    return card.cost * 300 + proximity * 30 + restoreBonus;
   }
 
-  if (action.kind === 'displace') {
-    const target = findUnit(state, action.targetId);
+  if (action.kind === 'move') {
+    const unit = findUnit(state, action.unitId);
+    if (!unit) return -100_000;
     const enemyCommander = commander(state, opponent);
-    const enemyBonus = target?.owner === opponent ? 1_200 : -150;
-    const commanderBonus = target?.definitionId === 'commander' ? 6_000 : 0;
-    const proximity = enemyCommander ? 10 - hexDistance(action.destination, enemyCommander.coord) : 0;
-    return enemyBonus + commanderBonus + proximity * 80;
+    const before = enemyCommander ? hexDistance(unit.coord, enemyCommander.coord) : 0;
+    const after = enemyCommander ? hexDistance(action.destination, enemyCommander.coord) : 0;
+    const siteBonus = state.sites.some((site) => site.owner !== actor
+      && site.coord.q === action.destination.q
+      && site.coord.r === action.destination.r) ? 1_100 : 0;
+    const commanderSafety = unit.definitionId === 'commander'
+      ? -approximateAttackPressure(state, opponent, action.destination) * 1_400
+      : 0;
+    return (before - after) * 260 + siteBonus + commanderSafety;
   }
 
-  const unit = findUnit(state, action.unitId);
-  if (!unit) return -100_000;
-  const enemyCommander = commander(state, opponent);
-  const before = enemyCommander ? hexDistance(unit.coord, enemyCommander.coord) : 0;
-  const after = enemyCommander ? hexDistance(action.destination, enemyCommander.coord) : 0;
-  const siteBonus = state.sites.some((site) => site.owner !== actor
-    && site.coord.q === action.destination.q
-    && site.coord.r === action.destination.r) ? 1_100 : 0;
-  const commanderSafety = unit.definitionId === 'commander'
-    ? -approximateAttackPressure(state, opponent, action.destination) * 1_400
-    : 0;
-  return (before - after) * 260 + siteBonus + commanderSafety;
+  const targetId = actionTargetId(action);
+  const target = targetId ? findUnit(state, targetId) : undefined;
+  if (target) {
+    const relationBonus = target.owner === actor ? 450 + target.hp * 35 : 950 + unitValue(target);
+    const commanderBonus = target.definitionId === 'commander' ? 4_000 : 0;
+    return 900 + relationBonus + commanderBonus;
+  }
+
+  // Untargeted active abilities (for example Rally) stay near the front of exploration.
+  return 1_100;
 };
 
 interface SearchNode {

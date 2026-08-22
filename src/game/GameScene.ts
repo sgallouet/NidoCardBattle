@@ -1057,6 +1057,12 @@ export class GameScene extends Phaser.Scene {
       button.style.setProperty('--fan-angle', `${fanOffset * 1.6}deg`);
       button.style.setProperty('--fan-y', `${Math.abs(fanOffset) * 2.5}px`);
       button.style.setProperty('--deal-delay', `${index * 70}ms`);
+      if (index === 0) {
+        button.dataset.holoStyle = 'masked';
+        button.style.setProperty('--card-mask', `url("${cardArt}")`);
+      } else if (index === 1) {
+        button.dataset.holoStyle = 'cosmos';
+      }
       button.innerHTML = `
         <span class="card-surface">
           <img class="card-art" src="${cardArt}" alt="" draggable="false" decoding="async">

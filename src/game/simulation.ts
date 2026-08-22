@@ -7,7 +7,7 @@ import {
   planAiTurn,
   type AiSearchOptions,
 } from './ai';
-import { createGameState } from './engine';
+import { coordKey, createGameState } from './engine';
 
 export type SimulationTermination = 'victory' | 'repetition' | 'turn-limit';
 
@@ -190,7 +190,12 @@ const repetitionFingerprint = (state: GameState): string => {
     .map((unit) => JSON.stringify(unit))
     .join('|');
   const sites = state.sites.map((site) => `${site.id}:${site.owner ?? 0}`).join('|');
-  return `${state.currentPlayer};${players};${units};${sites};${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`;
+  const builtBridges = [...state.builtBridges].map(coordKey).sort().join(',');
+  const tileEffects = [...state.tileEffects]
+    .sort((a, b) => coordKey(a.coord).localeCompare(coordKey(b.coord)))
+    .map((effect) => JSON.stringify(effect))
+    .join('|');
+  return `${state.currentPlayer};${players};${units};${sites};${builtBridges};${tileEffects};${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`;
 };
 
 export const simulateAiMatch = (seed: number, options: SimulationOptions = {}): SimulationMatchResult => {

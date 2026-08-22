@@ -214,11 +214,11 @@ export const evaluatePosition = (state: GameState, perspective: PlayerId): numbe
     if (ownDistances.length > 0) score += Math.max(0, 9 - Math.min(...ownDistances)) * 105;
   }
 
+  // The planner may use its own hand/deck, but never scores hidden opponent cards.
   const own = state.players[perspective];
-  const enemy = state.players[opponent];
-  score += (own.hand.length - enemy.hand.length) * 28;
-  score += (own.deck.length - enemy.deck.length) * 8;
-  score += (own.mana - enemy.mana) * 18;
+  score += own.hand.length * 28;
+  score += own.deck.length * 8;
+  score += own.mana * 18;
   return score;
 };
 

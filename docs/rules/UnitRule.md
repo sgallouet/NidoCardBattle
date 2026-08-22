@@ -4,6 +4,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, and 
 
 ## Unit Data
 - **UNS1** - Every unit has Mana Cost, HP, Attack, Move, Range, Traits, and at most one special Ability.
+- **UNS2** - Every summonable prototype unit belongs to exactly one faction; the Commander is shared by both factions for this prototype.
 
 ## Activation
 - **UNA1** - A unit may Move once and Attack once during its activation.
@@ -36,13 +37,13 @@ This file owns unit stats, activation, combat, movement, traits, abilities, and 
 
 ## First Prototype Roster
 
-| Rule | Unit | Mana | HP | Attack | Move | Range | Traits | Ability |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
-| **UNR1** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking | — |
-| **UNR2** | Longbow Ranger | 3 | 2 | 2 | 2 | 3 | Ranged | — |
-| **UNR3** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Charge | — |
-| **UNR4** | Necromancer | 5 | 4 | 1 | 2 | 2 | Invoker | — |
-| **UNR5** | Banshee Displacer | 4 | 3 | 2 | 3 | 1 | — | Displace |
-| **UNR6** | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore |
-| **UNR7** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates | — |
-| **UNR8** | Grave Knight | 5 | 4 | 4 | 2 | 1 | Blocking, Retaliates | — |
+| Rule | Faction | Unit | Mana | HP | Attack | Move | Range | Traits | Ability |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| **UNR1** | Undead | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking | — |
+| **UNR2** | Human | Longbow Ranger | 3 | 2 | 2 | 2 | 3 | Ranged | — |
+| **UNR3** | Human | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Charge | — |
+| **UNR4** | Undead | Necromancer | 5 | 4 | 1 | 2 | 2 | Invoker | — |
+| **UNR5** | Undead | Banshee Displacer | 4 | 3 | 2 | 3 | 1 | — | Displace |
+| **UNR6** | Human | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore |
+| **UNR7** | Human | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates | — |
+| **UNR8** | Undead | Grave Knight | 5 | 4 | 4 | 2 | 1 | Blocking, Retaliates | — |

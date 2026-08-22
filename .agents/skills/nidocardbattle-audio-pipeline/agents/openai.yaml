@@ -1,0 +1,4 @@
+interface:
+  display_name: "NidoCardBattle Audio Pipeline"
+  short_description: "Generate and integrate local-AI game audio"
+  default_prompt: "Use $nidocardbattle-audio-pipeline to generate, validate, and integrate audio for this NidoCardBattle feature."

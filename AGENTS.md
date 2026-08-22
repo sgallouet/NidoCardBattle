@@ -19,6 +19,14 @@ NidoCardBattle is deliberately small. Prefer the simplest implementation that ma
 - Keep rules and abilities easy to inspect and test individually.
 - Avoid introducing large frameworks or services unless the current scope genuinely requires them.
 
+## Map Rendering
+
+- Treat the current tiled map renderer and the authored full-map renderer in `docs/MapGenAuthored.md` as two viable prototype strategies.
+- Both rendering strategies must consume the same logical hex map and coordinate system; gameplay, pathfinding, AI, targeting, captures, and terrain behavior must never depend on rendered pixels.
+- Keep one clean rendering boundary / selection point so the game can switch between tiled and authored terrain without duplicating shared gameplay or scene systems.
+- Do not bake Forts, Mana Wells, Bridges, units, ownership state, tactical highlights, or UI into broad authored terrain artwork.
+- We expect to remove one rendering strategy later, so avoid cross-coupling that would make either implementation difficult to delete.
+
 ## Git Workflow
 
 - Never create a new Git branch or worktree branch unless the user explicitly asks you to create one. Work on the currently checked-out branch by default.

@@ -1,22 +1,17 @@
 import type { CardDefinitionId } from '../data/cards';
 import type { Faction, GameState, PlayerId } from '../data/types';
+import { GAME_ACTION_KINDS, type GameAction } from './actions';
 import {
   SIMULATION_AI_OPTIONS,
   executeAiPlan,
   planAiTurn,
-  type AiAction,
   type AiSearchOptions,
 } from './ai';
 import { createGameState } from './engine';
 
 export type SimulationTermination = 'victory' | 'repetition' | 'turn-limit';
 
-export interface SimulationActionCounts {
-  summon: number;
-  move: number;
-  attack: number;
-  displace: number;
-}
+export type SimulationActionCounts = Record<GameAction['kind'], number>;
 
 export interface SimulationObjectiveTurns {
   well: number;
@@ -82,7 +77,8 @@ export interface SimulationBatchOptions extends Omit<SimulationOptions, 'firstPl
   firstPlayerFaction?: Faction;
 }
 
-const emptyActionCounts = (): SimulationActionCounts => ({ summon: 0, move: 0, attack: 0, displace: 0 });
+const emptyActionCounts = (): SimulationActionCounts =>
+  Object.fromEntries(GAME_ACTION_KINDS.map((kind) => [kind, 0])) as SimulationActionCounts;
 const emptyObjectives = (): SimulationObjectiveTurns => ({ well: 0, fort: 0 });
 
 /** Small deterministic PRNG so simulation runs are reproducible from a seed. */
@@ -127,6 +123,9 @@ const configureFirstPlayer = (state: GameState, firstFaction: Faction): void => 
     unit.exhausted = false;
     unit.moved = false;
     unit.attacked = false;
+    unit.movementSpent = 0;
+    unit.postAttackMoved = false;
+    unit.moveBonus = 0;
   }
   const wells = state.sites.filter((site) => site.type === 'well' && site.owner === 1).length;
   state.players[1].mana = Math.min(7, 3 + wells);
@@ -168,7 +167,7 @@ const addObjectiveSnapshot = (
 
 const recordActions = (
   player: PlayerId,
-  actions: AiAction[],
+  actions: GameAction[],
   counts: Record<PlayerId, SimulationActionCounts>,
   summonsByCard: Partial<Record<CardDefinitionId, number>>,
 ): void => {
@@ -188,7 +187,7 @@ const repetitionFingerprint = (state: GameState): string => {
   }).join('|');
   const units = [...state.units]
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((unit) => `${unit.id}:${unit.definitionId}:${unit.owner}:${unit.hp}:${unit.coord.q},${unit.coord.r}`)
+    .map((unit) => JSON.stringify(unit))
     .join('|');
   const sites = state.sites.map((site) => `${site.id}:${site.owner ?? 0}`).join('|');
   return `${state.currentPlayer};${players};${units};${sites};${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`;
@@ -332,7 +331,7 @@ export const simulateAiBatch = (options: SimulationBatchOptions = {}): Simulatio
     for (const player of [1, 2] as const) {
       const faction = match.playerFactions[player];
       if (match.commanderDeaths[player]) commanderDeathGamesByFaction[faction] += 1;
-      for (const kind of ['summon', 'move', 'attack', 'displace'] as const) {
+      for (const kind of GAME_ACTION_KINDS) {
         actionCountsByFaction[faction][kind] += match.actionCounts[player][kind];
       }
       objectiveTotalsByFaction[faction].well += match.objectiveControlTurns[player].well;

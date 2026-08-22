@@ -85,10 +85,12 @@ describe('faction rosters and decks', () => {
       }
     }
     expect(new Set(FACTION_DECKS.human)).toEqual(new Set([
-      'royalGuard', 'longbowRanger', 'silverwingCavalry', 'lightMage', 'bannerCaptain', 'windAdept', 'buildBridge',
+      'royalGuard', 'longbowRanger', 'silverwingCavalry', 'lightMage', 'bannerCaptain',
+      'scorch', 'raiseFort', 'buildBridge',
     ]));
     expect(new Set(FACTION_DECKS.undead)).toEqual(new Set([
-      'skeletalInfantry', 'boneArcher', 'necromancer', 'banshee', 'vampire', 'graveKnight', 'graveLock', 'buildBridge',
+      'skeletalInfantry', 'boneArcher', 'necromancer', 'vampire', 'graveKnight',
+      'graveLock', 'profaneWell', 'buildBridge',
     ]));
   });
 

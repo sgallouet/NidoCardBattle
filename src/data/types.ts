@@ -3,8 +3,25 @@ export type Faction = 'human' | 'undead';
 export type UnitFaction = Faction | 'shared';
 export type Terrain = 'plain' | 'forest' | 'hill' | 'water' | 'cliff' | 'bridge';
 export type SiteType = 'keep' | 'fort' | 'well';
-export type Trait = 'Blocking' | 'Retaliates' | 'Invoker' | 'Ranged' | 'Flying' | 'Charge';
-export type Ability = 'Displace' | 'Restore';
+export type Trait =
+  | 'Blocking'
+  | 'Retaliates'
+  | 'Invoker'
+  | 'Ranged'
+  | 'Flying'
+  | 'AgileAssault'
+  | 'DarkReflection'
+  | 'Necromancy'
+  | 'Phase'
+  | 'Assist';
+export type Ability =
+  | 'Displace'
+  | 'Restore'
+  | 'Rally'
+  | 'SoulLink'
+  | 'Curse'
+  | 'BloodDrain'
+  | 'Cleave';
 
 export interface Coord {
   q: number;
@@ -25,6 +42,11 @@ export interface UnitDefinition {
   mark: string;
 }
 
+export interface CurseStatus {
+  sourcePlayer: PlayerId;
+  remainingTurns: number;
+}
+
 export interface UnitState {
   id: string;
   definitionId: string;
@@ -34,6 +56,11 @@ export interface UnitState {
   exhausted: boolean;
   moved: boolean;
   attacked: boolean;
+  movementSpent?: number;
+  postAttackMoved?: boolean;
+  moveBonus?: number;
+  soulLinkTargetId?: string;
+  curses?: CurseStatus[];
 }
 
 export interface MapSite {

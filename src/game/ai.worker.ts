@@ -12,11 +12,17 @@ interface AiWorkerResponse {
   plan: AiPlan;
 }
 
-self.onmessage = (event: MessageEvent<AiWorkerRequest>): void => {
+interface WorkerScope {
+  onmessage: ((event: MessageEvent<AiWorkerRequest>) => void) | null;
+  postMessage: (message: AiWorkerResponse) => void;
+}
+
+const workerScope = self as unknown as WorkerScope;
+
+workerScope.onmessage = (event: MessageEvent<AiWorkerRequest>): void => {
   const { requestId, state, options } = event.data;
   const plan = planSmartAiTurn(state, options);
-  const response: AiWorkerResponse = { requestId, plan };
-  self.postMessage(response);
+  workerScope.postMessage({ requestId, plan });
 };
 
 export {};

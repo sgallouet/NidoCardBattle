@@ -52,13 +52,13 @@ Human identity: formation, mobility, ranged support, and controlled repositionin
 
 | Rule | Unit | Mana | HP | DMG | Move | Range | Traits | Spell / Ability | Implementation |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
-| **HUR1** | Human Commander | — | 10 | 3 | 2 | 1 | Blocking, Retaliates | Rally | 🟡 Generic shared Commander has matching base stats/traits; faction identity and Rally are missing. |
-| **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates, Assist | — | 🟡 Base unit is implemented; Assist is missing. |
-| **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist | — | 🟡 Unit is implemented, but current code has HP 2 / DMG 2 and is missing Assist. |
-| **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | 🟡 Base stats and Flying are implemented; current code still uses Charge and is missing Agile Assault movement-after-attack and half-retaliation behavior. |
-| **HUR5** | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore | ✅ Implemented and matches target. |
-| **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | Invoker | — | 🔴 Missing unit; Invoker system already exists. |
-| **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | 🔴 Missing unit; Displace system already exists. |
+| **HUR1** | Human Commander | — | 10 | 3 | 2 | 1 | Blocking, Retaliates | Rally | ✅ Implemented. |
+| **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates, Assist | — | ✅ Implemented. |
+| **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist | — | ✅ Implemented. |
+| **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
+| **HUR5** | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore | ✅ Implemented. |
+| **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | Invoker | — | ✅ Implemented with placeholder visuals. |
+| **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | ✅ Implemented with placeholder visuals. |
 
 ## Undead Army
 
@@ -66,11 +66,11 @@ Undead identity: summoning, disruption, attrition, damage redirection, and punis
 
 | Rule | Unit | Mana | HP | DMG | Move | Range | Traits | Spell / Ability | Implementation |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
-| **UDR1** | Undead Commander | — | 10 | 3 | 2 | 1 | Blocking, Dark Reflection | Soul Link | 🔴 Generic shared Commander exists, but Undead faction identity, Dark Reflection, and Soul Link are missing; current Commander incorrectly has Retaliates for this target. |
-| **UDR2** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking, Assist | — | 🟡 Base unit is implemented; Assist is missing. |
-| **UDR3** | Bone Archer | 3 | 1 | 1 | 2 | 3 | Ranged, Assist | — | 🔴 Missing unit and Assist behavior. |
-| **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Invoker, Ranged, Necromancy | Curse | 🟡 Implemented with Invoker, but currently Range 2 and missing Ranged, Necromancy, and Curse. |
-| **UDR5** | Banshee | 4 | 3 | 2 | 3 | 1 | — | Displace | ✅ Implemented as Banshee Displacer and matches target mechanics. |
-| **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | Flying | Blood Drain | 🔴 Missing unit. |
-| **UDR7** | Wraith | 4 | 3 | 2 | 4 | 1 | Phase | — | 🔴 Missing unit. |
-| **UDR8** | Grave Knight | 5 | 5 | 3 | 2 | 1 | Blocking, Retaliates | Cleave | 🟡 Implemented, but currently HP 4 / DMG 4 and missing Cleave. |
+| **UDR1** | Undead Commander | — | 10 | 3 | 2 | 1 | Blocking, Dark Reflection | Soul Link | ✅ Implemented. |
+| **UDR2** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking, Assist | — | ✅ Implemented. |
+| **UDR3** | Bone Archer | 3 | 1 | 1 | 2 | 3 | Ranged, Assist | — | ✅ Implemented with placeholder visuals. |
+| **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Invoker, Ranged, Necromancy | Curse | ✅ Implemented. |
+| **UDR5** | Banshee | 4 | 3 | 2 | 3 | 1 | — | Displace | ✅ Implemented. |
+| **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | Flying | Blood Drain | ✅ Implemented with placeholder visuals. |
+| **UDR7** | Wraith | 4 | 3 | 2 | 4 | 1 | Phase | — | ✅ Implemented with placeholder visuals. |
+| **UDR8** | Grave Knight | 5 | 5 | 3 | 2 | 1 | Blocking, Retaliates | Cleave | ✅ Implemented. |

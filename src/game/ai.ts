@@ -115,6 +115,14 @@ export const buildThreatMap = (state: GameState, attackerPlayer: PlayerId): Map<
   return pressure;
 };
 
+const approximateAttackPressure = (state: GameState, attackerPlayer: PlayerId, target: Coord): number =>
+  state.units.filter((unit) => {
+    if (unit.owner !== attackerPlayer) return false;
+    const definition = unitDefinition(unit);
+    const optimisticReach = definition.move + definition.range + (definition.range > 1 ? 1 : 0);
+    return hexDistance(unit.coord, target) <= optimisticReach;
+  }).length;
+
 const countAdjacentBlockers = (state: GameState, target: UnitState): number =>
   state.units.filter((unit) => unit.owner === target.owner
     && unit.id !== target.id
@@ -154,18 +162,15 @@ export const evaluateAiPosition = (state: GameState): number => {
   if (state.countdown?.player === AI_PLAYER) score += 32_000 + state.countdown.checkpoints * 18_000;
   if (state.countdown?.player === HUMAN_PLAYER) score -= 45_000 + state.countdown.checkpoints * 24_000;
 
-  const humanThreats = buildThreatMap(state, HUMAN_PLAYER);
-  const aiThreats = buildThreatMap(state, AI_PLAYER);
-
   if (aiCommander) {
-    const pressure = humanThreats.get(coordKey(aiCommander.coord)) ?? 0;
+    const pressure = approximateAttackPressure(state, HUMAN_PLAYER, aiCommander.coord);
     score -= pressure * 5_500;
     score += countAdjacentBlockers(state, aiCommander) * 180;
     score += Math.min(8, nearestEnemyDistance(state, aiCommander, HUMAN_PLAYER)) * 85;
   }
 
   if (humanCommander) {
-    const pressure = aiThreats.get(coordKey(humanCommander.coord)) ?? 0;
+    const pressure = approximateAttackPressure(state, AI_PLAYER, humanCommander.coord);
     score += pressure * 3_700;
     score -= countAdjacentBlockers(state, humanCommander) * 120;
     const aiDistances = state.units

@@ -39,7 +39,7 @@ describe('engine-owned legal actions', () => {
     state.units = [
       makeUnit('undead-commander', 'commander', 2, { q: 10, r: 8 }),
       makeUnit('necromancer', 'necromancer', 2, { q: 5, r: 4 }),
-      makeUnit('human-target', 'ghoul', 1, { q: 7, r: 4 }),
+      makeUnit('human-target', 'royalGuard', 1, { q: 7, r: 4 }),
       makeUnit('human-commander', 'commander', 1, { q: 2, r: 9 }),
     ];
 
@@ -56,7 +56,7 @@ describe('engine-owned legal actions', () => {
     state.players[2].hand = [];
     state.units = [
       makeUnit('undead-commander', 'commander', 2, { q: 10, r: 8 }),
-      makeUnit('bodyguard', 'skeletonGuard', 2, { q: 11, r: 8 }),
+      makeUnit('bodyguard', 'skeletalInfantry', 2, { q: 11, r: 8 }),
       makeUnit('human-commander', 'commander', 1, { q: 2, r: 9 }),
     ];
 
@@ -70,7 +70,7 @@ describe('engine-owned legal actions', () => {
     state.players[1].hand = [];
     state.units = [
       makeUnit('human-commander', 'commander', 1, { q: 5, r: 5 }),
-      makeUnit('guard', 'ghoul', 1, { q: 6, r: 5 }),
+      makeUnit('guard', 'royalGuard', 1, { q: 6, r: 5 }),
       makeUnit('undead-commander', 'commander', 2, { q: 15, r: 3 }),
     ];
 
@@ -81,16 +81,16 @@ describe('engine-owned legal actions', () => {
   it('folds Light Mage summon Restore choice into the summon action', () => {
     const state = freshState();
     state.currentPlayer = 1;
-    state.players[1].hand = ['wraith'];
+    state.players[1].hand = ['lightMage'];
     state.players[1].mana = 7;
     state.units = [
-      makeUnit('damaged-guard', 'ghoul', 1, { q: 3, r: 9 }, { hp: 1 }),
+      makeUnit('damaged-guard', 'royalGuard', 1, { q: 3, r: 9 }, { hp: 1 }),
       makeUnit('undead-commander', 'commander', 2, { q: 15, r: 3 }),
     ];
 
     const action = getLegalGameActions(state, 1, { includeCards: true }).find((candidate) =>
       candidate.kind === 'summon'
-      && candidate.cardId === 'wraith'
+      && candidate.cardId === 'lightMage'
       && candidate.destination.q === 3
       && candidate.destination.r === 8
       && candidate.restoreTargetId === 'damaged-guard');
@@ -106,7 +106,7 @@ describe('engine-owned legal actions', () => {
     state.currentPlayer = 2;
     state.units = [
       makeUnit('necromancer', 'necromancer', 2, { q: 5, r: 4 }),
-      makeUnit('human-target', 'ghoul', 1, { q: 7, r: 4 }),
+      makeUnit('human-target', 'royalGuard', 1, { q: 7, r: 4 }),
       makeUnit('undead-commander', 'commander', 2, { q: 10, r: 8 }),
       makeUnit('human-commander', 'commander', 1, { q: 2, r: 9 }),
     ];

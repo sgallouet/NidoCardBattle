@@ -14,6 +14,8 @@ import {
   getCurseTargets,
   getSoulLinkTargets,
   getTacticTargetCoords,
+  getTacticTargets,
+  playTacticCard,
   playTacticCardAtCoord,
   rallyAdjacentAllies,
   soulLinkUnit,
@@ -122,6 +124,7 @@ export class AiGameScene extends GameScene {
       if (scene.mode === 'card' && card?.type === 'tactic') {
         highlight.summon.clear();
         for (const target of getTacticTargetCoords(scene.state, cardId)) highlight.summon.add(coordKey(target));
+        for (const target of getTacticTargets(scene.state, cardId)) highlight.summon.add(coordKey(target.coord));
       }
 
       const selected = scene.selectedUnitId ? findUnit(scene.state, scene.selectedUnitId) : undefined;
@@ -142,7 +145,12 @@ export class AiGameScene extends GameScene {
       const card = cardId ? CARD_DEFINITIONS[cardId] : undefined;
       if (scene.mode === 'card' && scene.selectedCardIndex !== null && card?.type === 'tactic') {
         const cardIndex = scene.selectedCardIndex;
-        const result = playTacticCardAtCoord(scene.state, cardIndex, coord);
+        const occupant = unitAt(scene.state, coord);
+        const result = card.effect.kind === 'profaneWell'
+          ? occupant
+            ? playTacticCard(scene.state, cardIndex, occupant.id)
+            : { ok: false, message: 'Choose a highlighted friendly non-Commander unit.' }
+          : playTacticCardAtCoord(scene.state, cardIndex, coord);
         scene.message = result.message;
         if (result.ok) {
           scene.animatePlayedCard(cardIndex);
@@ -183,9 +191,16 @@ export class AiGameScene extends GameScene {
         : scene.state.players[scene.state.currentPlayer].hand[scene.selectedCardIndex] as CardDefinitionId | undefined;
       const card = cardId ? CARD_DEFINITIONS[cardId] : undefined;
       if (scene.mode === 'card' && card?.type === 'tactic') {
-        scene.message = card.effect.kind === 'graveLock'
-          ? 'Choose a highlighted passable hex for Grave Lock.'
-          : 'Choose a highlighted Water hex to build a Bridge.';
+        const tacticPrompt: Record<typeof card.effect.kind, string> = {
+          damage: 'Choose a highlighted enemy.',
+          heal: 'Choose a highlighted friendly unit.',
+          graveLock: 'Choose a highlighted passable hex for Grave Lock.',
+          buildBridge: 'Choose a highlighted Water hex to build a Bridge.',
+          scorch: 'Choose a highlighted Forest hex to Scorch.',
+          raiseFort: 'Choose a highlighted empty Plain or Hill hex to Raise a Fort.',
+          profaneWell: 'Choose a highlighted friendly non-Commander unit to sacrifice.',
+        };
+        scene.message = tacticPrompt[card.effect.kind];
         const status = document.querySelector<HTMLElement>('#status');
         if (status) status.textContent = scene.message;
       }

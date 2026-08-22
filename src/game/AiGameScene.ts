@@ -1,7 +1,7 @@
 import type { GameState } from '../data/types';
 import {
   applyAiAction,
-  getBrowserAiSearchOptions,
+  MOBILE_AI_OPTIONS,
   runSmartAiTurn,
   type AiPlan,
 } from './ai';
@@ -59,7 +59,7 @@ export class AiGameScene extends GameScene {
     this.aiWorker.postMessage({
       requestId: this.aiRequestId,
       state: scene.state,
-      options: getBrowserAiSearchOptions(),
+      options: MOBILE_AI_OPTIONS,
     });
   }
 
@@ -104,7 +104,7 @@ export class AiGameScene extends GameScene {
 
     this.aiWorker?.terminate();
     this.aiWorker = null;
-    const result = runSmartAiTurn(scene.state, Math.random, getBrowserAiSearchOptions());
+    const result = runSmartAiTurn(scene.state, Math.random, MOBILE_AI_OPTIONS);
     const meaningfulActions = result.actions.filter((action) => !action.startsWith('Player 1'));
     scene.message = scene.state.winner === 2
       ? 'The Undead Commander survived the countdown. Enemy wins.'

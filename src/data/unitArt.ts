@@ -38,7 +38,7 @@ export interface UnitArtDefinition {
 }
 
 export const UNIT_ART: Partial<Record<UnitDefinitionId, UnitArtDefinition>> = {
-  skeletonGuard: {
+  skeletalInfantry: {
     frameSize: 200,
     scale: 4 / 7,
     anchorX: 0.5,

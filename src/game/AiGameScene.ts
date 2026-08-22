@@ -1,3 +1,4 @@
+import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import type { Coord, GameState } from '../data/types';
 import {
   applyAiAction,
@@ -12,6 +13,8 @@ import {
   findUnit,
   getCurseTargets,
   getSoulLinkTargets,
+  getTacticTargetCoords,
+  playTacticCardAtCoord,
   rallyAdjacentAllies,
   soulLinkUnit,
   unitAt,
@@ -31,6 +34,7 @@ interface GameSceneInternals {
   message: string;
   animationInProgress: boolean;
   selectedUnitId: string | null;
+  selectedCardIndex: number | null;
   mode: string | null;
   clearInteraction: () => void;
   renderAll: () => void;
@@ -38,6 +42,7 @@ interface GameSceneInternals {
   highlights: () => HighlightSets;
   handleHexClick: (coord: Coord) => Promise<void>;
   beginDisplace: () => void;
+  animatePlayedCard: (index: number) => void;
 }
 
 interface AiWorkerResponse {
@@ -110,6 +115,15 @@ export class AiGameScene extends GameScene {
 
     scene.highlights = () => {
       const highlight = originalHighlights();
+      const cardId = scene.selectedCardIndex === null
+        ? undefined
+        : scene.state.players[scene.state.currentPlayer].hand[scene.selectedCardIndex] as CardDefinitionId | undefined;
+      const card = cardId ? CARD_DEFINITIONS[cardId] : undefined;
+      if (scene.mode === 'card' && card?.type === 'tactic') {
+        highlight.summon.clear();
+        for (const target of getTacticTargetCoords(scene.state, cardId)) highlight.summon.add(coordKey(target));
+      }
+
       const selected = scene.selectedUnitId ? findUnit(scene.state, scene.selectedUnitId) : undefined;
       if (!selected) return highlight;
       if (scene.mode === 'soul-link-target') {
@@ -122,6 +136,22 @@ export class AiGameScene extends GameScene {
     };
 
     scene.handleHexClick = async (coord: Coord) => {
+      const cardId = scene.selectedCardIndex === null
+        ? undefined
+        : scene.state.players[scene.state.currentPlayer].hand[scene.selectedCardIndex] as CardDefinitionId | undefined;
+      const card = cardId ? CARD_DEFINITIONS[cardId] : undefined;
+      if (scene.mode === 'card' && scene.selectedCardIndex !== null && card?.type === 'tactic') {
+        const cardIndex = scene.selectedCardIndex;
+        const result = playTacticCardAtCoord(scene.state, cardIndex, coord);
+        scene.message = result.message;
+        if (result.ok) {
+          scene.animatePlayedCard(cardIndex);
+          scene.clearInteraction();
+        }
+        scene.renderAll();
+        return;
+      }
+
       const selected = scene.selectedUnitId ? findUnit(scene.state, scene.selectedUnitId) : undefined;
       const occupant = unitAt(scene.state, coord);
       if (scene.mode === 'soul-link-target' && selected) {
@@ -147,6 +177,19 @@ export class AiGameScene extends GameScene {
 
     scene.renderHud = () => {
       originalRenderHud();
+
+      const cardId = scene.selectedCardIndex === null
+        ? undefined
+        : scene.state.players[scene.state.currentPlayer].hand[scene.selectedCardIndex] as CardDefinitionId | undefined;
+      const card = cardId ? CARD_DEFINITIONS[cardId] : undefined;
+      if (scene.mode === 'card' && card?.type === 'tactic') {
+        scene.message = card.effect.kind === 'graveLock'
+          ? 'Choose a highlighted passable hex for Grave Lock.'
+          : 'Choose a highlighted Water hex to build a Bridge.';
+        const status = document.querySelector<HTMLElement>('#status');
+        if (status) status.textContent = scene.message;
+      }
+
       const selected = scene.selectedUnitId ? findUnit(scene.state, scene.selectedUnitId) : undefined;
       const abilityButton = document.querySelector<HTMLButtonElement>('#ability-button');
       if (!abilityButton) return;

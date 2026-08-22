@@ -96,9 +96,9 @@ export const MAP_SITES: MapSite[] = [
 
 export const STARTING_UNITS = [
   { definitionId: 'commander', owner: 1 as const, coord: { q: 2, r: 9 } },
-  { definitionId: 'skeletonGuard', owner: 1 as const, coord: { q: 3, r: 8 } },
+  { definitionId: 'ghoul', owner: 1 as const, coord: { q: 3, r: 8 } },
   { definitionId: 'boneArcher', owner: 1 as const, coord: { q: 3, r: 10 } },
   { definitionId: 'commander', owner: 2 as const, coord: { q: 15, r: 3 } },
   { definitionId: 'skeletonGuard', owner: 2 as const, coord: { q: 14, r: 4 } },
-  { definitionId: 'boneArcher', owner: 2 as const, coord: { q: 14, r: 2 } },
+  { definitionId: 'necromancer', owner: 2 as const, coord: { q: 14, r: 2 } },
 ];

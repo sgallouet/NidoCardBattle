@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
+import { MAP_RENDER_MODE } from '../data/mapRenderMode';
 import type { Coord, GameState, PlayerId } from '../data/types';
 import {
   ActionReadabilityLayer,
   type ActionReadabilitySceneInternals,
 } from './ActionReadability';
+import { AuthoredMapPresentation } from './AuthoredMapPresentation';
 import { PersistentAiGameScene } from './PersistentAiGameScene';
 import { SpellHud, type SpellHudSceneInternals } from './SpellHud';
 import {
@@ -30,6 +32,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
   private readability?: TacticalReadabilityLayer;
   private actionReadability?: ActionReadabilityLayer;
   private spellHud?: SpellHud;
+  private authoredMap?: AuthoredMapPresentation;
 
   create(): void {
     super.create();
@@ -37,6 +40,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
 
     this.spellHud = new SpellHud(this, scene);
     this.spellHud.install();
+    this.authoredMap = new AuthoredMapPresentation(this, MAP_RENDER_MODE);
 
     const originalRenderAll = scene.renderAll.bind(this);
     this.readability = new TacticalReadabilityLayer(this, scene);
@@ -44,6 +48,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
 
     scene.renderAll = () => {
       originalRenderAll();
+      this.authoredMap?.render(scene);
       this.renderTacticPlaceholders(scene);
       this.readability?.render();
       this.actionReadability?.render();
@@ -55,6 +60,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
       this.readability = undefined;
       this.actionReadability = undefined;
       this.spellHud = undefined;
+      this.authoredMap = undefined;
     });
 
     // The base scene has already rendered once during create(). Redraw once so

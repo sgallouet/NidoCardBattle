@@ -102,6 +102,18 @@ export type TacticEffect =
   | {
     kind: 'buildBridge';
     target: 'water';
+  }
+  | {
+    kind: 'scorch';
+    target: 'forest';
+  }
+  | {
+    kind: 'raiseFort';
+    target: 'constructibleLand';
+  }
+  | {
+    kind: 'profaneWell';
+    target: 'friendlyUnit';
   };
 
 export interface TacticCard {
@@ -138,6 +150,14 @@ export interface GraveLockTileEffect {
 
 export type TileEffect = GraveLockTileEffect;
 
+export interface PendingManaWell {
+  id: string;
+  coord: Coord;
+  owner: PlayerId;
+  remainingTurns: number;
+  createdTurnNumber: number;
+}
+
 export interface GameState {
   currentPlayer: PlayerId;
   turnNumber: number;
@@ -145,10 +165,13 @@ export interface GameState {
   units: UnitState[];
   sites: SiteState[];
   builtBridges: Coord[];
+  scorchedForests: Coord[];
+  pendingManaWells: PendingManaWell[];
   tileEffects: TileEffect[];
   countdown: VictoryCountdown | null;
   winner: PlayerId | null;
   nextUnitId: number;
+  nextSiteId: number;
 }
 
 export interface ActionResult {

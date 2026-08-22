@@ -17,4 +17,9 @@ export const CARD_ART: Record<CardDefinitionId, string> = {
   wraith: lightMage,
   ghoul: royalGuard,
   graveKnight,
+  bannerCaptain: royalGuard,
+  windAdept: lightMage,
+  undeadBoneArcher: longbowRanger,
+  undeadVampire: silverwingCavalry,
+  undeadWraith: lightMage,
 };

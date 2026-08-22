@@ -1,0 +1,240 @@
+import type Phaser from 'phaser';
+import { SPELL_UI, isActiveSpellId, type ActiveSpellId } from '../data/spellArt';
+import type { Coord, GameState } from '../data/types';
+import {
+  coordKey,
+  findUnit,
+  getRallyTargets,
+  rallyAdjacentAllies,
+  unitAt,
+  unitDefinition,
+} from './engine';
+import './SpellHud.css';
+
+interface HighlightSets {
+  move: Set<string>;
+  attack: Set<string>;
+  summon: Set<string>;
+  selected: Set<string>;
+}
+
+export interface SpellHudSceneInternals {
+  state: GameState;
+  message: string;
+  animationInProgress: boolean;
+  selectedUnitId: string | null;
+  displaceTargetId: string | null;
+  mode: string | null;
+  renderAll: () => void;
+  renderHud: () => void;
+  highlights: () => HighlightSets;
+  handleHexClick: (coord: Coord) => Promise<void>;
+  beginDisplace: () => void;
+}
+
+export class SpellHud {
+  private dock?: HTMLDivElement;
+  private copy?: HTMLDivElement;
+  private title?: HTMLSpanElement;
+  private description?: HTMLSpanElement;
+  private cooldown?: HTMLDivElement;
+  private button?: HTMLButtonElement;
+  private originalButtonParent?: HTMLElement;
+  private currentSpell?: ActiveSpellId;
+
+  constructor(
+    private readonly scene: Phaser.Scene,
+    private readonly game: SpellHudSceneInternals,
+  ) {}
+
+  install(): void {
+    const app = document.querySelector<HTMLElement>('#app');
+    const button = document.querySelector<HTMLButtonElement>('#ability-button');
+    if (!app || !button) return;
+
+    this.originalButtonParent = button.parentElement ?? undefined;
+    this.button = button;
+    this.buildDock(app, button);
+
+    const originalBeginAbility = this.game.beginDisplace.bind(this.scene);
+    const originalHighlights = this.game.highlights.bind(this.scene);
+    const originalHandleHexClick = this.game.handleHexClick.bind(this.scene);
+    const originalRenderHud = this.game.renderHud.bind(this.scene);
+
+    this.game.beginDisplace = () => this.beginAbility(originalBeginAbility);
+    this.game.highlights = () => {
+      const highlight = originalHighlights();
+      const selected = this.game.selectedUnitId ? findUnit(this.game.state, this.game.selectedUnitId) : undefined;
+      if (this.game.mode === 'rally-target' && selected) {
+        for (const target of getRallyTargets(this.game.state, selected.id)) {
+          highlight.summon.add(coordKey(target.coord));
+        }
+      }
+      return highlight;
+    };
+    this.game.handleHexClick = async (coord: Coord) => {
+      const selected = this.game.selectedUnitId ? findUnit(this.game.state, this.game.selectedUnitId) : undefined;
+      if (this.game.mode === 'rally-target' && selected) {
+        const occupant = unitAt(this.game.state, coord);
+        const valid = occupant
+          && getRallyTargets(this.game.state, selected.id).some((target) => target.id === occupant.id);
+        if (valid) this.castRally(selected.id);
+        else {
+          this.game.message = 'Choose a highlighted ally, or tap Rally again to cast.';
+          this.game.renderAll();
+        }
+        return;
+      }
+      await originalHandleHexClick(coord);
+    };
+    this.game.renderHud = () => {
+      originalRenderHud();
+      this.sync();
+    };
+
+    this.scene.events.once('shutdown', () => this.destroy());
+  }
+
+  private buildDock(app: HTMLElement, button: HTMLButtonElement): void {
+    const dock = document.createElement('div');
+    dock.className = 'spell-dock';
+    dock.hidden = true;
+
+    const copy = document.createElement('div');
+    copy.className = 'spell-copy';
+    copy.hidden = true;
+    const title = document.createElement('span');
+    title.className = 'spell-name';
+    const description = document.createElement('span');
+    description.className = 'spell-description';
+    copy.append(title, description);
+
+    button.className = 'spell-button';
+    button.type = 'button';
+    button.hidden = false;
+
+    const cooldown = document.createElement('div');
+    cooldown.className = 'spell-cooldown';
+
+    dock.append(copy, button, cooldown);
+    app.append(dock);
+
+    this.dock = dock;
+    this.copy = copy;
+    this.title = title;
+    this.description = description;
+    this.cooldown = cooldown;
+  }
+
+  private beginAbility(originalBeginAbility: () => void): void {
+    if (this.game.animationInProgress) return;
+    const selected = this.game.selectedUnitId ? findUnit(this.game.state, this.game.selectedUnitId) : undefined;
+    const ability = selected?.owner === this.game.state.currentPlayer
+      ? unitDefinition(selected).ability
+      : undefined;
+    if (!selected || !isActiveSpellId(ability)) {
+      originalBeginAbility();
+      return;
+    }
+
+    if (this.isTargeting(ability)) {
+      if (ability === 'Rally' && this.game.mode === 'rally-target') {
+        this.castRally(selected.id);
+        return;
+      }
+      this.game.displaceTargetId = null;
+      this.game.mode = 'unit';
+      this.game.message = `${SPELL_UI[ability].name} targeting cancelled.`;
+      this.game.renderAll();
+      return;
+    }
+
+    if (ability === 'Rally') {
+      const targets = getRallyTargets(this.game.state, selected.id);
+      if (targets.length === 0) {
+        this.game.message = 'No adjacent ally can benefit from Rally.';
+        this.game.renderAll();
+        return;
+      }
+      this.game.mode = 'rally-target';
+      this.game.message = 'Rally will affect the highlighted allies.';
+      this.game.renderAll();
+      return;
+    }
+
+    originalBeginAbility();
+  }
+
+  private castRally(actorId: string): void {
+    const result = rallyAdjacentAllies(this.game.state, actorId);
+    this.game.message = result.message;
+    if (result.ok) this.game.mode = 'unit';
+    this.game.renderAll();
+  }
+
+  private isTargeting(ability: ActiveSpellId): boolean {
+    if (ability === 'Displace') {
+      return this.game.mode === 'displace-target' || this.game.mode === 'displace-destination';
+    }
+    if (ability === 'SoulLink') return this.game.mode === 'soul-link-target';
+    if (ability === 'Curse') return this.game.mode === 'curse-target';
+    return this.game.mode === 'rally-target';
+  }
+
+  private sync(): void {
+    if (!this.dock || !this.button || !this.copy || !this.title || !this.description || !this.cooldown) return;
+
+    const selected = this.game.selectedUnitId ? findUnit(this.game.state, this.game.selectedUnitId) : undefined;
+    const ability = selected?.owner === this.game.state.currentPlayer
+      ? unitDefinition(selected).ability
+      : undefined;
+    if (!selected || !isActiveSpellId(ability)) {
+      this.dock.hidden = true;
+      return;
+    }
+
+    const ui = SPELL_UI[ability];
+    const targeting = this.isTargeting(ability);
+    const used = selected.exhausted
+      || selected.attacked
+      || this.game.state.winner !== null
+      || this.game.animationInProgress;
+
+    this.dock.hidden = false;
+    this.dock.style.setProperty('--spell-accent', ui.accent);
+    this.dock.dataset.state = used ? 'used' : targeting ? 'targeting' : 'ready';
+    this.button.hidden = false;
+    this.button.disabled = used;
+    this.button.classList.toggle('targeting', targeting);
+    this.button.setAttribute('aria-pressed', targeting ? 'true' : 'false');
+    this.button.setAttribute('aria-label', `${ui.name}. ${ui.description}`);
+    this.button.title = `${ui.name} — ${ui.description}`;
+
+    if (this.currentSpell !== ability) {
+      const image = document.createElement('img');
+      image.src = ui.art;
+      image.alt = '';
+      image.draggable = false;
+      this.button.replaceChildren(image);
+      this.currentSpell = ability;
+    }
+
+    this.title.textContent = ui.name;
+    this.description.textContent = ability === 'Rally' && targeting
+      ? `${ui.description} Tap again or tap a highlighted ally to cast.`
+      : ui.description;
+    this.copy.hidden = !targeting;
+    this.cooldown.textContent = used ? 'USED' : targeting ? 'TARGETING' : 'READY';
+  }
+
+  private destroy(): void {
+    if (this.button && this.originalButtonParent) {
+      this.button.className = 'secondary';
+      this.button.replaceChildren();
+      this.originalButtonParent.append(this.button);
+    }
+    this.dock?.remove();
+    this.dock = undefined;
+    this.button = undefined;
+  }
+}

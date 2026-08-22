@@ -170,27 +170,6 @@ export class AiGameScene extends GameScene {
     scene.renderAll();
   }
 
-  private useUndeadSetupAbilities(state: GameState): void {
-    if (state.currentPlayer !== 2 || state.winner) return;
-
-    const commander = state.units.find((unit) => unit.owner === 2 && unit.definitionId === 'commander');
-    if (commander && !commander.exhausted && !commander.attacked) {
-      const linkTargets = getSoulLinkTargets(state, commander.id)
-        .sort((a, b) => b.hp - a.hp || unitDefinition(b).maxHp - unitDefinition(a).maxHp);
-      if (linkTargets.length > 0) soulLinkUnit(state, commander.id, linkTargets[0].id);
-    }
-
-    for (const necromancer of state.units.filter((unit) => unit.owner === 2 && unitDefinition(unit).ability === 'Curse')) {
-      if (necromancer.exhausted || necromancer.attacked) continue;
-      const targets = getCurseTargets(state, necromancer.id).sort((a, b) => {
-        const commanderPriority = Number(b.definitionId === 'commander') - Number(a.definitionId === 'commander');
-        if (commanderPriority !== 0) return commanderPriority;
-        return b.hp - a.hp;
-      });
-      if (targets.length > 0) curseUnit(state, necromancer.id, targets[0].id);
-    }
-  }
-
   update(): void {
     const scene = this as unknown as GameSceneInternals;
     if (this.aiTurnInProgress
@@ -201,7 +180,6 @@ export class AiGameScene extends GameScene {
     this.aiTurnInProgress = true;
     scene.animationInProgress = true;
     scene.clearInteraction();
-    this.useUndeadSetupAbilities(scene.state);
     scene.message = 'Enemy thinking…';
     scene.renderAll();
     document.querySelector<HTMLElement>('#hand')?.replaceChildren();

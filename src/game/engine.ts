@@ -41,6 +41,11 @@ const toCube = (coord: Coord): [number, number, number] => {
   return [x, -x - z, z];
 };
 
+const fromCube = ([x, , z]: [number, number, number]): Coord => ({
+  q: x + (z - (z & 1)) / 2,
+  r: z,
+});
+
 export const hexDistance = (a: Coord, b: Coord): number => {
   const ac = toCube(a);
   const bc = toCube(b);
@@ -58,7 +63,14 @@ const shuffle = <T>(values: T[], random: () => number): T[] => {
 
 const cardDefinition = (id: string): CardDefinition => CARD_DEFINITIONS[id as CardDefinitionId];
 
-export const unitDefinition = (unit: UnitState) => UNIT_DEFINITIONS[unit.definitionId as UnitDefinitionId];
+const definitionFor = (definitionId: string, owner: PlayerId) => {
+  if (definitionId === 'commander') {
+    return owner === 1 ? UNIT_DEFINITIONS.humanCommander : UNIT_DEFINITIONS.undeadCommander;
+  }
+  return UNIT_DEFINITIONS[definitionId as UnitDefinitionId];
+};
+
+export const unitDefinition = (unit: UnitState) => definitionFor(unit.definitionId, unit.owner);
 
 export const unitAt = (state: GameState, coord: Coord): UnitState | undefined =>
   state.units.find((unit) => sameCoord(unit.coord, coord));
@@ -73,7 +85,7 @@ const createUnit = (
   coord: Coord,
   exhausted: boolean,
 ): UnitState => {
-  const definition = UNIT_DEFINITIONS[definitionId as UnitDefinitionId];
+  const definition = definitionFor(definitionId, owner);
   const unit: UnitState = {
     id: `unit-${state.nextUnitId}`,
     definitionId,
@@ -83,6 +95,10 @@ const createUnit = (
     exhausted,
     moved: false,
     attacked: false,
+    movementSpent: 0,
+    postAttackMoved: false,
+    moveBonus: 0,
+    curses: [],
   };
   state.nextUnitId += 1;
   return unit;
@@ -104,9 +120,13 @@ const beginTurn = (state: GameState, random: () => number): void => {
   const playerId = state.currentPlayer;
   for (const unit of state.units) {
     if (unit.owner !== playerId) continue;
+    if (unit.definitionId === 'commander') unit.soulLinkTargetId = undefined;
     unit.exhausted = false;
     unit.moved = false;
     unit.attacked = false;
+    unit.movementSpent = 0;
+    unit.postAttackMoved = false;
+    unit.moveBonus = 0;
   }
   const wells = state.sites.filter((site) => site.type === 'well' && site.owner === playerId).length;
   state.players[playerId].mana = Math.min(7, 3 + wells);
@@ -145,7 +165,10 @@ const movementCost = (unit: UnitState, coord: Coord): number =>
 const canTraverse = (unit: UnitState, coord: Coord): boolean =>
   unitDefinition(unit).traits.includes('Flying') ? isInsideMap(coord) : isPassable(coord);
 
+export const effectiveMove = (unit: UnitState): number => unitDefinition(unit).move + (unit.moveBonus ?? 0);
+
 export const isStoppedByBlocking = (state: GameState, unit: UnitState, coord: Coord): boolean => {
+  if (unitDefinition(unit).traits.includes('Phase')) return false;
   return neighbors(coord).some((neighbor) => {
     const adjacent = unitAt(state, neighbor);
     return adjacent !== undefined
@@ -159,16 +182,24 @@ interface MovementSearch {
   previous: Map<string, Coord>;
 }
 
+const canStartMovementPhase = (unit: UnitState): boolean => {
+  if (unit.exhausted) return false;
+  const agile = unitDefinition(unit).traits.includes('AgileAssault');
+  if (!agile) return !unit.moved && !unit.attacked;
+  if (unit.attacked) return !unit.postAttackMoved && (unit.movementSpent ?? 0) < effectiveMove(unit);
+  return !unit.moved;
+};
+
 const searchMovement = (state: GameState, unitId: string): MovementSearch => {
   const unit = findUnit(state, unitId);
-  if (!unit || unit.owner !== state.currentPlayer || unit.exhausted || unit.moved || unit.attacked) {
+  if (!unit || unit.owner !== state.currentPlayer || !canStartMovementPhase(unit)) {
     return { reachable: new Map(), previous: new Map() };
   }
 
   const reachable = new Map<string, number>([[coordKey(unit.coord), 0]]);
   const previous = new Map<string, Coord>();
   const queue: Array<{ coord: Coord; cost: number }> = [{ coord: unit.coord, cost: 0 }];
-  const move = unitDefinition(unit).move;
+  const moveRemaining = effectiveMove(unit) - (unit.movementSpent ?? 0);
 
   while (queue.length > 0) {
     queue.sort((a, b) => a.cost - b.cost);
@@ -179,7 +210,7 @@ const searchMovement = (state: GameState, unitId: string): MovementSearch => {
     for (const next of neighbors(current.coord)) {
       if (!canTraverse(unit, next) || unitAt(state, next)) continue;
       const nextCost = current.cost + movementCost(unit, next);
-      if (nextCost > move + 0.0001) continue;
+      if (nextCost > moveRemaining + 0.0001) continue;
       const key = coordKey(next);
       if (nextCost >= (reachable.get(key) ?? Number.POSITIVE_INFINITY)) continue;
       reachable.set(key, nextCost);
@@ -205,7 +236,8 @@ export const moveUnit = (state: GameState, unitId: string, destination: Coord): 
   if (!unit) return { ok: false, message: 'That unit is no longer on the board.' };
   const start = { ...unit.coord };
   const movement = searchMovement(state, unitId);
-  if (!movement.reachable.has(coordKey(destination)) || sameCoord(start, destination)) {
+  const spent = movement.reachable.get(coordKey(destination));
+  if (spent === undefined || sameCoord(start, destination)) {
     return { ok: false, message: 'That hex is not reachable.' };
   }
 
@@ -218,7 +250,9 @@ export const moveUnit = (state: GameState, unitId: string, destination: Coord): 
   path.reverse();
 
   unit.coord = { ...destination };
-  unit.moved = true;
+  unit.movementSpent = (unit.movementSpent ?? 0) + spent;
+  if (unit.attacked && unitDefinition(unit).traits.includes('AgileAssault')) unit.postAttackMoved = true;
+  else unit.moved = true;
   return { ok: true, message: `${unitDefinition(unit).name} moved.`, path };
 };
 
@@ -245,16 +279,107 @@ const removeDeadUnit = (state: GameState, unit: UnitState, sourcePlayer: PlayerI
     }
   }
   state.units = state.units.filter((candidate) => candidate.id !== unit.id);
+  for (const commander of state.units) {
+    if (commander.soulLinkTargetId === unit.id) commander.soulLinkTargetId = undefined;
+  }
 };
 
-const dealDamage = (state: GameState, target: UnitState, amount: number, ranged: boolean, sourcePlayer: PlayerId): number => {
+const applyRawDamage = (state: GameState, target: UnitState, amount: number, sourcePlayer: PlayerId): number => {
+  const actual = Math.min(Math.max(0, amount), Math.max(0, target.hp));
+  target.hp -= amount;
+  if (target.hp <= 0) removeDeadUnit(state, target, sourcePlayer);
+  return actual;
+};
+
+interface DamageOptions {
+  sourceUnitId?: string;
+  directAttack?: boolean;
+  bypassSoulLink?: boolean;
+}
+
+const dealDamage = (
+  state: GameState,
+  target: UnitState,
+  amount: number,
+  ranged: boolean,
+  sourcePlayer: PlayerId,
+  options: DamageOptions = {},
+): number => {
   const adjusted = ranged && terrainAt(target.coord) === 'forest'
     ? Math.max(0, Math.round(amount * 0.7))
     : amount;
-  target.hp -= adjusted;
-  if (target.hp <= 0) removeDeadUnit(state, target, sourcePlayer);
-  return adjusted;
+  if (adjusted <= 0) return 0;
+
+  const targetDef = unitDefinition(target);
+  if (!options.bypassSoulLink
+    && target.definitionId === 'commander'
+    && targetDef.ability === 'SoulLink'
+    && target.soulLinkTargetId) {
+    const linked = findUnit(state, target.soulLinkTargetId);
+    if (linked
+      && linked.owner === target.owner
+      && unitDefinition(linked).faction === 'undead'
+      && hexDistance(target.coord, linked.coord) === 1) {
+      const linkedHpBefore = linked.hp;
+      let dealt = applyRawDamage(state, linked, adjusted, sourcePlayer);
+      const overflow = Math.max(0, adjusted - Math.max(0, linkedHpBefore));
+      const survivingCommander = findUnit(state, target.id);
+      if (overflow > 0 && survivingCommander) {
+        dealt += applyRawDamage(state, survivingCommander, overflow, sourcePlayer);
+      }
+      return dealt;
+    }
+    target.soulLinkTargetId = undefined;
+  }
+
+  const dealt = applyRawDamage(state, target, adjusted, sourcePlayer);
+  if (options.directAttack && targetDef.traits.includes('DarkReflection') && dealt > 0 && options.sourceUnitId) {
+    const source = findUnit(state, options.sourceUnitId);
+    const reflected = Math.round(dealt * 0.3);
+    if (source && source.owner !== target.owner && reflected > 0) {
+      dealDamage(state, source, reflected, false, target.owner, { bypassSoulLink: false });
+    }
+  }
+  return dealt;
 };
+
+const CUBE_DIRECTIONS: Array<[number, number, number]> = [
+  [1, -1, 0], [1, 0, -1], [0, 1, -1], [-1, 1, 0], [-1, 0, 1], [0, -1, 1],
+];
+
+const isRearAssist = (attacker: UnitState, defender: UnitState, assister: UnitState): boolean => {
+  if (hexDistance(defender.coord, assister.coord) !== 1) return false;
+  const targetCube = toCube(defender.coord);
+  let attackDirection = CUBE_DIRECTIONS[0];
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const direction of CUBE_DIRECTIONS) {
+    const towardAttacker = fromCube([
+      targetCube[0] + direction[0],
+      targetCube[1] + direction[1],
+      targetCube[2] + direction[2],
+    ]);
+    const distance = hexDistance(towardAttacker, attacker.coord);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      attackDirection = direction;
+    }
+  }
+  const behind = fromCube([
+    targetCube[0] - attackDirection[0],
+    targetCube[1] - attackDirection[1],
+    targetCube[2] - attackDirection[2],
+  ]);
+  return sameCoord(assister.coord, behind);
+};
+
+const assistDamage = (state: GameState, attacker: UnitState, defender: UnitState): number =>
+  state.units
+    .filter((unit) => unit.id !== attacker.id
+      && unit.owner === attacker.owner
+      && !unit.exhausted
+      && unitDefinition(unit).traits.includes('Assist')
+      && hexDistance(unit.coord, defender.coord) <= effectiveRange(unit))
+    .reduce((total, assister) => total + (isRearAssist(attacker, defender, assister) ? 2 : 1), 0);
 
 export const attackUnit = (state: GameState, attackerId: string, defenderId: string): ActionResult => {
   if (state.winner) return { ok: false, message: 'The match is over.' };
@@ -267,17 +392,64 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
 
   const attackerDef = unitDefinition(attacker);
   const defenderDef = unitDefinition(defender);
-  attacker.attacked = true;
-  const dealt = dealDamage(state, defender, attackerDef.attack, attackerDef.range > 1, attacker.owner);
-  const defenderSurvived = findUnit(state, defenderId) !== undefined;
+  const defenderCoord = { ...defender.coord };
+  const cleaveTargetIds = attackerDef.ability === 'Cleave'
+    ? state.units
+      .filter((target) => target.owner !== attacker.owner
+        && target.id !== defender.id
+        && hexDistance(attacker.coord, target.coord) === 1)
+      .map((target) => target.id)
+    : [];
 
-  if (defenderSurvived
-    && defenderDef.traits.includes('Retaliates')
-    && hexDistance(attacker.coord, defender.coord) <= effectiveRange(defender)) {
-    dealDamage(state, attacker, defenderDef.attack, defenderDef.range > 1, defender.owner);
+  attacker.attacked = true;
+  const dealt = dealDamage(state, defender, attackerDef.attack, attackerDef.range > 1, attacker.owner, {
+    sourceUnitId: attacker.id,
+    directAttack: true,
+  });
+  const killedByPrimaryAttack = findUnit(state, defenderId) === undefined;
+
+  if (killedByPrimaryAttack && attackerDef.traits.includes('Necromancy') && !unitAt(state, defenderCoord)) {
+    state.units.push(createUnit(state, 'skeletonGuard', attacker.owner, defenderCoord, true));
   }
 
-  return { ok: true, message: `${attackerDef.name} attacked ${defenderDef.name} for ${dealt}.` };
+  for (const targetId of cleaveTargetIds) {
+    const target = findUnit(state, targetId);
+    if (!target) continue;
+    dealDamage(state, target, attackerDef.attack, false, attacker.owner, {
+      sourceUnitId: attacker.id,
+      directAttack: true,
+    });
+  }
+
+  let assisted = 0;
+  const survivingDefender = findUnit(state, defenderId);
+  if (survivingDefender) {
+    const bonus = assistDamage(state, attacker, survivingDefender);
+    if (bonus > 0) assisted = dealDamage(state, survivingDefender, bonus, false, attacker.owner);
+  }
+
+  const survivingAttacker = findUnit(state, attackerId);
+  if (survivingAttacker && dealt > 0 && attackerDef.ability === 'BloodDrain') {
+    survivingAttacker.hp = Math.min(attackerDef.maxHp, survivingAttacker.hp + 1);
+  }
+
+  const defenderAfterDamage = findUnit(state, defenderId);
+  const attackerAfterDamage = findUnit(state, attackerId);
+  if (defenderAfterDamage
+    && attackerAfterDamage
+    && defenderDef.traits.includes('Retaliates')
+    && hexDistance(attackerAfterDamage.coord, defenderAfterDamage.coord) <= effectiveRange(defenderAfterDamage)) {
+    const retaliation = attackerDef.traits.includes('AgileAssault')
+      ? Math.ceil(defenderDef.attack * 0.5)
+      : defenderDef.attack;
+    dealDamage(state, attackerAfterDamage, retaliation, defenderDef.range > 1, defenderAfterDamage.owner, {
+      sourceUnitId: defenderAfterDamage.id,
+      directAttack: true,
+    });
+  }
+
+  const assistText = assisted > 0 ? ` + ${assisted} Assist` : '';
+  return { ok: true, message: `${attackerDef.name} attacked ${defenderDef.name} for ${dealt}${assistText}.` };
 };
 
 export const getDisplaceTargets = (state: GameState, unitId: string): UnitState[] => {
@@ -323,6 +495,65 @@ export const displaceUnit = (state: GameState, actorId: string, targetId: string
   target.coord = { ...destination };
   actor.attacked = true;
   return { ok: true, message: `${unitDefinition(actor).name} displaced ${unitDefinition(target).name}.` };
+};
+
+export const getRallyTargets = (state: GameState, actorId: string): UnitState[] => {
+  const actor = findUnit(state, actorId);
+  if (!actor || actor.owner !== state.currentPlayer || actor.exhausted || actor.attacked || unitDefinition(actor).ability !== 'Rally') return [];
+  return state.units.filter((target) => target.id !== actor.id
+    && target.owner === actor.owner
+    && !target.exhausted
+    && (target.movementSpent ?? 0) === 0
+    && hexDistance(actor.coord, target.coord) === 1);
+};
+
+export const rallyAdjacentAllies = (state: GameState, actorId: string): ActionResult => {
+  const actor = findUnit(state, actorId);
+  if (!actor || actor.owner !== state.currentPlayer || actor.exhausted || actor.attacked || unitDefinition(actor).ability !== 'Rally') {
+    return { ok: false, message: 'Rally is not available.' };
+  }
+  const targets = getRallyTargets(state, actorId);
+  for (const target of targets) target.moveBonus = (target.moveBonus ?? 0) + 1;
+  actor.attacked = true;
+  return { ok: true, message: `Rally gave ${targets.length} adjacent ${targets.length === 1 ? 'ally' : 'allies'} +1 Move this turn.` };
+};
+
+export const getSoulLinkTargets = (state: GameState, actorId: string): UnitState[] => {
+  const actor = findUnit(state, actorId);
+  if (!actor || actor.owner !== state.currentPlayer || actor.exhausted || actor.attacked || unitDefinition(actor).ability !== 'SoulLink') return [];
+  return state.units.filter((target) => target.id !== actor.id
+    && target.owner === actor.owner
+    && unitDefinition(target).faction === 'undead'
+    && hexDistance(actor.coord, target.coord) === 1);
+};
+
+export const soulLinkUnit = (state: GameState, actorId: string, targetId: string): ActionResult => {
+  const actor = findUnit(state, actorId);
+  const target = findUnit(state, targetId);
+  if (!actor || !target || !getSoulLinkTargets(state, actorId).some((candidate) => candidate.id === targetId)) {
+    return { ok: false, message: 'Choose an adjacent Undead ally for Soul Link.' };
+  }
+  actor.soulLinkTargetId = target.id;
+  actor.attacked = true;
+  return { ok: true, message: `${unitDefinition(actor).name} linked its life to ${unitDefinition(target).name} until its next turn.` };
+};
+
+export const getCurseTargets = (state: GameState, actorId: string): UnitState[] => {
+  const actor = findUnit(state, actorId);
+  if (!actor || actor.owner !== state.currentPlayer || actor.exhausted || actor.attacked || unitDefinition(actor).ability !== 'Curse') return [];
+  return state.units.filter((target) => target.owner !== actor.owner
+    && hexDistance(actor.coord, target.coord) <= effectiveRange(actor));
+};
+
+export const curseUnit = (state: GameState, actorId: string, targetId: string): ActionResult => {
+  const actor = findUnit(state, actorId);
+  const target = findUnit(state, targetId);
+  if (!actor || !target || !getCurseTargets(state, actorId).some((candidate) => candidate.id === targetId)) {
+    return { ok: false, message: 'Choose an enemy within Curse range.' };
+  }
+  target.curses = [...(target.curses ?? []), { sourcePlayer: actor.owner, remainingTurns: 3 }];
+  actor.attacked = true;
+  return { ok: true, message: `${unitDefinition(actor).name} cursed ${unitDefinition(target).name} for 3 turns.` };
 };
 
 const spawnSourceCoords = (state: GameState, playerId: PlayerId): Coord[] => {
@@ -379,14 +610,12 @@ export const playUnitCard = (state: GameState, handIndex: number, destination: C
   }
   const playerId = state.currentPlayer;
   state.players[playerId].mana -= validation.cost;
-  const definition = UNIT_DEFINITIONS[validation.unitId as UnitDefinitionId];
-  const exhausted = !definition.traits.includes('Charge');
-  const summoned = createUnit(state, validation.unitId, playerId, destination, exhausted);
+  const summoned = createUnit(state, validation.unitId, playerId, destination, true);
   state.units.push(summoned);
   discardPlayedCard(state, handIndex);
   return {
     ok: true,
-    message: `${validation.name} was summoned${exhausted ? ' exhausted' : ' ready to charge'}.`,
+    message: `${validation.name} was summoned exhausted.`,
     summonedUnitId: summoned.id,
   };
 };
@@ -417,10 +646,31 @@ const resolveCaptures = (state: GameState, playerId: PlayerId): void => {
   }
 };
 
+const resolveCurses = (state: GameState, playerId: PlayerId): void => {
+  const targetIds = state.units.filter((unit) => unit.owner === playerId && (unit.curses?.length ?? 0) > 0).map((unit) => unit.id);
+  for (const targetId of targetIds) {
+    const target = findUnit(state, targetId);
+    if (!target) continue;
+    const curses = [...(target.curses ?? [])];
+    const remaining = [];
+    for (const curse of curses) {
+      const currentTarget = findUnit(state, targetId);
+      if (!currentTarget) break;
+      dealDamage(state, currentTarget, 1, false, curse.sourcePlayer);
+      if (findUnit(state, targetId) && curse.remainingTurns > 1) {
+        remaining.push({ ...curse, remainingTurns: curse.remainingTurns - 1 });
+      }
+    }
+    const survivor = findUnit(state, targetId);
+    if (survivor) survivor.curses = remaining;
+  }
+};
+
 export const endTurn = (state: GameState, random: () => number = Math.random): ActionResult => {
   if (state.winner) return { ok: false, message: 'The match is over.' };
   const endingPlayer = state.currentPlayer;
   resolveCaptures(state, endingPlayer);
+  resolveCurses(state, endingPlayer);
   state.players[endingPlayer].mana = 0;
 
   if (state.countdown?.player === endingPlayer && commanderAlive(state, endingPlayer)) {

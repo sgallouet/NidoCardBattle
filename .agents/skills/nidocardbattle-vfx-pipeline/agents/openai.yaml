@@ -1,6 +1,6 @@
 interface:
   display_name: "NidoCardBattle VFX Pipeline"
   short_description: "Reuse and build lightweight tactical combat FX"
-  default_prompt: "Use $nidocardbattle-vfx-pipeline to reuse the accepted WorldXplore VFX language and integrate the smallest readable NidoCardBattle effect."
+  default_prompt: "Use $nidocardbattle-vfx-pipeline to reuse the accepted NidoCardBattle VFX language and integrate the smallest readable effect."
 policy:
   allow_implicit_invocation: true

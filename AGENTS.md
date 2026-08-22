@@ -29,6 +29,15 @@ NidoCardBattle is deliberately small. Prefer the simplest implementation that ma
 - Do not overwrite or destructively edit source art.
 - Put generated, cropped, converted, or processed game-ready assets under `assets/game/`.
 
+## Visual FX
+
+- Use `$nidocardbattle-vfx-pipeline` whenever adding, copying, replacing, or tuning combat, projectile, spell, summon, death, terrain, or tactical visual effects.
+- Before inventing a new combat FX language, inspect the accepted WorldXplore effect for the same semantic action and reuse it when appropriate.
+- Runtime VFX belong under `assets/game/vfx/`; preserve source provenance and accepted Git blob hashes when copying an established WorldXplore asset.
+- Keep VFX presentation-only: engine/gameplay state decides what happened; FX visualize that committed result.
+- Keep transient effects bounded, short-lived, deterministic to clean up, and readable at the normal tactical zoom.
+- Visual FX work must not silently add or modify audio. Audio remains a separate user decision and pipeline.
+
 ## Local AI Audio
 
 - Use `$nidocardbattle-audio-pipeline` when a feature needs new or changed SFX, UI audio, tactical/ability audio, ambience, or authored music.

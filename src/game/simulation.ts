@@ -191,11 +191,27 @@ const repetitionFingerprint = (state: GameState): string => {
     .join('|');
   const sites = state.sites.map((site) => `${site.id}:${site.owner ?? 0}`).join('|');
   const builtBridges = [...state.builtBridges].map(coordKey).sort().join(',');
+  const scorchedForests = [...state.scorchedForests].map(coordKey).sort().join(',');
+  const pendingManaWells = [...state.pendingManaWells]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((pending) => JSON.stringify(pending))
+    .join('|');
   const tileEffects = [...state.tileEffects]
     .sort((a, b) => coordKey(a.coord).localeCompare(coordKey(b.coord)))
     .map((effect) => JSON.stringify(effect))
     .join('|');
-  return `${state.currentPlayer};${players};${units};${sites};${builtBridges};${tileEffects};${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`;
+  return [
+    state.currentPlayer,
+    players,
+    units,
+    sites,
+    builtBridges,
+    scorchedForests,
+    pendingManaWells,
+    tileEffects,
+    `${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`,
+    state.nextSiteId,
+  ].join(';');
 };
 
 export const simulateAiMatch = (seed: number, options: SimulationOptions = {}): SimulationMatchResult => {

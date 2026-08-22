@@ -52,22 +52,40 @@ describe('AI-vs-AI simulation', () => {
     expect(first.planReplayFailures).toBe(0);
   });
 
-  it('aggregates balance and performance metrics across a batch', () => {
+  it('can give Undead the first move without changing faction ownership', () => {
+    const result = simulateAiMatch(2026, {
+      firstPlayerFaction: 'undead',
+      maxHalfTurns: 2,
+      aiOptions: FAST_SIM_OPTIONS,
+    });
+
+    expect(result.firstPlayerFaction).toBe('undead');
+    expect(result.playerFactions[1]).toBe('undead');
+    expect(result.playerFactions[2]).toBe('human');
+    expect(result.halfTurns).toBeGreaterThan(0);
+  });
+
+  it('aggregates faction balance separately from first-player advantage', () => {
     const result = simulateAiBatch({
-      matches: 3,
+      matches: 4,
       seed: 77,
       maxHalfTurns: 4,
       repetitionLimit: 3,
       aiOptions: FAST_SIM_OPTIONS,
     });
 
-    expect(result.matches).toBe(3);
-    expect(result.humanWins + result.undeadWins + result.stalemates).toBe(3);
-    expect(result.terminations.victory + result.terminations.repetition + result.terminations['turn-limit']).toBe(3);
+    expect(result.matches).toBe(4);
+    expect(result.matchesDetail.map((match) => match.firstPlayerFaction)).toEqual([
+      'human', 'undead', 'human', 'undead',
+    ]);
+    expect(result.humanWins + result.undeadWins + result.stalemates).toBe(4);
+    expect(result.terminations.victory + result.terminations.repetition + result.terminations['turn-limit']).toBe(4);
     expect(result.averageHalfTurns).toBeGreaterThan(0);
     expect(result.averageSearchStatesPerTurn).toBeGreaterThan(0);
     expect(result.replayFailureRate).toBe(0);
-    expect(result.objectiveControlShare[1].well).toBeGreaterThanOrEqual(0);
-    expect(result.objectiveControlShare[2].well).toBeGreaterThanOrEqual(0);
+    expect(result.firstPlayerWinRate).toBeGreaterThanOrEqual(0);
+    expect(result.firstPlayerWinRate).toBeLessThanOrEqual(1);
+    expect(result.objectiveControlShareByFaction.human.well).toBeGreaterThanOrEqual(0);
+    expect(result.objectiveControlShareByFaction.undead.well).toBeGreaterThanOrEqual(0);
   });
 });

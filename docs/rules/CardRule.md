@@ -23,7 +23,7 @@ This file owns deck, hand, card-type, faction, and summoning rules.
 - **CRU1** - Unit Cards cost mana to play.
 - **CRU2** - A summoned unit must be placed on a free hex adjacent to a friendly spawn source.
 - **CRU3** - Friendly spawn sources are a controlled Home Keep, a controlled Fort, or a friendly unit with the **Invoker** trait.
-- **CRU4** - A summoned unit enters **Exhausted** unless `UNT6` applies.
+- **CRU4** - A summoned unit enters **Exhausted**.
 
 ## Tactic Cards
 - **CRC1** - Tactic effects should resolve immediately unless the card explicitly says otherwise.

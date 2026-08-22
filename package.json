@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "simulate": "vitest run src/game/simulation.report.test.ts --mode simulation --reporter=verbose"
   },
   "dependencies": {
     "phaser": "^3.90.0"

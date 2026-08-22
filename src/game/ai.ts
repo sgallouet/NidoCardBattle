@@ -261,7 +261,7 @@ const exactCommanderThreatAdjustment = (state: GameState): number => {
   return adjustment;
 };
 
-const stateSignature = (state: GameState): string => {
+const stateSignature = (state: GameState, includeCurrentHand: boolean): string => {
   const units = [...state.units]
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((unit) => [
@@ -271,7 +271,8 @@ const stateSignature = (state: GameState): string => {
     .join('|');
   const sites = state.sites.map((site) => `${site.id}:${site.owner ?? 0}`).join('|');
   const current = state.players[state.currentPlayer];
-  return `${state.currentPlayer};${current.mana};${units};${sites};${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`;
+  const hand = includeCurrentHand ? `;${current.hand.join(',')}` : '';
+  return `${state.currentPlayer};${current.mana}${hand};${units};${sites};${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`;
 };
 
 const generateLegalActionsForPlayer = (
@@ -427,7 +428,7 @@ const searchTurnPlans = (
   let beam: SearchNode[] = [{ state: root, actions: [], score: evaluateAiPosition(root) }];
   const completed: CompletedPlan[] = [];
   const visited = new Map<string, number>();
-  visited.set(stateSignature(root), beam[0].score);
+  visited.set(stateSignature(root, includeCards), beam[0].score);
 
   const addCompleted = (node: SearchNode): void => {
     const endedState = finishTurnForSearch(node.state, actor);
@@ -453,7 +454,7 @@ const searchTurnPlans = (
         if (!result.ok) continue;
         budget.searchedStates += 1;
         const score = evaluateAiPosition(childState);
-        const signature = stateSignature(childState);
+        const signature = stateSignature(childState, includeCards);
         const previousScore = visited.get(signature);
         const betterThanPrevious = previousScore === undefined
           || (maximizeAiScore ? score > previousScore : score < previousScore);

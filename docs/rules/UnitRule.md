@@ -33,6 +33,8 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNT7** - **Dark Reflection:** when an enemy directly damages this unit, that attacker immediately takes 30% of the damage actually dealt, rounded to the nearest whole HP. Redirected damage does not trigger Dark Reflection.
 - **UNT8** - **Necromancy:** when this unit personally kills an enemy with its attack, summon an Exhausted Skeletal Infantry on the defeated unit's hex if that hex is free after death resolution.
 - **UNT9** - **Phase:** this unit ignores enemy Blocking while moving; occupied and otherwise impassable hexes still cannot be entered unless another trait says otherwise.
+- **UNT10** - **Assist:** when an allied unit makes a normal attack against an enemy within this unit's Range, this unit immediately adds 1 damage to that same primary target. Assist does not consume Move or Attack, does not trigger retaliation, and may trigger even if the assisting unit has already acted this turn; Exhausted units cannot Assist.
+- **UNT11** - Each eligible assisting unit contributes +1 damage, so multiple Assist units may stack on the same attack. Assist damage cannot itself trigger Assist or other attack-triggered effects.
 
 ## Special Abilities / Spells
 - **UNB1** - **Displace:** instead of attacking, move one adjacent unit, allied or enemy, to another free hex adjacent to the Displacer.
@@ -51,8 +53,8 @@ Human identity: formation, mobility, ranged support, and controlled repositionin
 | Rule | Unit | Mana | HP | DMG | Move | Range | Traits | Spell / Ability | Implementation |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
 | **HUR1** | Human Commander | — | 10 | 3 | 2 | 1 | Blocking, Retaliates | Rally | 🟡 Generic shared Commander has matching base stats/traits; faction identity and Rally are missing. |
-| **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates | — | ✅ Implemented and matches target. |
-| **HUR3** | Longbow Ranger | 3 | 2 | 2 | 2 | 3 | Ranged | — | ✅ Implemented and matches target. |
+| **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates, Assist | — | 🟡 Base unit is implemented; Assist is missing. |
+| **HUR3** | Longbow Ranger | 3 | 2 | 2 | 2 | 3 | Ranged, Assist | — | 🟡 Base unit is implemented; Assist is missing. |
 | **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | 🟡 Base stats and Flying are implemented; current code still uses Charge and is missing Agile Assault movement-after-attack and half-retaliation behavior. |
 | **HUR5** | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore | ✅ Implemented and matches target. |
 | **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | Invoker | — | 🔴 Missing unit; Invoker system already exists. |
@@ -65,8 +67,8 @@ Undead identity: summoning, disruption, attrition, damage redirection, and punis
 | Rule | Unit | Mana | HP | DMG | Move | Range | Traits | Spell / Ability | Implementation |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
 | **UDR1** | Undead Commander | — | 10 | 3 | 2 | 1 | Blocking, Dark Reflection | Soul Link | 🔴 Generic shared Commander exists, but Undead faction identity, Dark Reflection, and Soul Link are missing; current Commander incorrectly has Retaliates for this target. |
-| **UDR2** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking | — | ✅ Implemented and matches target. |
-| **UDR3** | Bone Archer | 3 | 2 | 2 | 2 | 3 | Ranged | — | 🔴 Missing unit. |
+| **UDR2** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking, Assist | — | 🟡 Base unit is implemented; Assist is missing. |
+| **UDR3** | Bone Archer | 3 | 2 | 2 | 2 | 3 | Ranged, Assist | — | 🔴 Missing unit and Assist behavior. |
 | **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Invoker, Ranged, Necromancy | Curse | 🟡 Implemented with Invoker, but currently Range 2 and missing Ranged, Necromancy, and Curse. |
 | **UDR5** | Banshee | 4 | 3 | 2 | 3 | 1 | — | Displace | ✅ Implemented as Banshee Displacer and matches target mechanics. |
 | **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | Flying | Blood Drain | 🔴 Missing unit. |

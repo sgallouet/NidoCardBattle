@@ -1,13 +1,11 @@
 import Phaser from 'phaser';
-import { MAP_HEIGHT, MAP_WIDTH } from '../data/map';
+import { MAP_DECORATIONS, MAP_HEIGHT, MAP_WIDTH } from '../data/map';
 import type { MapRenderMode } from '../data/mapRenderMode';
-import type { Coord, GameState } from '../data/types';
+import type { Coord } from '../data/types';
 import { terrainAt } from './engine';
 
 export interface AuthoredMapSceneInternals {
-  state: GameState;
   boardLayer?: Phaser.GameObjects.Container;
-  renderedUnits: Map<string, { container: Phaser.GameObjects.Container }>;
   center: (coord: Coord) => Phaser.Math.Vector2;
   hexPoints: (center: Phaser.Math.Vector2, inset?: number) => Phaser.Geom.Point[];
 }
@@ -20,13 +18,14 @@ interface MapBounds {
 }
 
 /**
- * First-pass authored-map renderer.
+ * First-pass authored-map presentation.
  *
- * The base GameScene still creates the tiled board so all existing hit targets and
- * gameplay presentation keep working. In authored mode this layer is inserted
- * above that terrain presentation and below sites/units. It intentionally renders
- * only the neutral grass base plus independent bridge overlays for now; large
- * mountain/forest/road/river patches will be added when those authored assets exist.
+ * GameScene still creates the existing tiled objects so input hit targets and the
+ * rest of the prototype remain untouched. In authored mode we hide only the tiled
+ * terrain artwork, keep the interactive/highlight hex Graphics alive, and insert a
+ * single broad terrain layer underneath them. This is deliberately transitional:
+ * once the authored approach is selected, the old terrain construction can move
+ * behind the same renderer boundary instead of being created and hidden.
  */
 export class AuthoredMapPresentation {
   constructor(
@@ -39,20 +38,61 @@ export class AuthoredMapPresentation {
     const board = game.boardLayer;
     if (!board) return;
 
+    this.hideTiledTerrainArtwork(board);
+
     const layer = this.scene.add.container(0, 0);
     this.drawNeutralGrassBase(layer, game);
     this.drawBridgeOverlays(layer, game);
 
-    const unitIndices = [...game.renderedUnits.values()]
-      .map((view) => board.getIndex(view.container))
-      .filter((index) => index >= 0);
-    const firstUnitIndex = unitIndices.length > 0 ? Math.min(...unitIndices) : board.list.length;
+    // GameScene adds backdrop then backdrop-detail Graphics first. Insert the broad
+    // authored terrain immediately after those, below all interactive hexes,
+    // decorations, gameplay locations and units.
+    board.addAt(layer, Math.min(2, board.list.length));
+  }
 
-    // GameScene currently renders each site as Graphics + Text immediately before
-    // units. Insert here so authored terrain replaces tiled terrain/decorations while
-    // Forts, Mana Wells, Keeps and units remain independent overlays above it.
-    const insertIndex = Math.max(1, firstUnitIndex - game.state.sites.length * 2);
-    board.addAt(layer, Math.min(insertIndex, board.list.length));
+  private hideTiledTerrainArtwork(board: Phaser.GameObjects.Container): void {
+    // GameScene child order is deterministic: backdrop + backdrop details, followed
+    // by each hex's terrain artwork and interactive highlight Graphics.
+    let cursor = 2;
+
+    for (let r = 0; r < MAP_HEIGHT; r += 1) {
+      for (let q = 0; q < MAP_WIDTH; q += 1) {
+        const terrain = terrainAt({ q, r });
+
+        if (terrain === 'plain') {
+          this.hideChild(board, cursor); // shadow/base
+          this.hideChild(board, cursor + 1); // meadow texture
+          cursor += 3; // keep the interactive hex Graphics visible
+          continue;
+        }
+
+        if (terrain === 'forest') {
+          this.hideChild(board, cursor); // shadow/base
+          this.hideChild(board, cursor + 1); // forest ground
+          this.hideChild(board, cursor + 2); // forest canopy
+          cursor += 4; // keep the interactive hex Graphics visible
+          continue;
+        }
+
+        this.hideChild(board, cursor); // colored terrain base
+        this.hideChild(board, cursor + 2); // hill/water/cliff/bridge detail
+        cursor += 3; // keep the interactive hex Graphics visible
+      }
+    }
+
+    // Road presentation belongs to the future authored road patch. Villages and
+    // ruins remain ordinary independent decorations for now.
+    for (const decoration of MAP_DECORATIONS) {
+      if (decoration.type === 'road') this.hideChild(board, cursor);
+      cursor += 1;
+    }
+  }
+
+  private hideChild(board: Phaser.GameObjects.Container, index: number): void {
+    const child = board.list[index] as (Phaser.GameObjects.GameObject & {
+      setVisible?: (visible: boolean) => unknown;
+    }) | undefined;
+    child?.setVisible?.(false);
   }
 
   private drawNeutralGrassBase(
@@ -64,8 +104,8 @@ export class AuthoredMapPresentation {
     const height = bounds.bottom - bounds.top;
     const graphics = this.scene.add.graphics();
 
-    // Temporary authored-base placeholder. Replace this one object with the final
-    // AI-authored neutral grass texture without changing gameplay or layer ordering.
+    // Temporary broad authored-base placeholder. Replace this one object with the
+    // final AI-authored neutral grass texture without changing gameplay or layering.
     graphics.fillStyle(0x52743c, 1);
     graphics.fillRect(bounds.left, bounds.top, width, height);
 

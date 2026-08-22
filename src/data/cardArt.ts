@@ -24,4 +24,7 @@ export const CARD_ART: Partial<Record<CardDefinitionId, string>> = {
   graveKnight,
   graveLock: necromancer,
   buildBridge: royalGuard,
+  scorch: lightMage,
+  raiseFort: royalGuard,
+  profaneWell: necromancer,
 };

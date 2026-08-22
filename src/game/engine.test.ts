@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
-import { CARD_DEFINITIONS, PROTOTYPE_DECK } from '../data/cards';
+import { CARD_DEFINITIONS, FACTION_DECKS } from '../data/cards';
 import type { Coord, GameState, PlayerId, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
 import {
@@ -41,17 +41,17 @@ const makeUnit = (
 
 const freshState = (): GameState => createGameState(fixedRandom);
 
-describe('UNR1-UNR8, CRD1, CRD2', () => {
+describe('UNR1-UNR8, CRD1-CRD5', () => {
   it('UNR1-UNR8', () => {
     const expected = {
-      skeletonGuard: { name: 'Skeletal Infantry', cost: 1, maxHp: 2, attack: 2, traits: ['Blocking'], ability: undefined },
-      boneArcher: { name: 'Longbow Ranger', cost: 3, maxHp: 2, attack: 2, traits: ['Ranged'], ability: undefined },
-      vampire: { name: 'Silverwing Cavalry', cost: 6, maxHp: 5, attack: 4, traits: ['Flying', 'Charge'], ability: undefined },
-      necromancer: { name: 'Necromancer', cost: 5, maxHp: 4, attack: 1, traits: ['Invoker'], ability: undefined },
-      banshee: { name: 'Banshee Displacer', cost: 4, maxHp: 3, attack: 2, traits: [], ability: 'Displace' },
-      wraith: { name: 'Light Mage', cost: 4, maxHp: 3, attack: 2, traits: [], ability: 'Restore' },
-      ghoul: { name: 'Royal Guard', cost: 2, maxHp: 3, attack: 2, traits: ['Blocking', 'Retaliates'], ability: undefined },
-      graveKnight: { name: 'Grave Knight', cost: 5, maxHp: 4, attack: 4, traits: ['Blocking', 'Retaliates'], ability: undefined },
+      skeletonGuard: { name: 'Skeletal Infantry', faction: 'undead', cost: 1, maxHp: 2, attack: 2, traits: ['Blocking'], ability: undefined },
+      boneArcher: { name: 'Longbow Ranger', faction: 'human', cost: 3, maxHp: 2, attack: 2, traits: ['Ranged'], ability: undefined },
+      vampire: { name: 'Silverwing Cavalry', faction: 'human', cost: 6, maxHp: 5, attack: 4, traits: ['Flying', 'Charge'], ability: undefined },
+      necromancer: { name: 'Necromancer', faction: 'undead', cost: 5, maxHp: 4, attack: 1, traits: ['Invoker'], ability: undefined },
+      banshee: { name: 'Banshee Displacer', faction: 'undead', cost: 4, maxHp: 3, attack: 2, traits: [], ability: 'Displace' },
+      wraith: { name: 'Light Mage', faction: 'human', cost: 4, maxHp: 3, attack: 2, traits: [], ability: 'Restore' },
+      ghoul: { name: 'Royal Guard', faction: 'human', cost: 2, maxHp: 3, attack: 2, traits: ['Blocking', 'Retaliates'], ability: undefined },
+      graveKnight: { name: 'Grave Knight', faction: 'undead', cost: 5, maxHp: 4, attack: 4, traits: ['Blocking', 'Retaliates'], ability: undefined },
     } as const;
 
     for (const [id, printed] of Object.entries(expected)) {
@@ -59,20 +59,51 @@ describe('UNR1-UNR8, CRD1, CRD2', () => {
       const card = CARD_DEFINITIONS[id as keyof typeof CARD_DEFINITIONS];
       expect({
         name: definition.name,
+        faction: definition.faction,
         cost: definition.cost,
         maxHp: definition.maxHp,
         attack: definition.attack,
         traits: definition.traits,
         ability: definition.ability,
       }).toEqual(printed);
-      expect([card.name, card.cost]).toEqual([printed.name, printed.cost]);
+      expect([card.name, card.faction, card.cost]).toEqual([printed.name, printed.faction, printed.cost]);
     }
   });
 
-  it('CRD1, CRD2', () => {
-    expect(PROTOTYPE_DECK).toHaveLength(16);
-    for (const cardId of new Set(PROTOTYPE_DECK)) {
-      expect(PROTOTYPE_DECK.filter((candidate) => candidate === cardId)).toHaveLength(2);
+  it('CRD1, CRD2, CRD4', () => {
+    for (const faction of ['human', 'undead'] as const) {
+      const deck = FACTION_DECKS[faction];
+      expect(deck).toHaveLength(8);
+      for (const cardId of new Set(deck)) {
+        expect(deck.filter((candidate) => candidate === cardId)).toHaveLength(2);
+        expect(CARD_DEFINITIONS[cardId].faction).toBe(faction);
+      }
+    }
+
+    const state = freshState();
+    expect(state.players[1].faction).toBe('human');
+    expect(state.players[2].faction).toBe('undead');
+  });
+
+  it('CRD5 rejects a cross-faction card', () => {
+    const state = freshState();
+    state.players[1].hand = ['skeletonGuard'];
+    state.players[1].mana = 7;
+    const target = getValidSummonCoords(state, 1)[0];
+    const result = playUnitCard(state, 0, target);
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('undead faction');
+    expect(state.players[1].hand).toEqual(['skeletonGuard']);
+    expect(state.players[1].mana).toBe(7);
+  });
+
+  it('starting non-Commander units match their owner faction', () => {
+    const state = freshState();
+    for (const unit of state.units) {
+      const definition = UNIT_DEFINITIONS[unit.definitionId as UnitDefinitionId];
+      if (definition.faction === 'shared') continue;
+      expect(definition.faction).toBe(state.players[unit.owner].faction);
     }
   });
 });
@@ -188,15 +219,16 @@ describe('MPC1, MPC2', () => {
 describe('CRU3, UNT3', () => {
   it('UNT3', () => {
     const state = freshState();
+    state.currentPlayer = 2;
     for (const site of state.sites) {
-      if (site.type === 'keep' || site.type === 'fort') site.owner = 2;
+      if (site.type === 'keep' || site.type === 'fort') site.owner = 1;
     }
-    state.units = [makeUnit('invoker', 'necromancer', 1, { q: 5, r: 4 })];
+    state.units = [makeUnit('invoker', 'necromancer', 2, { q: 5, r: 4 })];
     const target = { q: 6, r: 4 };
-    expect(getValidSummonCoords(state).some((coord) => coordKey(coord) === coordKey(target))).toBe(true);
+    expect(getValidSummonCoords(state, 2).some((coord) => coordKey(coord) === coordKey(target))).toBe(true);
 
-    state.players[1].hand = ['skeletonGuard'];
-    state.players[1].mana = 3;
+    state.players[2].hand = ['skeletonGuard'];
+    state.players[2].mana = 3;
     const result = playUnitCard(state, 0, target);
     expect(result.ok).toBe(true);
     expect(state.units.find((unit) => unit.coord.q === target.q && unit.coord.r === target.r)?.exhausted).toBe(true);

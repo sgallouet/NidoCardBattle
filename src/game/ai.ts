@@ -194,6 +194,11 @@ export const evaluatePosition = (state: GameState, perspective: PlayerId): numbe
     if (site.type === 'fort') score += sign * 250;
   }
 
+  for (const pending of state.pendingManaWells) {
+    const sign = pending.owner === perspective ? 1 : -1;
+    score += sign * Math.max(90, 270 - pending.remainingTurns * 45);
+  }
+
   if (state.countdown?.player === perspective) score += 32_000 + state.countdown.checkpoints * 18_000;
   if (state.countdown?.player === opponent) score -= 45_000 + state.countdown.checkpoints * 24_000;
 
@@ -252,6 +257,11 @@ const stateSignature = (state: GameState, includeCurrentHand: boolean): string =
     .join('|');
   const sites = state.sites.map((site) => `${site.id}:${site.owner ?? 0}`).join('|');
   const builtBridges = [...state.builtBridges].map(coordKey).sort().join(',');
+  const scorchedForests = [...state.scorchedForests].map(coordKey).sort().join(',');
+  const pendingManaWells = [...state.pendingManaWells]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((pending) => JSON.stringify(pending))
+    .join('|');
   const tileEffects = [...state.tileEffects]
     .sort((a, b) => coordKey(a.coord).localeCompare(coordKey(b.coord)))
     .map((effect) => JSON.stringify(effect))
@@ -265,10 +275,13 @@ const stateSignature = (state: GameState, includeCurrentHand: boolean): string =
     units,
     sites,
     builtBridges,
+    scorchedForests,
+    pendingManaWells,
     tileEffects,
     `${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`,
     state.winner ?? 0,
     state.nextUnitId,
+    state.nextSiteId,
   ].join(';');
 };
 

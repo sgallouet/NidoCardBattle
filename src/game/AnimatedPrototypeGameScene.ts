@@ -134,7 +134,10 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       && unit.definitionId === 'skeletalInfantry'
       && unit.owner === attackerBefore.owner
       && sameCoord(unit.coord, defenderCoord));
-    if (newSkeleton) motion.spawnNecromancyBurst(defenderCoord, game.center.bind(this));
+    if (newSkeleton) {
+      motion.spawnNecromancyBurst(defenderCoord, game.center.bind(this));
+      await new Promise<void>((resolve) => this.time.delayedCall(180, resolve));
+    }
 
     if (attackerDamage && attackerDamage.damage > 0) {
       const defenderDefinition = unitDefinition(defenderBefore);

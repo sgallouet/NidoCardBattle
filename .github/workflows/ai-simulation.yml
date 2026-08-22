@@ -6,8 +6,16 @@ on:
     branches:
       - codex/forest-terrain-layering
     paths:
+      - 'src/data/types.ts'
+      - 'src/data/units.ts'
+      - 'src/data/cards.ts'
+      - 'src/game/actions.ts'
+      - 'src/game/actions.test.ts'
+      - 'src/game/engine.ts'
+      - 'src/game/engine.test.ts'
       - 'src/game/ai.ts'
       - 'src/game/ai.test.ts'
+      - 'src/game/AiGameScene.ts'
       - 'src/game/simulation.ts'
       - 'src/game/simulation.test.ts'
       - 'src/game/simulation.report.test.ts'

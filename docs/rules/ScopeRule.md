@@ -4,7 +4,7 @@ This file owns MVP scope and prototype constraints.
 
 ## MVP
 - **SCM1** - MVP is local **1v1**, using hot-seat play or a simple AI opponent.
-- **SCM2** - MVP uses one handcrafted map and one prebuilt prototype deck.
+- **SCM2** - MVP uses one handcrafted map and fixed prebuilt faction decks.
 - **SCM3** - MVP is a browser-based 2D game.
 - **SCM4** - Target match length is **20–30 minutes**.
 

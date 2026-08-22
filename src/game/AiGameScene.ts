@@ -1,9 +1,10 @@
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
-import type { Coord, GameState } from '../data/types';
+import type { ActionResult, Coord, GameState } from '../data/types';
 import {
   applyAiAction,
   COMMON_AI_OPTIONS,
-  runSmartAiTurn,
+  planSmartAiTurn,
+  type AiAction,
   type AiPlan,
 } from './ai';
 import {
@@ -45,6 +46,7 @@ interface GameSceneInternals {
   handleHexClick: (coord: Coord) => Promise<void>;
   beginDisplace: () => void;
   animatePlayedCard: (index: number) => void;
+  playAiAction?: (action: AiAction) => Promise<ActionResult>;
 }
 
 interface AiWorkerResponse {
@@ -62,7 +64,9 @@ export class AiGameScene extends GameScene {
     this.installUnitAbilityInteractions();
     if (typeof Worker !== 'undefined') {
       this.aiWorker = new Worker(new URL('./ai.worker.ts', import.meta.url), { type: 'module' });
-      this.aiWorker.onmessage = (event: MessageEvent<AiWorkerResponse>) => this.finishWorkerPlan(event.data);
+      this.aiWorker.onmessage = (event: MessageEvent<AiWorkerResponse>) => {
+        void this.finishWorkerPlan(event.data);
+      };
       this.aiWorker.onerror = () => this.fallbackToMainThread();
       this.events.once('shutdown', () => this.aiWorker?.terminate());
     }
@@ -249,7 +253,7 @@ export class AiGameScene extends GameScene {
     scene.clearInteraction();
     scene.message = 'Enemy thinking…';
     scene.renderAll();
-    document.querySelector<HTMLElement>('#hand')?.replaceChildren();
+    this.hideAiHand();
 
     if (!this.aiWorker) {
       this.fallbackToMainThread();
@@ -264,36 +268,14 @@ export class AiGameScene extends GameScene {
     });
   }
 
-  private finishWorkerPlan(response: AiWorkerResponse): void {
+  private async finishWorkerPlan(response: AiWorkerResponse): Promise<void> {
     if (response.requestId !== this.aiRequestId) return;
     const scene = this as unknown as GameSceneInternals;
     if (scene.state.winner || scene.state.currentPlayer !== 2) {
       this.finishAiUi(scene);
       return;
     }
-
-    const messages: string[] = [];
-    for (const action of response.plan.actions) {
-      if (scene.state.winner || scene.state.currentPlayer !== 2) break;
-      const result = applyAiAction(scene.state, action);
-      if (!result.ok) {
-        messages.push(`AI plan stopped: ${result.message}`);
-        break;
-      }
-      messages.push(result.message);
-    }
-
-    if (!scene.state.winner && scene.state.currentPlayer === 2) {
-      const result = endTurn(scene.state);
-      messages.push(result.message);
-    }
-
-    scene.message = scene.state.winner === 2
-      ? 'The Undead Commander survived the countdown. Enemy wins.'
-      : messages.length > 0
-        ? `Enemy turn complete: ${messages.at(-1)}`
-        : 'Enemy turn complete.';
-    this.finishAiUi(scene);
+    await this.playAiPlan(scene, response.plan);
   }
 
   private fallbackToMainThread(): void {
@@ -305,14 +287,51 @@ export class AiGameScene extends GameScene {
 
     this.aiWorker?.terminate();
     this.aiWorker = null;
-    const result = runSmartAiTurn(scene.state, Math.random, COMMON_AI_OPTIONS);
-    const meaningfulActions = result.actions.filter((action) => !action.startsWith('Player 1'));
+    const plan = planSmartAiTurn(scene.state, COMMON_AI_OPTIONS);
+    void this.playAiPlan(scene, plan);
+  }
+
+  private async playAiPlan(scene: GameSceneInternals, plan: AiPlan): Promise<void> {
+    const messages: string[] = [];
+    for (const action of plan.actions) {
+      if (scene.state.winner || scene.state.currentPlayer !== 2) break;
+      const result = scene.playAiAction
+        ? await scene.playAiAction(action)
+        : applyAiAction(scene.state, action);
+      if (!result.ok) {
+        messages.push(`AI plan stopped: ${result.message}`);
+        break;
+      }
+      messages.push(result.message);
+      scene.message = result.message;
+      scene.renderAll();
+      this.hideAiHand();
+      await this.wait(75);
+    }
+
+    if (!scene.state.winner && scene.state.currentPlayer === 2) {
+      const result = endTurn(scene.state);
+      messages.push(result.message);
+      scene.message = result.message;
+      scene.renderAll();
+      this.hideAiHand();
+      await this.wait(90);
+    }
+
     scene.message = scene.state.winner === 2
       ? 'The Undead Commander survived the countdown. Enemy wins.'
-      : meaningfulActions.length > 0
-        ? `Enemy turn complete: ${meaningfulActions.at(-1)}`
+      : messages.length > 0
+        ? `Enemy turn complete: ${messages.at(-1)}`
         : 'Enemy turn complete.';
     this.finishAiUi(scene);
+  }
+
+  private hideAiHand(): void {
+    document.querySelector<HTMLElement>('#hand')?.replaceChildren();
+  }
+
+  private wait(duration: number): Promise<void> {
+    return new Promise((resolve) => this.time.delayedCall(duration, resolve));
   }
 
   private finishAiUi(scene: GameSceneInternals): void {

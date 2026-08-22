@@ -6,8 +6,9 @@ This file owns deck, hand, card-type, faction, and summoning rules.
 - **CRD1** - Prototype faction deck size is **8 cards**.
 - **CRD2** - A deck may contain at most 2 copies of the same card.
 - **CRD3** - When the deck is empty, shuffle the discard pile into a new deck.
-- **CRD4** - The current prototype assigns Player 1 the **Human** faction and Player 2 the **Undead** faction, and each player draws only from that faction's prebuilt deck.
-- **CRD5** - Every card belongs to exactly one faction and may only be played by a player of that faction.
+- **CRD4** - The current prototype assigns Player 1 the **Human** faction and Player 2 the **Undead** faction; each player draws from that faction's prebuilt deck, which may also contain Shared Tactic Cards under `CRD6`.
+- **CRD5** - A faction-specific card may only be played by a player of that faction.
+- **CRD6** - A **Shared** Tactic Card may be included in either faction's deck and played by either faction.
 
 ## Hand
 - **CRH1** - Start the match with 4 cards.
@@ -28,4 +29,6 @@ This file owns deck, hand, card-type, faction, and summoning rules.
 ## Tactic Cards
 - **CRC1** - Tactic effects should resolve immediately unless the card explicitly says otherwise.
 - **CRC2** - Avoid effects that require remembering state across many turns.
-- **CRC3** - Prefer short tactical effects such as damage, healing, repositioning, temporary attack bonuses, or draw/discard.
+- **CRC3** - Prefer Tactic effects that change board possibilities in ways normal unit actions cannot.
+- **CRC4** - **Grave Lock** is an Undead Tactic costing **3 mana**. Choose one currently passable hex that is not already Grave Locked. Until the start of the caster's next turn, no unit may enter or leave that hex through movement, summoning, or displacement. Attacks and ranged effects are not blocked by Grave Lock.
+- **CRC5** - **Build Bridge** is a Shared Tactic costing **2 mana**. Choose one empty Water hex; it permanently becomes a Bridge and follows `MPT6`.

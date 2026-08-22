@@ -29,7 +29,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNT3** - **Invoker:** this trait makes the unit a valid spawn source under `CRU3`.
 - **UNT4** - **Ranged:** this label identifies a unit with base Range 3; its attacks use ranged terrain rules.
 - **UNT5** - **Flying:** terrain does not restrict this unit's movement; every terrain hex costs 1 movement point to enter.
-- **UNT6** - **Charge:** this unit enters play ready to Move and Attack instead of Exhausted.
+- **UNT6** - **Agile Assault:** this unit may split its Move around its attack, moving before and again after attacking; total movement spent across both movement phases cannot exceed its Move stat. Retaliation damage received by this unit is reduced by 50%, rounded up.
 - **UNT7** - **Dark Reflection:** when an enemy directly damages this unit, that attacker immediately takes 30% of the damage actually dealt, rounded to the nearest whole HP. Redirected damage does not trigger Dark Reflection.
 - **UNT8** - **Necromancy:** when this unit personally kills an enemy with its attack, summon an Exhausted Skeletal Infantry on the defeated unit's hex if that hex is free after death resolution.
 - **UNT9** - **Phase:** this unit ignores enemy Blocking while moving; occupied and otherwise impassable hexes still cannot be entered unless another trait says otherwise.
@@ -53,7 +53,7 @@ Human identity: formation, mobility, ranged support, and controlled repositionin
 | **HUR1** | Human Commander | — | 10 | 3 | 2 | 1 | Blocking, Retaliates | Rally | 🟡 Generic shared Commander has matching base stats/traits; faction identity and Rally are missing. |
 | **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates | — | ✅ Implemented and matches target. |
 | **HUR3** | Longbow Ranger | 3 | 2 | 2 | 2 | 3 | Ranged | — | ✅ Implemented and matches target. |
-| **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Charge | — | ✅ Implemented and matches target. |
+| **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | 🟡 Base stats and Flying are implemented; current code still uses Charge and is missing Agile Assault movement-after-attack and half-retaliation behavior. |
 | **HUR5** | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore | ✅ Implemented and matches target. |
 | **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | Invoker | — | 🔴 Missing unit; Invoker system already exists. |
 | **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | 🔴 Missing unit; Displace system already exists. |

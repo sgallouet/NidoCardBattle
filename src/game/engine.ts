@@ -426,7 +426,10 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
   });
   const killedByPrimaryAttack = findUnit(state, defenderId) === undefined;
 
-  if (killedByPrimaryAttack && attackerDef.traits.includes('Necromancy') && !unitAt(state, defenderCoord)) {
+  if (killedByPrimaryAttack
+    && attackerDef.traits.includes('Necromancy')
+    && !isGraveLocked(state, defenderCoord)
+    && !unitAt(state, defenderCoord)) {
     state.units.push(createUnit(state, 'skeletalInfantry', attacker.owner, defenderCoord, true));
   }
 

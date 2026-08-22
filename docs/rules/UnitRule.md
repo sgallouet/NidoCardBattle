@@ -1,10 +1,11 @@
 # UnitRule.md
 
-This file owns unit stats, activation, combat, movement, traits, abilities, and the first prototype roster.
+This file owns unit stats, activation, combat, movement, traits, abilities, faction rosters, and implementation gaps.
 
 ## Unit Data
 - **UNS1** - Every unit has Mana Cost, HP, Attack, Move, Range, Traits, and at most one special Ability.
-- **UNS2** - Every summonable prototype unit belongs to exactly one faction; the Commander is shared by both factions for this prototype.
+- **UNS2** - Every summonable unit belongs to exactly one faction.
+- **UNS3** - Faction roster tables below define the target stats; the Implementation column shows whether the prototype currently matches the target and is not a second source of gameplay rules.
 
 ## Activation
 - **UNA1** - A unit may Move once and Attack once during its activation.
@@ -34,16 +35,23 @@ This file owns unit stats, activation, combat, movement, traits, abilities, and 
 - **UNB1** - **Displace:** instead of attacking, move one adjacent unit, allied or enemy, to another free hex adjacent to the Displacer.
 - **UNB2** - Displacement is repositioning, not normal movement, so it ignores Blocking.
 - **UNB6** - **Restore:** when this unit is summoned, its owner chooses one damaged adjacent ally and restores 2 HP to it, up to that ally's maximum HP. If there is no valid ally, the effect ends.
+- **UNB7** - **Rally:** instead of attacking, give each adjacent allied unit +1 Move for the current turn; Rally cannot increase a unit that has already completed its movement this turn.
 
-## First Prototype Roster
+## Human Army
 
-| Rule | Faction | Unit | Mana | HP | Attack | Move | Range | Traits | Ability |
-| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
-| **UNR1** | Undead | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking | — |
-| **UNR2** | Human | Longbow Ranger | 3 | 2 | 2 | 2 | 3 | Ranged | — |
-| **UNR3** | Human | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Charge | — |
-| **UNR4** | Undead | Necromancer | 5 | 4 | 1 | 2 | 2 | Invoker | — |
-| **UNR5** | Undead | Banshee Displacer | 4 | 3 | 2 | 3 | 1 | — | Displace |
-| **UNR6** | Human | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore |
-| **UNR7** | Human | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates | — |
-| **UNR8** | Undead | Grave Knight | 5 | 4 | 4 | 2 | 1 | Blocking, Retaliates | — |
+Human identity: formation, mobility, ranged support, and controlled repositioning.
+
+| Rule | Unit | Mana | HP | DMG | Move | Range | Traits | Spell / Ability | Implementation |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
+| **HUR1** | Human Commander | — | 10 | 3 | 2 | 1 | Blocking, Retaliates | Rally | 🟡 Generic shared Commander has matching base stats/traits; faction identity and Rally are missing. |
+| **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates | — | ✅ Implemented and matches target. |
+| **HUR3** | Longbow Ranger | 3 | 2 | 2 | 2 | 3 | Ranged | — | ✅ Implemented and matches target. |
+| **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Charge | — | ✅ Implemented and matches target. |
+| **HUR5** | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore | ✅ Implemented and matches target. |
+| **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | Invoker | — | 🔴 Missing unit; Invoker system already exists. |
+| **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | 🔴 Missing unit; Displace system already exists. |
+
+## Undead Army
+
+- Target roster: **TBD after roster review**.
+- Currently implemented Undead units: Skeletal Infantry, Necromancer, Banshee Displacer, and Grave Knight.

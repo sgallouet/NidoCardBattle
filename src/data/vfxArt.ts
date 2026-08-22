@@ -2,7 +2,7 @@ import hunterArrow from '../../assets/game/vfx/combat/hunter-arrow.png?url';
 
 export const COMBAT_VFX_ART = {
   hunterArrow: {
-    textureKey: 'vfx-worldxplore-hunter-arrow',
+    textureKey: 'vfx-hunter-arrow',
     url: hunterArrow,
     width: 32,
     height: 12,

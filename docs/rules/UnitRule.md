@@ -3,7 +3,7 @@
 This file owns unit stats, activation, combat, movement, traits, abilities, faction rosters, and implementation gaps.
 
 ## Unit Data
-- **UNS1** - Every unit has Mana Cost, HP, Attack, Move, Range, Traits, and at most one special Ability.
+- **UNS1** - Every unit has Mana Cost, HP, Attack, Move, Range, Traits, and at most one special Ability or Spell unless its roster entry explicitly says otherwise.
 - **UNS2** - Every summonable unit belongs to exactly one faction.
 - **UNS3** - Faction roster tables below define the target stats; the Implementation column shows whether the prototype currently matches the target and is not a second source of gameplay rules.
 
@@ -30,12 +30,19 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNT4** - **Ranged:** this label identifies a unit with base Range 3; its attacks use ranged terrain rules.
 - **UNT5** - **Flying:** terrain does not restrict this unit's movement; every terrain hex costs 1 movement point to enter.
 - **UNT6** - **Charge:** this unit enters play ready to Move and Attack instead of Exhausted.
+- **UNT7** - **Dark Reflection:** when an enemy directly damages this unit, that attacker immediately takes 30% of the damage actually dealt, rounded to the nearest whole HP. Redirected damage does not trigger Dark Reflection.
+- **UNT8** - **Necromancy:** when this unit personally kills an enemy with its attack, summon an Exhausted Skeletal Infantry on the defeated unit's hex if that hex is free after death resolution.
+- **UNT9** - **Phase:** this unit ignores enemy Blocking while moving; occupied and otherwise impassable hexes still cannot be entered unless another trait says otherwise.
 
-## Special Abilities
+## Special Abilities / Spells
 - **UNB1** - **Displace:** instead of attacking, move one adjacent unit, allied or enemy, to another free hex adjacent to the Displacer.
 - **UNB2** - Displacement is repositioning, not normal movement, so it ignores Blocking.
 - **UNB6** - **Restore:** when this unit is summoned, its owner chooses one damaged adjacent ally and restores 2 HP to it, up to that ally's maximum HP. If there is no valid ally, the effect ends.
 - **UNB7** - **Rally:** instead of attacking, give each adjacent allied unit +1 Move for the current turn; Rally cannot increase a unit that has already completed its movement this turn.
+- **UNB8** - **Soul Link:** instead of attacking, choose one adjacent allied Undead unit. Until the start of the Commander's next turn, all damage that would be dealt to the Commander is dealt to the linked unit instead. If redirected damage kills the linked unit, any excess damage from that same damage instance is dealt to the Commander normally; the link then ends.
+- **UNB9** - **Curse:** instead of attacking, choose one enemy within Range. That unit takes 1 damage at the end of each of its owner's next 3 turns, then Curse ends.
+- **UNB10** - **Blood Drain:** after this unit deals damage with its normal attack, restore 1 HP to it, up to its maximum HP.
+- **UNB11** - **Cleave:** when this unit makes a normal attack, deal its Attack damage to the target and every other enemy adjacent to the attacker. Only the original target may retaliate.
 
 ## Human Army
 
@@ -53,5 +60,15 @@ Human identity: formation, mobility, ranged support, and controlled repositionin
 
 ## Undead Army
 
-- Target roster: **TBD after roster review**.
-- Currently implemented Undead units: Skeletal Infantry, Necromancer, Banshee Displacer, and Grave Knight.
+Undead identity: summoning, disruption, attrition, damage redirection, and punishing clustered enemies.
+
+| Rule | Unit | Mana | HP | DMG | Move | Range | Traits | Spell / Ability | Implementation |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
+| **UDR1** | Undead Commander | — | 10 | 3 | 2 | 1 | Blocking, Dark Reflection | Soul Link | 🔴 Generic shared Commander exists, but Undead faction identity, Dark Reflection, and Soul Link are missing; current Commander incorrectly has Retaliates for this target. |
+| **UDR2** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking | — | ✅ Implemented and matches target. |
+| **UDR3** | Bone Archer | 3 | 2 | 2 | 2 | 3 | Ranged | — | 🔴 Missing unit. |
+| **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Invoker, Ranged, Necromancy | Curse | 🟡 Implemented with Invoker, but currently Range 2 and missing Ranged, Necromancy, and Curse. |
+| **UDR5** | Banshee | 4 | 3 | 2 | 3 | 1 | — | Displace | ✅ Implemented as Banshee Displacer and matches target mechanics. |
+| **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | Flying | Blood Drain | 🔴 Missing unit. |
+| **UDR7** | Wraith | 4 | 3 | 2 | 4 | 1 | Phase | — | 🔴 Missing unit. |
+| **UDR8** | Grave Knight | 5 | 5 | 3 | 2 | 1 | Blocking, Retaliates | Cleave | 🟡 Implemented, but currently HP 4 / DMG 4 and missing Cleave. |

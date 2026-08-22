@@ -1,5 +1,6 @@
 export type PlayerId = 1 | 2;
 export type Faction = 'human' | 'undead';
+export type CardFaction = Faction | 'shared';
 export type UnitFaction = Faction | 'shared';
 export type Terrain = 'plain' | 'forest' | 'hill' | 'water' | 'cliff' | 'bridge';
 export type SiteType = 'keep' | 'fort' | 'well';
@@ -83,17 +84,33 @@ export interface UnitCard {
   unitId: string;
 }
 
+export type TacticEffect =
+  | {
+    kind: 'damage';
+    amount: number;
+    target: 'enemy';
+  }
+  | {
+    kind: 'heal';
+    amount: number;
+    target: 'friendly';
+  }
+  | {
+    kind: 'graveLock';
+    target: 'tile';
+  }
+  | {
+    kind: 'buildBridge';
+    target: 'water';
+  };
+
 export interface TacticCard {
   id: string;
   name: string;
-  faction: Faction;
+  faction: CardFaction;
   type: 'tactic';
   cost: number;
-  effect: {
-    kind: 'damage' | 'heal';
-    amount: number;
-    target: 'enemy' | 'friendly';
-  };
+  effect: TacticEffect;
 }
 
 export type CardDefinition = UnitCard | TacticCard;
@@ -112,12 +129,23 @@ export interface VictoryCountdown {
   checkpoints: number;
 }
 
+export interface GraveLockTileEffect {
+  kind: 'graveLock';
+  coord: Coord;
+  sourcePlayer: PlayerId;
+  expiresAtTurn: number;
+}
+
+export type TileEffect = GraveLockTileEffect;
+
 export interface GameState {
   currentPlayer: PlayerId;
   turnNumber: number;
   players: Record<PlayerId, PlayerState>;
   units: UnitState[];
   sites: SiteState[];
+  builtBridges: Coord[];
+  tileEffects: TileEffect[];
   countdown: VictoryCountdown | null;
   winner: PlayerId | null;
   nextUnitId: number;

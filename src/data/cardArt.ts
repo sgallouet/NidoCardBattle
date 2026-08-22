@@ -8,18 +8,18 @@ import silverwingCavalry from '../../assets/source/cards/silverwing-cavalry.png?
 import skeletalInfantry from '../../assets/source/cards/skeletal-infantry.png?url';
 import type { CardDefinitionId } from './cards';
 
-export const CARD_ART: Record<CardDefinitionId, string> = {
-  skeletonGuard: skeletalInfantry,
-  boneArcher: longbowRanger,
-  vampire: silverwingCavalry,
-  necromancer,
-  banshee: bansheeDisplacer,
-  wraith: lightMage,
-  ghoul: royalGuard,
-  graveKnight,
+export const CARD_ART: Partial<Record<CardDefinitionId, string>> = {
+  royalGuard,
+  longbowRanger,
+  silverwingCavalry,
+  lightMage,
   bannerCaptain: royalGuard,
   windAdept: lightMage,
-  undeadBoneArcher: longbowRanger,
-  undeadVampire: silverwingCavalry,
-  undeadWraith: lightMage,
+  skeletalInfantry,
+  boneArcher: longbowRanger,
+  necromancer,
+  banshee: bansheeDisplacer,
+  vampire: silverwingCavalry,
+  wraith: lightMage,
+  graveKnight,
 };

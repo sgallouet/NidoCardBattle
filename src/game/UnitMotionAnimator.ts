@@ -23,11 +23,15 @@ interface TweenValues {
 
 export class UnitMotionAnimator {
   private hunterArrowTexturePromise?: Promise<void>;
+  private swordSwingTexturePromise?: Promise<void>;
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly board: () => Phaser.GameObjects.Container | undefined,
-  ) {}
+  ) {
+    void this.ensureHunterArrowTexture();
+    void this.ensureSwordSwingTexture();
+  }
 
   styleFor(unit: UnitState): UnitMotionStyle {
     const definition = unitDefinition(unit);
@@ -61,9 +65,13 @@ export class UnitMotionAnimator {
       const to = center(path[index]);
       face(from, to);
       const duration = view.art?.movementMsPerHex ?? 190;
+
       if (style === 'flying') {
         await this.glideStep(view, from, to, duration, 5);
-      } else if (style === 'spectral') {
+        continue;
+      }
+
+      if (style === 'spectral') {
         this.spawnSpectralTrail(from);
         await this.tween(view.container, {
           x: to.x,
@@ -73,30 +81,31 @@ export class UnitMotionAnimator {
           alpha: 0.78,
         }, Math.round(duration * 0.72), 'Sine.easeInOut');
         await this.tween(view.container, { scaleX: 1, scaleY: 1, alpha: 1 }, Math.round(duration * 0.28), 'Quad.easeOut');
-      } else {
-        const hop = style === 'agile' ? 10 : style === 'heavy' ? 4 : 7;
-        const tilt = Phaser.Math.Clamp((to.x - from.x) * 0.06, -5, 5);
-        const mid = new Phaser.Math.Vector2(
-          Phaser.Math.Linear(from.x, to.x, 0.56),
-          Phaser.Math.Linear(from.y, to.y, 0.56) - hop,
-        );
-        await this.tween(view.container, {
-          x: mid.x,
-          y: mid.y,
-          scaleX: style === 'agile' ? 1.06 : 1.03,
-          scaleY: 0.96,
-          angle: tilt,
-        }, Math.round(duration * 0.55), 'Sine.easeOut');
-        await this.tween(view.container, {
-          x: to.x,
-          y: to.y,
-          scaleX: 1.04,
-          scaleY: 0.93,
-          angle: 0,
-        }, Math.round(duration * 0.32), 'Sine.easeIn');
-        await this.tween(view.container, { scaleX: 1, scaleY: 1 }, Math.max(35, Math.round(duration * 0.13)), 'Back.easeOut');
-        if (style === 'heavy') this.spawnDust(to, 0x9b8663, 3);
+        continue;
       }
+
+      const hop = style === 'agile' ? 10 : style === 'heavy' ? 4 : 7;
+      const tilt = Phaser.Math.Clamp((to.x - from.x) * 0.06, -5, 5);
+      const mid = new Phaser.Math.Vector2(
+        Phaser.Math.Linear(from.x, to.x, 0.56),
+        Phaser.Math.Linear(from.y, to.y, 0.56) - hop,
+      );
+      await this.tween(view.container, {
+        x: mid.x,
+        y: mid.y,
+        scaleX: style === 'agile' ? 1.06 : 1.03,
+        scaleY: 0.96,
+        angle: tilt,
+      }, Math.round(duration * 0.55), 'Sine.easeOut');
+      await this.tween(view.container, {
+        x: to.x,
+        y: to.y,
+        scaleX: 1.04,
+        scaleY: 0.93,
+        angle: 0,
+      }, Math.round(duration * 0.32), 'Sine.easeIn');
+      await this.tween(view.container, { scaleX: 1, scaleY: 1 }, Math.max(35, Math.round(duration * 0.13)), 'Back.easeOut');
+      if (style === 'heavy') this.spawnDust(to, 0x9b8663, 3);
     }
 
     this.playClip(view, 'idle');
@@ -146,7 +155,7 @@ export class UnitMotionAnimator {
         scaleY: 0.93,
         angle: direction.x * (style === 'heavy' ? 3 : 5),
       }, Math.round((counter ? 78 : 105) * speed), 'Expo.easeIn');
-      this.spawnSwordSwingFallback(source, target, counter);
+      await this.spawnSwordSwing(source, target, counter);
     }
 
     return { source, ranged };
@@ -419,6 +428,81 @@ export class UnitMotionAnimator {
     }
     await this.hunterArrowTexturePromise;
     return this.scene.textures.exists(textureKey);
+  }
+
+  private async ensureSwordSwingTexture(): Promise<boolean> {
+    const { textureKey, url } = COMBAT_VFX_ART.swordSwing;
+    if (this.scene.textures.exists(textureKey)) return true;
+    if (!this.swordSwingTexturePromise) {
+      this.swordSwingTexturePromise = new Promise<void>((resolve) => {
+        const image = new Image();
+        image.onload = () => {
+          if (!this.scene.textures.exists(textureKey)) {
+            this.scene.textures.addSpriteSheet(textureKey, image, {
+              frameWidth: SWORD_SWING_CONTRACT.frameSize,
+              frameHeight: SWORD_SWING_CONTRACT.frameSize,
+            });
+          }
+          resolve();
+        };
+        image.onerror = () => resolve();
+        image.src = url;
+      });
+    }
+    await this.swordSwingTexturePromise;
+    return this.scene.textures.exists(textureKey);
+  }
+
+  private async spawnSwordSwing(source: Phaser.Math.Vector2, target: Phaser.Math.Vector2, counter: boolean): Promise<void> {
+    if (!(await this.ensureSwordSwingTexture())) {
+      this.spawnSwordSwingFallback(source, target, counter);
+      return;
+    }
+
+    const direction = target.clone().subtract(source).normalize();
+    const directionIndex = this.screenDirectionIndex(source, target);
+    const center = source.clone().add(direction.clone().scale(25));
+    const textureKey = COMBAT_VFX_ART.swordSwing.textureKey;
+    const animationKey = `vfx-sword-swing-${directionIndex}-${counter ? 'fast' : 'normal'}`;
+    const startFrame = directionIndex * SWORD_SWING_CONTRACT.framesPerDirection;
+    const endFrame = startFrame + SWORD_SWING_CONTRACT.framesPerDirection - 1;
+    const frameRate = counter ? 14 : SWORD_SWING_CONTRACT.fps;
+    const duration = Math.round((SWORD_SWING_CONTRACT.framesPerDirection / frameRate) * 1000);
+
+    if (!this.scene.anims.exists(animationKey)) {
+      this.scene.anims.create({
+        key: animationKey,
+        frames: this.scene.anims.generateFrameNumbers(textureKey, { start: startFrame, end: endFrame }),
+        frameRate,
+        repeat: 0,
+      });
+    }
+
+    const slash = this.scene.add.sprite(center.x, center.y - 7, textureKey, startFrame)
+      .setDisplaySize(118, 118)
+      .setOrigin(0.5);
+    this.board()?.add(slash);
+
+    const fadeDelay = Math.round(duration * 0.72);
+    this.scene.time.delayedCall(fadeDelay, () => {
+      if (!slash.active) return;
+      this.scene.tweens.add({
+        targets: slash,
+        alpha: 0,
+        duration: Math.max(60, duration - fadeDelay),
+        ease: 'Quad.easeIn',
+      });
+    });
+
+    slash.once('animationcomplete', () => slash.destroy());
+    slash.play(animationKey);
+  }
+
+  private screenDirectionIndex(source: Phaser.Math.Vector2, target: Phaser.Math.Vector2): number {
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 1 : 2;
+    return dy >= 0 ? 0 : 3;
   }
 
   private spawnSwordSwingFallback(source: Phaser.Math.Vector2, target: Phaser.Math.Vector2, counter: boolean): void {

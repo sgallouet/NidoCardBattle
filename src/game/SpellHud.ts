@@ -1,10 +1,14 @@
 import type Phaser from 'phaser';
 import { SPELL_UI, isActiveSpellId, type ActiveSpellId } from '../data/spellArt';
-import type { Coord, GameState } from '../data/types';
+import type { Coord, GameState, UnitState } from '../data/types';
 import {
   coordKey,
   findUnit,
+  getCurseTargets,
+  getDisplaceDestinations,
+  getDisplaceTargets,
   getRallyTargets,
+  getSoulLinkTargets,
   rallyAdjacentAllies,
   unitAt,
   unitDefinition,
@@ -181,6 +185,16 @@ export class SpellHud {
     return this.game.mode === 'rally-target';
   }
 
+  private hasLegalTarget(unit: UnitState, ability: ActiveSpellId): boolean {
+    if (ability === 'Displace') {
+      return getDisplaceTargets(this.game.state, unit.id)
+        .some((target) => getDisplaceDestinations(this.game.state, unit.id, target.id).length > 0);
+    }
+    if (ability === 'Rally') return getRallyTargets(this.game.state, unit.id).length > 0;
+    if (ability === 'SoulLink') return getSoulLinkTargets(this.game.state, unit.id).length > 0;
+    return getCurseTargets(this.game.state, unit.id).length > 0;
+  }
+
   private sync(): void {
     if (!this.dock || !this.button || !this.copy || !this.title || !this.description || !this.cooldown) return;
 
@@ -199,12 +213,14 @@ export class SpellHud {
       || selected.attacked
       || this.game.state.winner !== null
       || this.game.animationInProgress;
+    const hasTarget = targeting || this.hasLegalTarget(selected, ability);
+    const blocked = !used && !hasTarget;
 
     this.dock.hidden = false;
     this.dock.style.setProperty('--spell-accent', ui.accent);
-    this.dock.dataset.state = used ? 'used' : targeting ? 'targeting' : 'ready';
+    this.dock.dataset.state = used ? 'used' : blocked ? 'blocked' : targeting ? 'targeting' : 'ready';
     this.button.hidden = false;
-    this.button.disabled = used;
+    this.button.disabled = used || blocked;
     this.button.classList.toggle('targeting', targeting);
     this.button.setAttribute('aria-pressed', targeting ? 'true' : 'false');
     this.button.setAttribute('aria-label', `${ui.name}. ${ui.description}`);
@@ -224,7 +240,7 @@ export class SpellHud {
       ? `${ui.description} Tap again or tap a highlighted ally to cast.`
       : ui.description;
     this.copy.hidden = !targeting;
-    this.cooldown.textContent = used ? 'USED' : targeting ? 'TARGETING' : 'READY';
+    this.cooldown.textContent = used ? 'USED' : blocked ? 'NO TARGET' : targeting ? 'TARGETING' : 'READY';
   }
 
   private destroy(): void {

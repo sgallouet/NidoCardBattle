@@ -1,5 +1,5 @@
 import type { GameState } from '../data/types';
-import { runSimpleAiTurn } from './ai';
+import { runSmartAiTurn } from './ai';
 import { GameScene } from './GameScene';
 
 interface GameSceneInternals {
@@ -22,7 +22,7 @@ export class AiGameScene extends GameScene {
 
     this.aiTurnInProgress = true;
     try {
-      const result = runSimpleAiTurn(scene.state);
+      const result = runSmartAiTurn(scene.state);
       scene.clearInteraction();
       const meaningfulActions = result.actions.filter((action) => !action.startsWith('Player 1'));
       scene.message = scene.state.winner === 2

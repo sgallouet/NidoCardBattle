@@ -1,4 +1,4 @@
-import { CARD_DEFINITIONS, PROTOTYPE_DECK, type CardDefinitionId } from '../data/cards';
+import { CARD_DEFINITIONS, FACTION_DECKS, type CardDefinitionId } from '../data/cards';
 import { MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
 import type {
   ActionResult,
@@ -118,8 +118,8 @@ export const createGameState = (random: () => number = Math.random): GameState =
     currentPlayer: 1,
     turnNumber: 1,
     players: {
-      1: { id: 1, mana: 0, deck: shuffle(PROTOTYPE_DECK, random), hand: [], discard: [] },
-      2: { id: 2, mana: 0, deck: shuffle(PROTOTYPE_DECK, random), hand: [], discard: [] },
+      1: { id: 1, faction: 'human', mana: 0, deck: shuffle(FACTION_DECKS.human, random), hand: [], discard: [] },
+      2: { id: 2, faction: 'undead', mana: 0, deck: shuffle(FACTION_DECKS.undead, random), hand: [], discard: [] },
     },
     units: [],
     sites: MAP_SITES.map((site) => ({ ...site, coord: { ...site.coord }, owner: site.initialOwner })),
@@ -359,6 +359,7 @@ const validateCardPlay = (state: GameState, handIndex: number): CardDefinition |
   const cardId = player.hand[handIndex];
   if (!cardId) return { ok: false, message: 'That card is no longer in hand.' };
   const card = cardDefinition(cardId);
+  if (card.faction !== player.faction) return { ok: false, message: `That card belongs to the ${card.faction} faction.` };
   if (player.mana < card.cost) return { ok: false, message: 'Not enough mana.' };
   return card;
 };

@@ -7,7 +7,7 @@ import {
   planAiTurn,
   type AiSearchOptions,
 } from './ai';
-import { coordKey, createGameState } from './engine';
+import { coordKey, createGameState, DEBUG_START_MANA } from './engine';
 
 export type SimulationTermination = 'victory' | 'repetition' | 'turn-limit';
 
@@ -127,8 +127,7 @@ const configureFirstPlayer = (state: GameState, firstFaction: Faction): void => 
     unit.postAttackMoved = false;
     unit.moveBonus = 0;
   }
-  const wells = state.sites.filter((site) => site.type === 'well' && site.owner === 1).length;
-  state.players[1].mana = Math.min(7, 3 + wells);
+  state.players[1].mana = DEBUG_START_MANA;
   const drawn = state.players[1].deck.pop();
   if (drawn) {
     if (state.players[1].hand.length >= 6) state.players[1].discard.push(drawn);

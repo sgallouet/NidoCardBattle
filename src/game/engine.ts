@@ -13,6 +13,9 @@ import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
 
 const HAND_LIMIT = 6;
 
+// Temporary debugging override. Restore to 3 when debugging is complete.
+export const DEBUG_START_MANA = 20;
+
 export const coordKey = ({ q, r }: Coord): string => `${q},${r}`;
 
 export const sameCoord = (a: Coord, b: Coord): boolean => a.q === b.q && a.r === b.r;
@@ -150,8 +153,7 @@ const beginTurn = (state: GameState, random: () => number): void => {
     unit.postAttackMoved = false;
     unit.moveBonus = 0;
   }
-  const wells = state.sites.filter((site) => site.type === 'well' && site.owner === playerId).length;
-  state.players[playerId].mana = Math.min(7, 3 + wells);
+  state.players[playerId].mana = DEBUG_START_MANA;
   drawCard(state, playerId, random);
 };
 

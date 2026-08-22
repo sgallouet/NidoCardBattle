@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import './style.css';
-import { PrototypeGameScene } from './game/PrototypeGameScene';
+import { AnimatedPrototypeGameScene } from './game/AnimatedPrototypeGameScene';
 
 const app = document.querySelector<HTMLElement>('#app');
 const fullscreenButton = document.querySelector<HTMLButtonElement>('#fullscreen-button');
@@ -30,7 +30,7 @@ new Phaser.Game({
   width: window.innerWidth,
   height: window.innerHeight,
   backgroundColor: '#17251d',
-  scene: [PrototypeGameScene],
+  scene: [AnimatedPrototypeGameScene],
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.NO_CENTER,

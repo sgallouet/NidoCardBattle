@@ -19,8 +19,7 @@ import {
   unitDefinition,
 } from './engine';
 
-const AI_PLAYER: PlayerId = 2;
-const HUMAN_PLAYER: PlayerId = 1;
+const UNDEAD_PLAYER: PlayerId = 2;
 const PLANNING_RANDOM = () => 0.5;
 const MAX_ACTIONS_PER_NODE = 72;
 
@@ -58,11 +57,7 @@ export interface AiSearchOptions {
   responseMaxNodes?: number;
 }
 
-/**
- * One common mobile-safe intelligence budget for every device.
- * Device speed may still affect whether the wall-clock safety cap is hit first,
- * but PC users never receive wider/deeper search settings.
- */
+/** One common mobile-safe intelligence budget for every live-game device. */
 export const COMMON_AI_OPTIONS: Required<AiSearchOptions> = {
   beamWidth: 9,
   maxDepth: 7,
@@ -74,10 +69,14 @@ export const COMMON_AI_OPTIONS: Required<AiSearchOptions> = {
   responseMaxNodes: 650,
 };
 
-/** Backwards-compatible alias while existing tests/callers migrate to the common name. */
-export const MOBILE_AI_OPTIONS = COMMON_AI_OPTIONS;
+/** Same intelligence/node limits for headless simulation; relaxed clock only removes device-speed noise. */
+export const SIMULATION_AI_OPTIONS: Required<AiSearchOptions> = {
+  ...COMMON_AI_OPTIONS,
+  maxPlanningMs: 60_000,
+};
 
-/** Backwards-compatible helper: all browsers now receive the exact same profile. */
+/** Backwards-compatible aliases while older callers migrate. */
+export const MOBILE_AI_OPTIONS = COMMON_AI_OPTIONS;
 export const getBrowserAiSearchOptions = (): Required<AiSearchOptions> => COMMON_AI_OPTIONS;
 
 const nowMs = (): number => typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -190,66 +189,72 @@ const nearestEnemyDistance = (state: GameState, source: UnitState, enemyPlayer: 
   return distances.length > 0 ? Math.min(...distances) : 20;
 };
 
-/** Score is always from the Undead AI's point of view. */
-export const evaluateAiPosition = (state: GameState): number => {
-  if (state.winner === AI_PLAYER) return 1_000_000;
-  if (state.winner === HUMAN_PLAYER) return -1_000_000;
+/** Score from the requested player's point of view. The same weights are used for both factions. */
+export const evaluatePosition = (state: GameState, perspective: PlayerId): number => {
+  const opponent = opponentOf(perspective);
+  if (state.winner === perspective) return 1_000_000;
+  if (state.winner === opponent) return -1_000_000;
 
   let score = 0;
-  const aiCommander = commander(state, AI_PLAYER);
-  const humanCommander = commander(state, HUMAN_PLAYER);
+  const ownCommander = commander(state, perspective);
+  const enemyCommander = commander(state, opponent);
 
-  if (!aiCommander) score -= 180_000;
-  if (!humanCommander) score += 150_000;
+  if (!ownCommander) score -= 180_000;
+  if (!enemyCommander) score += 150_000;
 
   for (const unit of state.units) {
-    const sign = unit.owner === AI_PLAYER ? 1 : -1;
-    score += sign * unitValue(unit);
+    score += (unit.owner === perspective ? 1 : -1) * unitValue(unit);
   }
 
   for (const site of state.sites) {
-    const sign = site.owner === AI_PLAYER ? 1 : site.owner === HUMAN_PLAYER ? -1 : 0;
+    const sign = site.owner === perspective ? 1 : site.owner === opponent ? -1 : 0;
     if (site.type === 'well') score += sign * 360;
     if (site.type === 'fort') score += sign * 250;
   }
 
-  if (state.countdown?.player === AI_PLAYER) score += 32_000 + state.countdown.checkpoints * 18_000;
-  if (state.countdown?.player === HUMAN_PLAYER) score -= 45_000 + state.countdown.checkpoints * 24_000;
+  if (state.countdown?.player === perspective) score += 32_000 + state.countdown.checkpoints * 18_000;
+  if (state.countdown?.player === opponent) score -= 45_000 + state.countdown.checkpoints * 24_000;
 
-  if (aiCommander) {
-    const pressure = approximateAttackPressure(state, HUMAN_PLAYER, aiCommander.coord);
+  if (ownCommander) {
+    const pressure = approximateAttackPressure(state, opponent, ownCommander.coord);
     score -= pressure * 5_500;
-    score += countAdjacentBlockers(state, aiCommander) * 180;
-    score += Math.min(8, nearestEnemyDistance(state, aiCommander, HUMAN_PLAYER)) * 85;
+    score += countAdjacentBlockers(state, ownCommander) * 180;
+    score += Math.min(8, nearestEnemyDistance(state, ownCommander, opponent)) * 85;
   }
 
-  if (humanCommander) {
-    const pressure = approximateAttackPressure(state, AI_PLAYER, humanCommander.coord);
+  if (enemyCommander) {
+    const pressure = approximateAttackPressure(state, perspective, enemyCommander.coord);
     score += pressure * 3_700;
-    score -= countAdjacentBlockers(state, humanCommander) * 120;
-    const aiDistances = state.units
-      .filter((unit) => unit.owner === AI_PLAYER && unit.definitionId !== 'commander')
-      .map((unit) => hexDistance(unit.coord, humanCommander.coord));
-    if (aiDistances.length > 0) score += Math.max(0, 9 - Math.min(...aiDistances)) * 105;
+    score -= countAdjacentBlockers(state, enemyCommander) * 120;
+    const ownDistances = state.units
+      .filter((unit) => unit.owner === perspective && unit.definitionId !== 'commander')
+      .map((unit) => hexDistance(unit.coord, enemyCommander.coord));
+    if (ownDistances.length > 0) score += Math.max(0, 9 - Math.min(...ownDistances)) * 105;
   }
 
-  score += state.players[AI_PLAYER].hand.length * 28;
-  score += state.players[AI_PLAYER].deck.length * 8;
-  score += state.players[AI_PLAYER].mana * 18;
+  const own = state.players[perspective];
+  const enemy = state.players[opponent];
+  score += (own.hand.length - enemy.hand.length) * 28;
+  score += (own.deck.length - enemy.deck.length) * 8;
+  score += (own.mana - enemy.mana) * 18;
   return score;
 };
 
-const exactCommanderThreatAdjustment = (state: GameState): number => {
+/** Legacy Player-2 evaluator retained for the live enemy scene/tests. */
+export const evaluateAiPosition = (state: GameState): number => evaluatePosition(state, UNDEAD_PLAYER);
+
+const exactCommanderThreatAdjustment = (state: GameState, perspective: PlayerId): number => {
+  const opponent = opponentOf(perspective);
   let adjustment = 0;
-  const aiCommander = commander(state, AI_PLAYER);
-  const humanCommander = commander(state, HUMAN_PLAYER);
-  if (aiCommander) {
-    const humanThreats = buildThreatMap(state, HUMAN_PLAYER);
-    adjustment -= (humanThreats.get(coordKey(aiCommander.coord)) ?? 0) * 1_800;
+  const ownCommander = commander(state, perspective);
+  const enemyCommander = commander(state, opponent);
+  if (ownCommander) {
+    const enemyThreats = buildThreatMap(state, opponent);
+    adjustment -= (enemyThreats.get(coordKey(ownCommander.coord)) ?? 0) * 1_800;
   }
-  if (humanCommander) {
-    const aiThreats = buildThreatMap(state, AI_PLAYER);
-    adjustment += (aiThreats.get(coordKey(humanCommander.coord)) ?? 0) * 1_200;
+  if (enemyCommander) {
+    const ownThreats = buildThreatMap(state, perspective);
+    adjustment += (ownThreats.get(coordKey(enemyCommander.coord)) ?? 0) * 1_200;
   }
   return adjustment;
 };
@@ -268,7 +273,7 @@ const stateSignature = (state: GameState, includeCurrentHand: boolean): string =
   return `${state.currentPlayer};${current.mana}${hand};${units};${sites};${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`;
 };
 
-const generateLegalActionsForPlayer = (
+export const generateLegalActionsForPlayer = (
   state: GameState,
   playerId: PlayerId,
   includeCards: boolean,
@@ -309,7 +314,7 @@ const generateLegalActionsForPlayer = (
 };
 
 export const generateLegalAiActions = (state: GameState): AiAction[] =>
-  generateLegalActionsForPlayer(state, AI_PLAYER, true);
+  generateLegalActionsForPlayer(state, UNDEAD_PLAYER, true);
 
 export const applyAiAction = (state: GameState, action: AiAction): ActionResult => {
   switch (action.kind) {
@@ -410,23 +415,25 @@ const finishTurnForSearch = (state: GameState, playerId: PlayerId): GameState =>
 const searchTurnPlans = (
   state: GameState,
   actor: PlayerId,
+  perspective: PlayerId,
   includeCards: boolean,
-  maximizeAiScore: boolean,
+  maximizePerspectiveScore: boolean,
   beamWidth: number,
   maxDepth: number,
   completedPlanCount: number,
   budget: SearchBudget,
 ): TurnSearchResult => {
   const root = cloneState(state);
-  let beam: SearchNode[] = [{ state: root, actions: [], score: evaluateAiPosition(root) }];
+  let beam: SearchNode[] = [{ state: root, actions: [], score: evaluatePosition(root, perspective) }];
   const completed: CompletedPlan[] = [];
   const visited = new Map<string, number>();
   visited.set(stateSignature(root, includeCards), beam[0].score);
 
   const addCompleted = (node: SearchNode): void => {
+    if (budgetExhausted(budget)) return;
     const endedState = finishTurnForSearch(node.state, actor);
     budget.searchedStates += 1;
-    const score = evaluateAiPosition(endedState);
+    const score = evaluatePosition(endedState, perspective);
     completed.push({ ...node, score, endedState });
   };
 
@@ -446,18 +453,18 @@ const searchTurnPlans = (
         const result = applyAiAction(childState, action);
         if (!result.ok) continue;
         budget.searchedStates += 1;
-        const score = evaluateAiPosition(childState);
+        const score = evaluatePosition(childState, perspective);
         const signature = stateSignature(childState, includeCards);
         const previousScore = visited.get(signature);
         const betterThanPrevious = previousScore === undefined
-          || (maximizeAiScore ? score > previousScore : score < previousScore);
+          || (maximizePerspectiveScore ? score > previousScore : score < previousScore);
         if (!betterThanPrevious) continue;
         visited.set(signature, score);
         next.push({ state: childState, actions: [...node.actions, action], score });
       }
     }
 
-    next.sort((a, b) => maximizeAiScore ? b.score - a.score : a.score - b.score);
+    next.sort((a, b) => maximizePerspectiveScore ? b.score - a.score : a.score - b.score);
     beam = next.slice(0, beamWidth);
   }
 
@@ -466,7 +473,7 @@ const searchTurnPlans = (
     addCompleted(node);
   }
 
-  completed.sort((a, b) => maximizeAiScore ? b.score - a.score : a.score - b.score);
+  completed.sort((a, b) => maximizePerspectiveScore ? b.score - a.score : a.score - b.score);
   return {
     plans: completed.slice(0, completedPlanCount),
     searchedStates: budget.searchedStates,
@@ -475,12 +482,14 @@ const searchTurnPlans = (
 };
 
 const responseWorstCaseScore = (
-  aiEndedState: GameState,
+  actorEndedState: GameState,
+  perspective: PlayerId,
   options: Required<AiSearchOptions>,
   budget: SearchBudget,
 ): { score: number; responseStates: number } => {
-  if (aiEndedState.winner || aiEndedState.currentPlayer !== HUMAN_PLAYER || budgetExhausted(budget)) {
-    return { score: evaluateAiPosition(aiEndedState), responseStates: 0 };
+  const responder = opponentOf(perspective);
+  if (actorEndedState.winner || actorEndedState.currentPlayer !== responder || budgetExhausted(budget)) {
+    return { score: evaluatePosition(actorEndedState, perspective), responseStates: 0 };
   }
 
   const before = budget.searchedStates;
@@ -492,8 +501,9 @@ const responseWorstCaseScore = (
     timedOut: false,
   };
   const response = searchTurnPlans(
-    aiEndedState,
-    HUMAN_PLAYER,
+    actorEndedState,
+    responder,
+    perspective,
     false,
     false,
     options.responseBeamWidth,
@@ -505,16 +515,18 @@ const responseWorstCaseScore = (
   budget.timedOut ||= responseBudget.timedOut;
   const worst = response.plans[0];
   return {
-    score: worst ? worst.score : evaluateAiPosition(aiEndedState),
+    score: worst ? worst.score : evaluatePosition(actorEndedState, perspective),
     responseStates: Math.max(0, budget.searchedStates - before),
   };
 };
 
-export const planSmartAiTurn = (state: GameState, overrides: AiSearchOptions = {}): AiPlan => {
-  if (state.winner || state.currentPlayer !== AI_PLAYER) {
+/** Plan a complete turn for whichever player is currently active. */
+export const planAiTurn = (state: GameState, overrides: AiSearchOptions = {}): AiPlan => {
+  const perspective = state.currentPlayer;
+  if (state.winner) {
     return {
       actions: [],
-      score: evaluateAiPosition(state),
+      score: evaluatePosition(state, perspective),
       searchedStates: 0,
       responseStates: 0,
       timedOut: false,
@@ -531,7 +543,8 @@ export const planSmartAiTurn = (state: GameState, overrides: AiSearchOptions = {
 
   const initialSearch = searchTurnPlans(
     state,
-    AI_PLAYER,
+    perspective,
+    perspective,
     true,
     true,
     options.beamWidth,
@@ -545,8 +558,8 @@ export const planSmartAiTurn = (state: GameState, overrides: AiSearchOptions = {
 
   for (const candidate of initialSearch.plans) {
     if (budgetExhausted(budget)) break;
-    const exactScore = candidate.score + exactCommanderThreatAdjustment(candidate.endedState);
-    const response = responseWorstCaseScore(candidate.endedState, options, budget);
+    const exactScore = candidate.score + exactCommanderThreatAdjustment(candidate.endedState, perspective);
+    const response = responseWorstCaseScore(candidate.endedState, perspective, options, budget);
     responseStates += response.responseStates;
     const robustScore = Math.min(exactScore, response.score);
     if (robustScore > bestScore) {
@@ -558,7 +571,7 @@ export const planSmartAiTurn = (state: GameState, overrides: AiSearchOptions = {
   if (bestScore === Number.NEGATIVE_INFINITY) {
     const fallback = initialSearch.plans[0];
     bestActions = fallback?.actions ?? [];
-    bestScore = fallback?.score ?? evaluateAiPosition(state);
+    bestScore = fallback?.score ?? evaluatePosition(state, perspective);
   }
 
   return {
@@ -570,39 +583,28 @@ export const planSmartAiTurn = (state: GameState, overrides: AiSearchOptions = {
   };
 };
 
-export const runSmartAiTurn = (
+export const executeAiPlan = (
   state: GameState,
+  plan: AiPlan,
   random: () => number = Math.random,
-  options: AiSearchOptions = {},
 ): AiTurnResult => {
-  if (state.winner || state.currentPlayer !== AI_PLAYER) {
-    return {
-      actions: [],
-      endedTurn: false,
-      planScore: evaluateAiPosition(state),
-      searchedStates: 0,
-      responseStates: 0,
-      timedOut: false,
-    };
-  }
-
-  const plan = planSmartAiTurn(state, options);
-  const actions: string[] = [];
+  const actor = state.currentPlayer;
+  const messages: string[] = [];
   for (const action of plan.actions) {
-    if (state.winner || state.currentPlayer !== AI_PLAYER) break;
+    if (state.winner || state.currentPlayer !== actor) break;
     const result = applyAiAction(state, action);
     if (!result.ok) {
-      actions.push(`AI plan stopped: ${result.message}`);
+      messages.push(`AI plan stopped: ${result.message}`);
       break;
     }
-    actions.push(result.message);
+    messages.push(result.message);
   }
 
-  if (!state.winner && state.currentPlayer === AI_PLAYER) {
+  if (!state.winner && state.currentPlayer === actor) {
     const result = endTurn(state, random);
-    actions.push(result.message);
+    messages.push(result.message);
     return {
-      actions,
+      actions: messages,
       endedTurn: result.ok,
       planScore: plan.score,
       searchedStates: plan.searchedStates,
@@ -612,7 +614,7 @@ export const runSmartAiTurn = (
   }
 
   return {
-    actions,
+    actions: messages,
     endedTurn: false,
     planScore: plan.score,
     searchedStates: plan.searchedStates,
@@ -621,5 +623,43 @@ export const runSmartAiTurn = (
   };
 };
 
-/** Backwards-compatible name for older callers while the prototype transitions to the smart planner. */
+/** Run one complete AI turn for the currently active faction. */
+export const runAiTurn = (
+  state: GameState,
+  random: () => number = Math.random,
+  options: AiSearchOptions = {},
+): AiTurnResult => executeAiPlan(state, planAiTurn(state, options), random);
+
+/** Player-2 compatibility entry point used by the live Human-vs-Undead scene. */
+export const planSmartAiTurn = (state: GameState, overrides: AiSearchOptions = {}): AiPlan => {
+  if (state.currentPlayer !== UNDEAD_PLAYER) {
+    return {
+      actions: [],
+      score: evaluatePosition(state, UNDEAD_PLAYER),
+      searchedStates: 0,
+      responseStates: 0,
+      timedOut: false,
+    };
+  }
+  return planAiTurn(state, overrides);
+};
+
+export const runSmartAiTurn = (
+  state: GameState,
+  random: () => number = Math.random,
+  options: AiSearchOptions = {},
+): AiTurnResult => {
+  if (state.currentPlayer !== UNDEAD_PLAYER) {
+    return {
+      actions: [],
+      endedTurn: false,
+      planScore: evaluatePosition(state, UNDEAD_PLAYER),
+      searchedStates: 0,
+      responseStates: 0,
+      timedOut: false,
+    };
+  }
+  return runAiTurn(state, random, options);
+};
+
 export const runSimpleAiTurn = runSmartAiTurn;

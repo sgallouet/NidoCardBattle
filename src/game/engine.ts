@@ -30,8 +30,14 @@ export const isPassable = (coord: Coord): boolean => {
 export const isBuiltBridge = (state: GameState, coord: Coord): boolean =>
   state.builtBridges.some((bridge) => sameCoord(bridge, coord));
 
-export const effectiveTerrainAt = (state: GameState, coord: Coord): Terrain =>
-  isBuiltBridge(state, coord) ? 'bridge' : terrainAt(coord);
+export const isScorchedForest = (state: GameState, coord: Coord): boolean =>
+  state.scorchedForests.some((forest) => sameCoord(forest, coord));
+
+export const effectiveTerrainAt = (state: GameState, coord: Coord): Terrain => {
+  if (isBuiltBridge(state, coord)) return 'bridge';
+  if (isScorchedForest(state, coord) && terrainAt(coord) === 'forest') return 'plain';
+  return terrainAt(coord);
+};
 
 export const isPassableInState = (state: GameState, coord: Coord): boolean => {
   if (!isInsideMap(coord)) return false;
@@ -160,10 +166,13 @@ export const createGameState = (random: () => number = Math.random): GameState =
     units: [],
     sites: MAP_SITES.map((site) => ({ ...site, coord: { ...site.coord }, owner: site.initialOwner })),
     builtBridges: [],
+    scorchedForests: [],
+    pendingManaWells: [],
     tileEffects: [],
     countdown: null,
     winner: null,
     nextUnitId: 1,
+    nextSiteId: 1,
   };
 
   for (const startingUnit of STARTING_UNITS) {
@@ -177,8 +186,8 @@ export const createGameState = (random: () => number = Math.random): GameState =
   return state;
 };
 
-const movementCost = (unit: UnitState, coord: Coord): number =>
-  unitDefinition(unit).traits.includes('Flying') || terrainAt(coord) !== 'forest' ? 1 : 1 / 0.7;
+const movementCost = (state: GameState, unit: UnitState, coord: Coord): number =>
+  unitDefinition(unit).traits.includes('Flying') || effectiveTerrainAt(state, coord) !== 'forest' ? 1 : 1 / 0.7;
 
 const canTraverse = (state: GameState, unit: UnitState, coord: Coord): boolean =>
   unitDefinition(unit).traits.includes('Flying') ? isInsideMap(coord) : isPassableInState(state, coord);
@@ -227,7 +236,7 @@ const searchMovement = (state: GameState, unitId: string): MovementSearch => {
 
     for (const next of neighbors(current.coord)) {
       if (isGraveLocked(state, next) || !canTraverse(state, unit, next) || unitAt(state, next)) continue;
-      const nextCost = current.cost + movementCost(unit, next);
+      const nextCost = current.cost + movementCost(state, unit, next);
       if (nextCost > moveRemaining + 0.0001) continue;
       const key = coordKey(next);
       if (nextCost >= (reachable.get(key) ?? Number.POSITIVE_INFINITY)) continue;
@@ -323,7 +332,7 @@ const dealDamage = (
   sourcePlayer: PlayerId,
   options: DamageOptions = {},
 ): number => {
-  const adjusted = ranged && terrainAt(target.coord) === 'forest'
+  const adjusted = ranged && effectiveTerrainAt(state, target.coord) === 'forest'
     ? Math.max(0, Math.round(amount * 0.7))
     : amount;
   if (adjusted <= 0) return 0;
@@ -604,9 +613,25 @@ export const getValidSummonCoords = (state: GameState, playerId: PlayerId = stat
   return [...valid.values()];
 };
 
+const hasSiteAt = (state: GameState, coord: Coord): boolean =>
+  state.sites.some((site) => sameCoord(site.coord, coord));
+
+const hasPendingWellAt = (state: GameState, coord: Coord): boolean =>
+  state.pendingManaWells.some((well) => sameCoord(well.coord, coord));
+
 export const getTacticTargets = (state: GameState, cardId: string): UnitState[] => {
   const card = cardDefinition(cardId);
   if (card.type !== 'tactic') return [];
+  if (card.effect.kind === 'profaneWell') {
+    return state.units.filter((unit) => {
+      const terrain = effectiveTerrainAt(state, unit.coord);
+      return unit.owner === state.currentPlayer
+        && unit.definitionId !== 'commander'
+        && (terrain === 'plain' || terrain === 'forest' || terrain === 'hill')
+        && !hasSiteAt(state, unit.coord)
+        && !hasPendingWellAt(state, unit.coord);
+    });
+  }
   if (card.effect.target === 'friendly') {
     return state.units.filter((unit) => unit.owner === state.currentPlayer && unit.hp < unitDefinition(unit).maxHp);
   }
@@ -627,6 +652,16 @@ export const getTacticTargetCoords = (state: GameState, cardId: string): Coord[]
         if (isPassableInState(state, coord) && !isGraveLocked(state, coord)) targets.push(coord);
       } else if (card.effect.kind === 'buildBridge') {
         if (terrainAt(coord) === 'water' && !isBuiltBridge(state, coord) && !unitAt(state, coord)) targets.push(coord);
+      } else if (card.effect.kind === 'scorch') {
+        if (effectiveTerrainAt(state, coord) === 'forest') targets.push(coord);
+      } else if (card.effect.kind === 'raiseFort') {
+        const terrain = effectiveTerrainAt(state, coord);
+        if ((terrain === 'plain' || terrain === 'hill')
+          && !unitAt(state, coord)
+          && !hasSiteAt(state, coord)
+          && !hasPendingWellAt(state, coord)) {
+          targets.push(coord);
+        }
       }
     }
   }
@@ -675,19 +710,31 @@ export const playTacticCard = (state: GameState, handIndex: number, targetId: st
   const validation = validateCardPlay(state, handIndex);
   if ('ok' in validation) return validation;
   if (validation.type !== 'tactic') return { ok: false, message: 'That card is not a tactic.' };
-  if (validation.effect.kind !== 'damage' && validation.effect.kind !== 'heal') {
-    return { ok: false, message: 'That tactic targets a battlefield hex.' };
-  }
   const target = findUnit(state, targetId);
   if (!target || !getTacticTargets(state, validation.id).some((unit) => unit.id === targetId)) {
     return { ok: false, message: 'Choose a highlighted unit.' };
   }
+
   const playerId = state.currentPlayer;
   state.players[playerId].mana -= validation.cost;
   if (validation.effect.kind === 'damage') {
     dealDamage(state, target, validation.effect.amount, false, playerId);
-  } else {
+  } else if (validation.effect.kind === 'heal') {
     target.hp = Math.min(unitDefinition(target).maxHp, target.hp + validation.effect.amount);
+  } else if (validation.effect.kind === 'profaneWell') {
+    const coord = { ...target.coord };
+    removeDeadUnit(state, target, playerId);
+    const id = `pending-well-${state.nextSiteId}`;
+    state.nextSiteId += 1;
+    state.pendingManaWells.push({
+      id,
+      coord,
+      owner: playerId,
+      remainingTurns: 3,
+      createdTurnNumber: state.turnNumber,
+    });
+  } else {
+    return { ok: false, message: 'That tactic targets a battlefield hex.' };
   }
   discardPlayedCard(state, handIndex);
   return { ok: true, message: `${validation.name} resolved.` };
@@ -712,6 +759,17 @@ export const playTacticCardAtCoord = (state: GameState, handIndex: number, desti
     });
   } else if (validation.effect.kind === 'buildBridge') {
     state.builtBridges.push({ ...destination });
+  } else if (validation.effect.kind === 'scorch') {
+    state.scorchedForests.push({ ...destination });
+  } else if (validation.effect.kind === 'raiseFort') {
+    state.sites.push({
+      id: `built-fort-${state.nextSiteId}`,
+      type: 'fort',
+      coord: { ...destination },
+      initialOwner: playerId,
+      owner: playerId,
+    });
+    state.nextSiteId += 1;
   } else {
     return { ok: false, message: 'That tactic requires a unit target.' };
   }
@@ -746,11 +804,35 @@ const resolveCurses = (state: GameState, playerId: PlayerId): void => {
   }
 };
 
+const resolvePendingManaWells = (state: GameState, playerId: PlayerId): void => {
+  const remaining = [];
+  for (const pending of state.pendingManaWells) {
+    if (pending.owner !== playerId || pending.createdTurnNumber === state.turnNumber) {
+      remaining.push(pending);
+      continue;
+    }
+    const turnsLeft = pending.remainingTurns - 1;
+    if (turnsLeft > 0) {
+      remaining.push({ ...pending, remainingTurns: turnsLeft });
+      continue;
+    }
+    state.sites.push({
+      id: `profane-${pending.id}`,
+      type: 'well',
+      coord: { ...pending.coord },
+      initialOwner: pending.owner,
+      owner: pending.owner,
+    });
+  }
+  state.pendingManaWells = remaining;
+};
+
 export const endTurn = (state: GameState, random: () => number = Math.random): ActionResult => {
   if (state.winner) return { ok: false, message: 'The match is over.' };
   const endingPlayer = state.currentPlayer;
   resolveCaptures(state, endingPlayer);
   resolveCurses(state, endingPlayer);
+  resolvePendingManaWells(state, endingPlayer);
   state.players[endingPlayer].mana = 0;
 
   if (state.countdown?.player === endingPlayer && commanderAlive(state, endingPlayer)) {

@@ -1,5 +1,5 @@
 import type { CardDefinitionId } from '../data/cards';
-import type { GameState, PlayerId, SiteType } from '../data/types';
+import type { Faction, GameState, PlayerId } from '../data/types';
 import {
   SIMULATION_AI_OPTIONS,
   executeAiPlan,
@@ -25,8 +25,10 @@ export interface SimulationObjectiveTurns {
 
 export interface SimulationMatchResult {
   seed: number;
+  firstPlayerFaction: Faction;
+  playerFactions: Record<PlayerId, Faction>;
   winner: PlayerId | null;
-  winnerFaction: 'human' | 'undead' | null;
+  winnerFaction: Faction | null;
   termination: SimulationTermination;
   halfTurns: number;
   rounds: number;
@@ -50,16 +52,18 @@ export interface SimulationBatchResult {
   humanWinRate: number;
   undeadWinRate: number;
   stalemateRate: number;
+  firstPlayerWins: number;
+  firstPlayerWinRate: number;
   averageRounds: number;
   averageHalfTurns: number;
   averageSearchStatesPerTurn: number;
   averageResponseStatesPerTurn: number;
   timedOutTurnRate: number;
   replayFailureRate: number;
-  commanderDeathGames: Record<PlayerId, number>;
-  objectiveControlShare: Record<PlayerId, { well: number; fort: number }>;
+  commanderDeathGamesByFaction: Record<Faction, number>;
+  objectiveControlShareByFaction: Record<Faction, { well: number; fort: number }>;
   summonsByCard: Partial<Record<CardDefinitionId, number>>;
-  actionCounts: Record<PlayerId, SimulationActionCounts>;
+  actionCountsByFaction: Record<Faction, SimulationActionCounts>;
   terminations: Record<SimulationTermination, number>;
   matchesDetail: SimulationMatchResult[];
 }
@@ -68,11 +72,14 @@ export interface SimulationOptions {
   maxHalfTurns?: number;
   repetitionLimit?: number;
   aiOptions?: AiSearchOptions;
+  firstPlayerFaction?: Faction;
 }
 
-export interface SimulationBatchOptions extends SimulationOptions {
+export interface SimulationBatchOptions extends Omit<SimulationOptions, 'firstPlayerFaction'> {
   matches?: number;
   seed?: number;
+  alternateFirstPlayer?: boolean;
+  firstPlayerFaction?: Faction;
 }
 
 const emptyActionCounts = (): SimulationActionCounts => ({ summon: 0, move: 0, attack: 0, displace: 0 });
@@ -89,7 +96,48 @@ export const seededRandom = (seed: number): (() => number) => {
   };
 };
 
-const factionName = (state: GameState, player: PlayerId): 'human' | 'undead' => state.players[player].faction;
+const opponentOf = (player: PlayerId): PlayerId => player === 1 ? 2 : 1;
+
+/**
+ * createGameState starts Human Player 1's turn immediately. For fair simulation we can
+ * swap identities so Undead becomes Player 1, then reconstruct the equivalent opening turn.
+ */
+const configureFirstPlayer = (state: GameState, firstFaction: Faction): void => {
+  if (firstFaction === 'human') return;
+
+  const humanOpeningDraw = state.players[1].hand.pop();
+  if (humanOpeningDraw) state.players[1].deck.push(humanOpeningDraw);
+  state.players[1].mana = 0;
+
+  const oldPlayer1 = state.players[1];
+  const oldPlayer2 = state.players[2];
+  state.players = {
+    1: { ...oldPlayer2, id: 1 },
+    2: { ...oldPlayer1, id: 2 },
+  };
+
+  for (const unit of state.units) unit.owner = opponentOf(unit.owner);
+  for (const site of state.sites) {
+    if (site.owner) site.owner = opponentOf(site.owner);
+  }
+
+  state.currentPlayer = 1;
+  for (const unit of state.units) {
+    if (unit.owner !== 1) continue;
+    unit.exhausted = false;
+    unit.moved = false;
+    unit.attacked = false;
+  }
+  const wells = state.sites.filter((site) => site.type === 'well' && site.owner === 1).length;
+  state.players[1].mana = Math.min(7, 3 + wells);
+  const drawn = state.players[1].deck.pop();
+  if (drawn) {
+    if (state.players[1].hand.length >= 6) state.players[1].discard.push(drawn);
+    else state.players[1].hand.push(drawn);
+  }
+};
+
+const factionName = (state: GameState, player: PlayerId): Faction => state.players[player].faction;
 
 const commanderAlive = (state: GameState, player: PlayerId): boolean =>
   state.units.some((unit) => unit.owner === player && unit.definitionId === 'commander');
@@ -100,8 +148,9 @@ const countUnits = (state: GameState, player: PlayerId): number =>
 const objectiveCounts = (state: GameState, player: PlayerId): SimulationObjectiveTurns => {
   const counts = emptyObjectives();
   for (const site of state.sites) {
-    if (site.owner !== player || site.type === 'keep') continue;
-    counts[site.type as Exclude<SiteType, 'keep'>] += 1;
+    if (site.owner !== player) continue;
+    if (site.type === 'well') counts.well += 1;
+    if (site.type === 'fort') counts.fort += 1;
   }
   return counts;
 };
@@ -131,7 +180,7 @@ const recordActions = (
   }
 };
 
-/** Includes hidden zones because this is only for simulator loop detection, never AI decision making. */
+/** Includes hidden zones because this is only simulator loop detection, never AI decision making. */
 const repetitionFingerprint = (state: GameState): string => {
   const players = ([1, 2] as const).map((player) => {
     const data = state.players[player];
@@ -148,9 +197,15 @@ const repetitionFingerprint = (state: GameState): string => {
 export const simulateAiMatch = (seed: number, options: SimulationOptions = {}): SimulationMatchResult => {
   const maxHalfTurns = options.maxHalfTurns ?? 160;
   const repetitionLimit = options.repetitionLimit ?? 4;
+  const firstPlayerFaction = options.firstPlayerFaction ?? 'human';
   const aiOptions: AiSearchOptions = { ...SIMULATION_AI_OPTIONS, ...options.aiOptions };
   const random = seededRandom(seed);
   const state = createGameState(random);
+  configureFirstPlayer(state, firstPlayerFaction);
+  const playerFactions: Record<PlayerId, Faction> = {
+    1: state.players[1].faction,
+    2: state.players[2].faction,
+  };
   const actionCounts: Record<PlayerId, SimulationActionCounts> = {
     1: emptyActionCounts(),
     2: emptyActionCounts(),
@@ -208,6 +263,8 @@ export const simulateAiMatch = (seed: number, options: SimulationOptions = {}): 
 
   return {
     seed,
+    firstPlayerFaction,
+    playerFactions,
     winner: state.winner,
     winnerFaction: state.winner ? factionName(state, state.winner) : null,
     termination,
@@ -231,28 +288,37 @@ const ratio = (numerator: number, denominator: number): number => denominator ==
 export const simulateAiBatch = (options: SimulationBatchOptions = {}): SimulationBatchResult => {
   const matches = Math.max(1, Math.floor(options.matches ?? 100));
   const seed = Math.floor(options.seed ?? 1);
-  const details = Array.from({ length: matches }, (_, index) =>
-    simulateAiMatch(seed + index * 0x9e3779b1, options));
+  const alternateFirstPlayer = options.alternateFirstPlayer ?? true;
+  const fixedFirstFaction = options.firstPlayerFaction ?? 'human';
+  const details = Array.from({ length: matches }, (_, index) => {
+    const firstPlayerFaction: Faction = alternateFirstPlayer
+      ? index % 2 === 0 ? 'human' : 'undead'
+      : fixedFirstFaction;
+    return simulateAiMatch(seed + index * 0x9e3779b1, {
+      maxHalfTurns: options.maxHalfTurns,
+      repetitionLimit: options.repetitionLimit,
+      aiOptions: options.aiOptions,
+      firstPlayerFaction,
+    });
+  });
 
   const humanWins = details.filter((match) => match.winnerFaction === 'human').length;
   const undeadWins = details.filter((match) => match.winnerFaction === 'undead').length;
   const stalemates = matches - humanWins - undeadWins;
+  const firstPlayerWins = details.filter((match) => match.winner === 1).length;
   const totalHalfTurns = details.reduce((sum, match) => sum + match.halfTurns, 0);
   const totalSearchStates = details.reduce((sum, match) => sum + match.totalSearchStates, 0);
   const totalResponseStates = details.reduce((sum, match) => sum + match.totalResponseStates, 0);
   const totalTimedOutTurns = details.reduce((sum, match) => sum + match.timedOutTurns, 0);
   const totalReplayFailures = details.reduce((sum, match) => sum + match.planReplayFailures, 0);
-  const commanderDeathGames: Record<PlayerId, number> = {
-    1: details.filter((match) => match.commanderDeaths[1]).length,
-    2: details.filter((match) => match.commanderDeaths[2]).length,
+  const commanderDeathGamesByFaction: Record<Faction, number> = { human: 0, undead: 0 };
+  const actionCountsByFaction: Record<Faction, SimulationActionCounts> = {
+    human: emptyActionCounts(),
+    undead: emptyActionCounts(),
   };
-  const actionCounts: Record<PlayerId, SimulationActionCounts> = {
-    1: emptyActionCounts(),
-    2: emptyActionCounts(),
-  };
-  const objectiveTotals: Record<PlayerId, SimulationObjectiveTurns> = {
-    1: emptyObjectives(),
-    2: emptyObjectives(),
+  const objectiveTotalsByFaction: Record<Faction, SimulationObjectiveTurns> = {
+    human: emptyObjectives(),
+    undead: emptyObjectives(),
   };
   const summonsByCard: Partial<Record<CardDefinitionId, number>> = {};
   const terminations: Record<SimulationTermination, number> = {
@@ -264,11 +330,13 @@ export const simulateAiBatch = (options: SimulationBatchOptions = {}): Simulatio
   for (const match of details) {
     terminations[match.termination] += 1;
     for (const player of [1, 2] as const) {
+      const faction = match.playerFactions[player];
+      if (match.commanderDeaths[player]) commanderDeathGamesByFaction[faction] += 1;
       for (const kind of ['summon', 'move', 'attack', 'displace'] as const) {
-        actionCounts[player][kind] += match.actionCounts[player][kind];
+        actionCountsByFaction[faction][kind] += match.actionCounts[player][kind];
       }
-      objectiveTotals[player].well += match.objectiveControlTurns[player].well;
-      objectiveTotals[player].fort += match.objectiveControlTurns[player].fort;
+      objectiveTotalsByFaction[faction].well += match.objectiveControlTurns[player].well;
+      objectiveTotalsByFaction[faction].fort += match.objectiveControlTurns[player].fort;
     }
     for (const [cardId, count] of Object.entries(match.summonsByCard)) {
       const id = cardId as CardDefinitionId;
@@ -276,8 +344,8 @@ export const simulateAiBatch = (options: SimulationBatchOptions = {}): Simulatio
     }
   }
 
-  const totalWellControl = objectiveTotals[1].well + objectiveTotals[2].well;
-  const totalFortControl = objectiveTotals[1].fort + objectiveTotals[2].fort;
+  const totalWellControl = objectiveTotalsByFaction.human.well + objectiveTotalsByFaction.undead.well;
+  const totalFortControl = objectiveTotalsByFaction.human.fort + objectiveTotalsByFaction.undead.fort;
 
   return {
     matches,
@@ -287,25 +355,27 @@ export const simulateAiBatch = (options: SimulationBatchOptions = {}): Simulatio
     humanWinRate: ratio(humanWins, matches),
     undeadWinRate: ratio(undeadWins, matches),
     stalemateRate: ratio(stalemates, matches),
+    firstPlayerWins,
+    firstPlayerWinRate: ratio(firstPlayerWins, matches - stalemates),
     averageRounds: ratio(totalHalfTurns, matches * 2),
     averageHalfTurns: ratio(totalHalfTurns, matches),
     averageSearchStatesPerTurn: ratio(totalSearchStates, totalHalfTurns),
     averageResponseStatesPerTurn: ratio(totalResponseStates, totalHalfTurns),
     timedOutTurnRate: ratio(totalTimedOutTurns, totalHalfTurns),
     replayFailureRate: ratio(totalReplayFailures, totalHalfTurns),
-    commanderDeathGames,
-    objectiveControlShare: {
-      1: {
-        well: ratio(objectiveTotals[1].well, totalWellControl),
-        fort: ratio(objectiveTotals[1].fort, totalFortControl),
+    commanderDeathGamesByFaction,
+    objectiveControlShareByFaction: {
+      human: {
+        well: ratio(objectiveTotalsByFaction.human.well, totalWellControl),
+        fort: ratio(objectiveTotalsByFaction.human.fort, totalFortControl),
       },
-      2: {
-        well: ratio(objectiveTotals[2].well, totalWellControl),
-        fort: ratio(objectiveTotals[2].fort, totalFortControl),
+      undead: {
+        well: ratio(objectiveTotalsByFaction.undead.well, totalWellControl),
+        fort: ratio(objectiveTotalsByFaction.undead.fort, totalFortControl),
       },
     },
     summonsByCard,
-    actionCounts,
+    actionCountsByFaction,
     terminations,
     matchesDetail: details,
   };

@@ -47,8 +47,8 @@ export class AiGameScene extends GameScene {
     scene.animationInProgress = true;
     scene.clearInteraction();
     scene.message = 'Enemy thinking…';
-    document.querySelector<HTMLElement>('#hand')?.replaceChildren();
     scene.renderAll();
+    document.querySelector<HTMLElement>('#hand')?.replaceChildren();
 
     if (!this.aiWorker) {
       this.fallbackToMainThread();

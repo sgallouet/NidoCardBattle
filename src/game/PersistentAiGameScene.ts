@@ -1,6 +1,6 @@
 import type { GameState } from '../data/types';
 import { AiGameScene } from './AiGameScene';
-import { DEBUG_START_MANA } from './engine';
+import { MAX_MANA } from './engine';
 import { clearSavedGameState, loadSavedGameState, saveGameState } from './save';
 
 interface PersistentSceneInternals {
@@ -14,7 +14,9 @@ export class PersistentAiGameScene extends AiGameScene {
     const scene = this as unknown as PersistentSceneInternals;
     const saved = loadSavedGameState();
     if (saved) {
-      saved.players[saved.currentPlayer].mana = DEBUG_START_MANA;
+      for (const playerId of [1, 2] as const) {
+        saved.players[playerId].mana = Math.min(MAX_MANA, Math.max(0, saved.players[playerId].mana));
+      }
       scene.state = saved;
       scene.message = `Saved match resumed on turn ${saved.turnNumber}.`;
     }

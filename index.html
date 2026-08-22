@@ -13,7 +13,7 @@
 
       <div class="mana-count" aria-label="Current mana">
         <span class="mana-gem"></span>
-        <strong id="mana-count">3</strong>
+        <strong id="mana-count">3/10</strong>
       </div>
 
       <aside id="unit-inspector" class="unit-inspector glass-panel" hidden>
@@ -34,6 +34,14 @@
           </div>
         </div>
       </section>
+
+      <div id="debug-status" class="debug-status" data-tone="idle">
+        Debug: ready — click End Turn to trace the turn and AI.
+      </div>
+
+      <button id="generated-map-toggle" class="debug-map-toggle" type="button" aria-label="Use generated map" aria-pressed="false" title="Toggle generated map view">
+        Map: tiles
+      </button>
 
       <button id="fullscreen-button" class="fullscreen-button" type="button" aria-label="Enter fullscreen" aria-pressed="false" title="Enter fullscreen">
         <svg class="fullscreen-enter-icon" viewBox="0 0 24 24" aria-hidden="true">

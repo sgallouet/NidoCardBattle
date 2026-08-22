@@ -61,7 +61,7 @@ for (const [terrain, coords] of terrainOverrides) {
   for (const coord of coords) TERRAIN[coord.r][coord.q] = terrain;
 }
 
-export type MapDecorationType = 'road' | 'village' | 'ruin';
+export type MapDecorationType = 'village' | 'ruin';
 
 export interface MapDecoration {
   type: MapDecorationType;
@@ -69,13 +69,6 @@ export interface MapDecoration {
 }
 
 export const MAP_DECORATIONS: MapDecoration[] = [
-  ...[
-    { q: 2, r: 9 }, { q: 3, r: 8 }, { q: 4, r: 8 }, { q: 5, r: 8 },
-    { q: 6, r: 8 }, { q: 6, r: 7 }, { q: 6, r: 6 }, { q: 7, r: 5 },
-    { q: 7, r: 4 }, { q: 8, r: 4 }, { q: 9, r: 4 }, { q: 10, r: 4 },
-    { q: 11, r: 4 }, { q: 12, r: 4 }, { q: 13, r: 4 }, { q: 14, r: 3 }, { q: 15, r: 3 },
-    { q: 7, r: 9 }, { q: 8, r: 9 }, { q: 9, r: 9 }, { q: 10, r: 9 }, { q: 11, r: 10 },
-  ].map((coord) => ({ type: 'road' as const, coord })),
   { type: 'village', coord: { q: 5, r: 10 } },
   { type: 'village', coord: { q: 12, r: 2 } },
   { type: 'village', coord: { q: 14, r: 7 } },
@@ -95,10 +88,10 @@ export const MAP_SITES: MapSite[] = [
 ];
 
 export const STARTING_UNITS = [
-  { definitionId: 'commander', owner: 1 as const, coord: { q: 2, r: 9 } },
+  { definitionId: 'commander', owner: 1 as const, coord: { q: 2, r: 8 } },
   { definitionId: 'royalGuard', owner: 1 as const, coord: { q: 3, r: 8 } },
   { definitionId: 'longbowRanger', owner: 1 as const, coord: { q: 3, r: 10 } },
-  { definitionId: 'commander', owner: 2 as const, coord: { q: 15, r: 3 } },
+  { definitionId: 'commander', owner: 2 as const, coord: { q: 15, r: 4 } },
   { definitionId: 'skeletalInfantry', owner: 2 as const, coord: { q: 14, r: 4 } },
   { definitionId: 'necromancer', owner: 2 as const, coord: { q: 14, r: 2 } },
 ];

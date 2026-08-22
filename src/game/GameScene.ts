@@ -1,9 +1,20 @@
 import Phaser from 'phaser';
+import generatedMapPreviewUrl from '../../assets/game/maps/generated-map-preview.png?url';
 import { CARD_ART } from '../data/cardArt';
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
+import { RUIN_ART, TOWN_ART } from '../data/mapDecorationArt';
 import { MAP_DECORATIONS, MAP_HEIGHT, MAP_WIDTH, type MapDecoration } from '../data/map';
-import { FOREST_TERRAIN_ART, MOUNTAIN_TERRAIN_ART, PLAIN_TERRAIN_ART } from '../data/terrainArt';
-import type { Coord, PlayerId, Terrain, UnitState } from '../data/types';
+import { SITE_ART } from '../data/siteArt';
+import {
+  BRIDGE_TERRAIN_ART,
+  FOREST_TERRAIN_ART,
+  HILL_TERRAIN_ART,
+  MOUNTAIN_TERRAIN_ART,
+  PLAIN_TERRAIN_ART,
+  RIVER_WATER_ART,
+} from '../data/terrainArt';
+import type { Coord, PlayerId, SiteType, UnitState } from '../data/types';
+import { GALAXY_BACKGROUND_ART, GALAXY_BACKGROUND_CONTRACT } from '../data/vfxArt';
 import {
   UNIT_ART,
   type UnitAnimationState,
@@ -11,6 +22,7 @@ import {
   type UnitFacing,
 } from '../data/unitArt';
 import type { UnitDefinitionId } from '../data/units';
+import { setDebugStatus } from './DebugStatus';
 import {
   attackUnit,
   coordKey,
@@ -25,6 +37,8 @@ import {
   getReachableCoords,
   getRestoreTargets,
   getValidSummonCoords,
+  hexDistance,
+  MAX_MANA,
   moveUnit,
   playUnitCard,
   restoreAdjacentAlly,
@@ -39,18 +53,20 @@ const ORIGIN_X = 200;
 const ORIGIN_Y = 120;
 const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
+const GENERATED_MAP_TEXTURE_KEY = 'debug-generated-map-preview';
+const GENERATED_MAP_HEIGHT = 600;
+const GENERATED_MAP_VIEWPORT_HEIGHT_RATIO = 2;
 const MIN_ZOOM = 0.52;
-const MAX_ZOOM = 1.25;
+const TILE_MAP_MAX_ZOOM = 1.25;
+const GENERATED_MAP_MAX_ZOOM = 6;
+const TILE_ZOOM_STEP = 0.12;
+const DEFAULT_TILE_ZOOM_STEPS = 3;
 const TOKEN_MOVEMENT_MS_PER_HEX = 190;
 const TOKEN_ATTACK_DURATION_MS = 500;
 const TOKEN_ATTACK_IMPACT_MS = 320;
 const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x55b9f3, 2: 0xf05b67 };
-const TERRAIN_PALETTES: Record<Exclude<Terrain, 'plain' | 'forest'>, number[]> = {
-  hill: [0x756648, 0x806f4e, 0x6c6046],
-  water: [0x27779a, 0x2d84a7, 0x226d91],
+const TERRAIN_PALETTES: Record<'cliff', number[]> = {
   cliff: [0x52585a, 0x606465, 0x494f51],
-  mountain: [0x52585a, 0x606465, 0x494f51],
-  bridge: [0x27779a, 0x2d84a7, 0x226d91],
 };
 const cardDefinition = (id: CardDefinitionId) => CARD_DEFINITIONS[id];
 
@@ -68,11 +84,16 @@ interface RenderedUnitView {
   container: Phaser.GameObjects.Container;
   sprite?: Phaser.GameObjects.Sprite;
   art?: UnitArtDefinition;
+  hpText: Phaser.GameObjects.Text;
 }
 
 export class GameScene extends Phaser.Scene {
   private state = createGameState();
+  private galaxyLayer?: Phaser.GameObjects.Container;
   private boardLayer?: Phaser.GameObjects.Container;
+  private riverMaskGraphics?: Phaser.GameObjects.Graphics;
+  private riverAnimationTargets: object[] = [];
+  private useGeneratedMapPreview = false;
   private selectedUnitId: string | null = null;
   private selectedCardIndex: number | null = null;
   private displaceTargetId: string | null = null;
@@ -85,16 +106,38 @@ export class GameScene extends Phaser.Scene {
   private renderedUnits = new Map<string, RenderedUnitView>();
   private unitFacings = new Map<string, UnitFacing>();
   private message = 'Player 1 begins. Move a unit or play a card.';
+  private readonly handleGeneratedMapToggle = (): void => {
+    const toggle = document.querySelector<HTMLButtonElement>('#generated-map-toggle');
+    this.useGeneratedMapPreview = !this.useGeneratedMapPreview;
+    toggle?.setAttribute('aria-pressed', `${this.useGeneratedMapPreview}`);
+    toggle?.setAttribute(
+      'aria-label',
+      this.useGeneratedMapPreview ? 'Use tile map' : 'Use generated map preview',
+    );
+    if (toggle) toggle.textContent = this.useGeneratedMapPreview ? 'Map: generated' : 'Map: tiles';
+    this.renderAll();
+    this.resetCamera();
+  };
 
   constructor() {
     super('game');
   }
 
   preload(): void {
+    this.load.image(GENERATED_MAP_TEXTURE_KEY, generatedMapPreviewUrl);
+    this.load.image(GALAXY_BACKGROUND_ART.map.textureKey, GALAXY_BACKGROUND_ART.map.url);
+    this.load.image(GALAXY_BACKGROUND_ART.stars.textureKey, GALAXY_BACKGROUND_ART.stars.url);
+    this.load.image(BRIDGE_TERRAIN_ART.textureKey, BRIDGE_TERRAIN_ART.url);
     this.load.image(PLAIN_TERRAIN_ART.textureKey, PLAIN_TERRAIN_ART.url);
     this.load.image(FOREST_TERRAIN_ART.ground.textureKey, FOREST_TERRAIN_ART.ground.url);
     this.load.image(FOREST_TERRAIN_ART.overlay.textureKey, FOREST_TERRAIN_ART.overlay.url);
+    this.load.image(HILL_TERRAIN_ART.textureKey, HILL_TERRAIN_ART.url);
     this.load.image(MOUNTAIN_TERRAIN_ART.textureKey, MOUNTAIN_TERRAIN_ART.url);
+    this.load.image(RIVER_WATER_ART.base.textureKey, RIVER_WATER_ART.base.url);
+    this.load.image(RIVER_WATER_ART.displacement.textureKey, RIVER_WATER_ART.displacement.url);
+    this.load.image(RUIN_ART.textureKey, RUIN_ART.url);
+    this.load.image(TOWN_ART.textureKey, TOWN_ART.url);
+    for (const art of Object.values(SITE_ART)) this.load.image(art.textureKey, art.url);
     for (const art of Object.values(UNIT_ART)) {
       if (!art) continue;
       for (const animation of Object.values(art.animations)) {
@@ -110,11 +153,18 @@ export class GameScene extends Phaser.Scene {
     document.querySelector<HTMLButtonElement>('#end-turn-button')?.addEventListener('click', () => this.handleEndTurn());
     document.querySelector<HTMLButtonElement>('#cancel-button')?.addEventListener('click', () => this.cancelInteraction('Selection cleared.'));
     document.querySelector<HTMLButtonElement>('#ability-button')?.addEventListener('click', () => this.beginDisplace());
-    document.querySelector<HTMLButtonElement>('#zoom-in')?.addEventListener('click', () => this.zoomBy(0.12));
-    document.querySelector<HTMLButtonElement>('#zoom-out')?.addEventListener('click', () => this.zoomBy(-0.12));
+    document.querySelector<HTMLButtonElement>('#zoom-in')?.addEventListener('click', () => this.zoomBy(TILE_ZOOM_STEP));
+    document.querySelector<HTMLButtonElement>('#zoom-out')?.addEventListener('click', () => this.zoomBy(-TILE_ZOOM_STEP));
     document.querySelector<HTMLButtonElement>('#zoom-reset')?.addEventListener('click', () => this.resetCamera());
+    const generatedMapToggle = document.querySelector<HTMLButtonElement>('#generated-map-toggle');
+    generatedMapToggle?.addEventListener('click', this.handleGeneratedMapToggle);
+    this.events.once('shutdown', () => {
+      generatedMapToggle?.removeEventListener('click', this.handleGeneratedMapToggle);
+      this.clearRiverSurface();
+    });
     this.createUnitAnimations();
     this.setupCameraControls();
+    this.createGalaxyBackdrop();
     this.renderAll();
     this.resetCamera();
   }
@@ -147,7 +197,7 @@ export class GameScene extends Phaser.Scene {
       deltaY: number,
     ) => {
       const worldPoint = camera.getWorldPoint(pointer.x, pointer.y);
-      const zoom = Phaser.Math.Clamp(camera.zoom - deltaY * 0.0012, MIN_ZOOM, MAX_ZOOM);
+      const zoom = Phaser.Math.Clamp(camera.zoom - deltaY * 0.0012, MIN_ZOOM, this.maxZoom());
       camera.setZoom(zoom);
       camera.setScroll(worldPoint.x - pointer.x / zoom, worldPoint.y - pointer.y / zoom);
       this.constrainCamera();
@@ -192,17 +242,29 @@ export class GameScene extends Phaser.Scene {
 
   private resetCamera(): void {
     const fit = Math.min(this.scale.width / (WORLD_WIDTH - 120), this.scale.height / (WORLD_HEIGHT - 100));
-    this.cameras.main.setZoom(Phaser.Math.Clamp(fit * 0.9, MIN_ZOOM, 0.72));
+    const generatedMapZoom = this.scale.height * GENERATED_MAP_VIEWPORT_HEIGHT_RATIO / GENERATED_MAP_HEIGHT;
+    const zoom = this.useGeneratedMapPreview
+      ? Phaser.Math.Clamp(generatedMapZoom, MIN_ZOOM, GENERATED_MAP_MAX_ZOOM)
+      : Phaser.Math.Clamp(
+        fit * 1.02 + TILE_ZOOM_STEP * DEFAULT_TILE_ZOOM_STEPS,
+        MIN_ZOOM,
+        TILE_MAP_MAX_ZOOM,
+      );
+    this.cameras.main.setZoom(zoom);
     this.cameras.main.centerOn(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
     this.constrainCamera();
     this.updateZoomLabel();
+  }
+
+  private maxZoom(): number {
+    return this.useGeneratedMapPreview ? GENERATED_MAP_MAX_ZOOM : TILE_MAP_MAX_ZOOM;
   }
 
   private zoomBy(change: number): void {
     const camera = this.cameras.main;
     const pointer = new Phaser.Math.Vector2(this.scale.width / 2, this.scale.height / 2);
     const worldPoint = camera.getWorldPoint(pointer.x, pointer.y);
-    const zoom = Phaser.Math.Clamp(camera.zoom + change, MIN_ZOOM, MAX_ZOOM);
+    const zoom = Phaser.Math.Clamp(camera.zoom + change, MIN_ZOOM, this.maxZoom());
     camera.setZoom(zoom);
     camera.setScroll(worldPoint.x - pointer.x / zoom, worldPoint.y - pointer.y / zoom);
     this.constrainCamera();
@@ -213,13 +275,23 @@ export class GameScene extends Phaser.Scene {
     const camera = this.cameras.main;
     const halfVisibleWidth = this.scale.width / camera.zoom / 2;
     const halfVisibleHeight = this.scale.height / camera.zoom / 2;
-    const currentCenter = camera.getWorldPoint(this.scale.width / 2, this.scale.height / 2);
+    const currentCenterX = camera.scrollX + camera.width / 2;
+    const currentCenterY = camera.scrollY + camera.height / 2;
     const centerX = halfVisibleWidth >= WORLD_WIDTH / 2
       ? WORLD_WIDTH / 2
-      : Phaser.Math.Clamp(currentCenter.x, halfVisibleWidth, WORLD_WIDTH - halfVisibleWidth);
-    const centerY = halfVisibleHeight >= WORLD_HEIGHT / 2
-      ? halfVisibleHeight
-      : Phaser.Math.Clamp(currentCenter.y, halfVisibleHeight, WORLD_HEIGHT - halfVisibleHeight);
+      : Phaser.Math.Clamp(currentCenterX, halfVisibleWidth, WORLD_WIDTH - halfVisibleWidth);
+    let centerY: number;
+    if (this.useGeneratedMapPreview) {
+      const mapTop = (WORLD_HEIGHT - GENERATED_MAP_HEIGHT) / 2;
+      const mapBottom = mapTop + GENERATED_MAP_HEIGHT;
+      centerY = halfVisibleHeight >= GENERATED_MAP_HEIGHT / 2
+        ? WORLD_HEIGHT / 2
+        : Phaser.Math.Clamp(currentCenterY, mapTop + halfVisibleHeight, mapBottom - halfVisibleHeight);
+    } else {
+      centerY = halfVisibleHeight >= WORLD_HEIGHT / 2
+        ? halfVisibleHeight
+        : Phaser.Math.Clamp(currentCenterY, halfVisibleHeight, WORLD_HEIGHT - halfVisibleHeight);
+    }
 
     camera.centerOn(centerX, centerY);
   }
@@ -288,12 +360,21 @@ export class GameScene extends Phaser.Scene {
 
   private renderBoard(): void {
     this.renderedUnits.clear();
+    this.clearRiverSurface();
     this.boardLayer?.destroy(true);
     this.boardLayer = this.add.container(0, 0);
     const highlight = this.highlights();
-    const backdrop = this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH, WORLD_HEIGHT, 0x1c3022);
-    this.boardLayer.add(backdrop);
-    this.addMapBackdropDetails();
+    const sitesByCoord = new Map(this.state.sites.map((site) => [coordKey(site.coord), site]));
+    if (this.useGeneratedMapPreview) {
+      const generatedMap = this.add.image(
+        WORLD_WIDTH / 2,
+        WORLD_HEIGHT / 2,
+        GENERATED_MAP_TEXTURE_KEY,
+      ).setDisplaySize(WORLD_WIDTH, GENERATED_MAP_HEIGHT);
+      this.boardLayer.add(generatedMap);
+    } else {
+      this.addRiverSurface();
+    }
 
     for (let r = 0; r < MAP_HEIGHT; r += 1) {
       for (let q = 0; q < MAP_WIDTH; q += 1) {
@@ -302,41 +383,56 @@ export class GameScene extends Phaser.Scene {
         const center = this.center(coord);
         const points = this.hexPoints(center);
         const terrain = terrainAt(coord);
-        const base = this.add.graphics();
-        base.fillStyle(0x101a13, 0.42);
-        base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x + 4, center.y + 6), 0), true);
-        if (terrain === 'plain') {
-          this.boardLayer.add(base);
-          const tile = this.add.image(center.x, center.y, PLAIN_TERRAIN_ART.textureKey)
-            .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
-          this.boardLayer.add(tile);
-        } else if (terrain === 'forest') {
-          this.boardLayer.add(base);
-          const ground = this.add.image(center.x, center.y, FOREST_TERRAIN_ART.ground.textureKey)
-            .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
-          const canopy = this.add.image(center.x, center.y, FOREST_TERRAIN_ART.overlay.textureKey)
-            .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2)
-            .setAngle(((q * 17 + r * 31) % 6) * 60)
-            .setAlpha(FOREST_TERRAIN_ART.overlay.alpha);
-          this.boardLayer.add([ground, canopy]);
-        } else if (terrain === 'mountain') {
-          this.boardLayer.add(base);
-          const tile = this.add.image(center.x, center.y, MOUNTAIN_TERRAIN_ART.textureKey)
-            .setDisplaySize(HEX_WIDTH * 1.035, HEX_SIZE * 2.07);
-          this.boardLayer.add(tile);
-        } else {
-          const palette = TERRAIN_PALETTES[terrain];
-          const fill = palette[(q * 17 + r * 31) % palette.length];
-          base.fillStyle(fill, 1);
-          base.fillPoints(points, true);
-          base.fillStyle(0xffffff, 0.035);
-          base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x - 3, center.y - 4), 9), true);
-          this.boardLayer.add(base);
+        if (!this.useGeneratedMapPreview) {
+          const base = this.add.graphics();
+          base.fillStyle(0x101a13, 0.42);
+          base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x + 4, center.y + 6), 0), true);
+          if (terrain === 'plain') {
+            this.boardLayer.add(base);
+            const tile = this.add.image(center.x, center.y, PLAIN_TERRAIN_ART.textureKey)
+              .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
+            this.boardLayer.add(tile);
+          } else if (terrain === 'forest') {
+            this.boardLayer.add(base);
+            const ground = this.add.image(center.x, center.y, FOREST_TERRAIN_ART.ground.textureKey)
+              .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
+            const canopy = this.add.image(center.x, center.y, FOREST_TERRAIN_ART.overlay.textureKey)
+              .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2)
+              .setAlpha(FOREST_TERRAIN_ART.overlay.alpha);
+            this.boardLayer.add([ground, canopy]);
+          } else if (terrain === 'hill') {
+            this.boardLayer.add(base);
+            const ground = this.add.image(center.x, center.y, PLAIN_TERRAIN_ART.textureKey)
+              .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
+            const overlay = this.add.image(center.x, center.y, HILL_TERRAIN_ART.textureKey)
+              .setDisplaySize(HILL_TERRAIN_ART.displayWidth, HILL_TERRAIN_ART.displayHeight);
+            this.boardLayer.add([ground, overlay]);
+          } else if (terrain === 'mountain') {
+            this.boardLayer.add(base);
+            const tile = this.add.image(center.x, center.y, MOUNTAIN_TERRAIN_ART.textureKey)
+              .setDisplaySize(HEX_WIDTH * 1.035, HEX_SIZE * 2.07);
+            this.boardLayer.add(tile);
+          } else if (terrain === 'water' || terrain === 'bridge') {
+            this.boardLayer.add(base);
+          } else {
+            const palette = TERRAIN_PALETTES[terrain];
+            const fill = palette[(q * 17 + r * 31) % palette.length];
+            base.fillStyle(fill, 1);
+            base.fillPoints(points, true);
+            base.fillStyle(0xffffff, 0.035);
+            base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x - 3, center.y - 4), 9), true);
+            this.boardLayer.add(base);
+          }
         }
 
         const hex = this.add.graphics();
         let stroke = 0x263828;
-        let strokeWidth = 2;
+        let strokeWidth = this.useGeneratedMapPreview ? 0 : 2;
+        const siteOwner = sitesByCoord.get(key)?.owner;
+        if (!this.useGeneratedMapPreview && siteOwner) {
+          stroke = PLAYER_COLORS[siteOwner];
+          strokeWidth = 5;
+        }
         if (highlight.move.has(key)) {
           hex.fillStyle(0x50d6c2, 0.34);
           hex.fillPoints(points, true);
@@ -359,20 +455,24 @@ export class GameScene extends Phaser.Scene {
           stroke = 0xffffff;
           strokeWidth = 5;
         }
-        const joinsMountainMassif = terrain === 'mountain' && strokeWidth === 2;
-        hex.lineStyle(joinsMountainMassif ? 0 : strokeWidth, stroke, joinsMountainMassif ? 0 : 0.95);
+        const joinsTerrainSurface = (terrain === 'mountain' || terrain === 'water') && strokeWidth === 2;
+        hex.lineStyle(joinsTerrainSurface ? 0 : strokeWidth, stroke, joinsTerrainSurface ? 0 : 0.95);
         hex.strokePoints(points, true);
         hex.setInteractive(new Phaser.Geom.Polygon(points), Phaser.Geom.Polygon.Contains);
         hex.on('pointerup', () => {
           if (!this.dragState?.moved && performance.now() >= this.suppressBoardClickUntil) this.handleHexClick(coord);
         });
         this.boardLayer.add(hex);
-        if (terrain !== 'plain' && terrain !== 'forest') this.addTerrainDetail(coord, center);
+        if (!this.useGeneratedMapPreview && terrain !== 'plain' && terrain !== 'forest' && terrain !== 'water') {
+          this.addTerrainDetail(coord, center);
+        }
       }
     }
 
-    for (const decoration of MAP_DECORATIONS) this.addMapDecoration(decoration);
-    for (const site of this.state.sites) this.addSite(site.coord, site.type, site.owner);
+    if (!this.useGeneratedMapPreview) {
+      for (const decoration of MAP_DECORATIONS) this.addMapDecoration(decoration);
+      for (const site of this.state.sites) this.addSite(site.coord, site.type);
+    }
     for (const unit of this.state.units) this.addUnit(unit);
 
     if (this.state.winner) {
@@ -388,63 +488,150 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private addMapBackdropDetails(): void {
-    const graphics = this.add.graphics();
-    graphics.fillStyle(0x0f1e15, 0.46);
-    graphics.fillCircle(100, 120, 230);
-    graphics.fillCircle(WORLD_WIDTH - 80, 180, 270);
-    graphics.fillCircle(170, WORLD_HEIGHT - 50, 270);
-    graphics.fillCircle(WORLD_WIDTH - 130, WORLD_HEIGHT - 40, 250);
-    graphics.lineStyle(2, 0x789160, 0.08);
-    for (let index = 0; index < 26; index += 1) {
-      const x = 40 + ((index * 193) % (WORLD_WIDTH - 80));
-      const y = 30 + ((index * 317) % (WORLD_HEIGHT - 60));
-      graphics.lineBetween(x - 10, y + 8, x, y - 9);
-      graphics.lineBetween(x, y - 9, x + 8, y + 5);
+  private createGalaxyBackdrop(): void {
+    this.galaxyLayer?.destroy(true);
+    const layer = this.add.container(0, 0).setDepth(-100);
+    const centerX = WORLD_WIDTH / 2;
+    const centerY = WORLD_HEIGHT / 2;
+    const displaySize = Math.hypot(WORLD_WIDTH, WORLD_HEIGHT) + 100;
+    const backdrop = this.add.rectangle(centerX, centerY, WORLD_WIDTH, WORLD_HEIGHT, 0x02091a);
+    const galaxy = this.add.tileSprite(
+      centerX,
+      centerY,
+      displaySize,
+      displaySize,
+      GALAXY_BACKGROUND_ART.map.textureKey,
+    )
+      .setTileScale(GALAXY_BACKGROUND_CONTRACT.mapTileScale)
+      .setTint(GALAXY_BACKGROUND_CONTRACT.mapTint);
+    const stars = this.add.tileSprite(
+      centerX,
+      centerY,
+      displaySize,
+      displaySize,
+      GALAXY_BACKGROUND_ART.stars.textureKey,
+    )
+      .setTileScale(GALAXY_BACKGROUND_CONTRACT.starsTileScale)
+      .setAlpha(GALAXY_BACKGROUND_CONTRACT.starsAlpha)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    layer.add([backdrop, galaxy, stars]);
+    this.galaxyLayer = layer;
+
+    this.tweens.add({
+      targets: galaxy,
+      angle: 360,
+      duration: GALAXY_BACKGROUND_CONTRACT.mapRotationMs,
+      ease: 'Linear',
+      repeat: -1,
+    });
+    this.tweens.add({
+      targets: stars,
+      angle: 360,
+      duration: GALAXY_BACKGROUND_CONTRACT.starsRotationMs,
+      ease: 'Linear',
+      repeat: -1,
+    });
+  }
+
+  private clearRiverSurface(): void {
+    for (const target of this.riverAnimationTargets) this.tweens.killTweensOf(target);
+    this.riverAnimationTargets = [];
+    this.riverMaskGraphics?.destroy();
+    this.riverMaskGraphics = undefined;
+  }
+
+  private addRiverSurface(): void {
+    const centers: Phaser.Math.Vector2[] = [];
+    for (let r = 0; r < MAP_HEIGHT; r += 1) {
+      for (let q = 0; q < MAP_WIDTH; q += 1) {
+        const terrain = terrainAt({ q, r });
+        if (terrain === 'water' || terrain === 'bridge') centers.push(this.center({ q, r }));
+      }
     }
-    this.boardLayer?.add(graphics);
+    if (centers.length === 0) return;
+
+    const left = Math.min(...centers.map((point) => point.x)) - HEX_WIDTH / 2 - 3;
+    const right = Math.max(...centers.map((point) => point.x)) + HEX_WIDTH / 2 + 3;
+    const top = Math.min(...centers.map((point) => point.y)) - HEX_SIZE - 3;
+    const bottom = Math.max(...centers.map((point) => point.y)) + HEX_SIZE + 3;
+    const width = right - left;
+    const height = bottom - top;
+    const centerX = (left + right) / 2;
+    const centerY = (top + bottom) / 2;
+
+    const surface = this.add.container(0, 0);
+    const base = this.add.tileSprite(
+      centerX,
+      centerY,
+      width,
+      height,
+      RIVER_WATER_ART.base.textureKey,
+    ).setTileScale(RIVER_WATER_ART.base.tileScale);
+    const highlight = this.add.tileSprite(
+      centerX,
+      centerY,
+      width,
+      height,
+      RIVER_WATER_ART.base.textureKey,
+    )
+      .setTileScale(RIVER_WATER_ART.base.tileScale)
+      .setTilePosition(256, 192)
+      .setTint(RIVER_WATER_ART.highlight.tint)
+      .setAlpha(RIVER_WATER_ART.highlight.alpha)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    surface.add([base, highlight]);
+
+    const maskGraphics = new Phaser.GameObjects.Graphics(this);
+    maskGraphics.fillStyle(0xffffff, 1);
+    for (const center of centers) maskGraphics.fillPoints(this.hexPoints(center, 0), true);
+    surface.setMask(maskGraphics.createGeometryMask());
+    this.riverMaskGraphics = maskGraphics;
+    this.boardLayer?.add(surface);
+
+    if (this.game.renderer.type !== Phaser.WEBGL || !base.preFX) return;
+
+    const wave = base.preFX.addDisplacement(
+      RIVER_WATER_ART.displacement.textureKey,
+      RIVER_WATER_ART.displacement.strengthX,
+      RIVER_WATER_ART.displacement.strengthY,
+    );
+    this.tweens.add({
+      targets: wave,
+      x: RIVER_WATER_ART.displacement.pulseStrengthX,
+      y: RIVER_WATER_ART.displacement.pulseStrengthY,
+      duration: RIVER_WATER_ART.displacement.pulseHalfPeriodMs,
+      ease: 'Sine.InOut',
+      yoyo: true,
+      repeat: -1,
+    });
+    this.tweens.add({
+      targets: base,
+      tilePositionX: RIVER_WATER_ART.scroll.x,
+      tilePositionY: RIVER_WATER_ART.scroll.y,
+      duration: RIVER_WATER_ART.scroll.durationMs,
+      ease: 'Linear',
+      repeat: -1,
+    });
+    this.tweens.add({
+      targets: highlight,
+      tilePositionX: 256 + RIVER_WATER_ART.highlight.x,
+      tilePositionY: 192 + RIVER_WATER_ART.highlight.y,
+      duration: RIVER_WATER_ART.highlight.durationMs,
+      ease: 'Linear',
+      repeat: -1,
+    });
+    this.riverAnimationTargets = [wave, base, highlight];
   }
 
   private addTerrainDetail(coord: Coord, center: Phaser.Math.Vector2): void {
     const terrain = terrainAt(coord);
     const graphics = this.add.graphics();
-    const seed = coord.q * 41 + coord.r * 73;
-
-    if (terrain === 'hill') {
-      graphics.fillStyle(0x4e4534, 0.48);
-      graphics.fillEllipse(center.x, center.y + 13, 76, 29);
-      graphics.fillStyle(0xa08a5d, 0.7);
-      graphics.fillTriangle(center.x - 35, center.y + 16, center.x - 7, center.y - 20, center.x + 20, center.y + 16);
-      graphics.fillStyle(0x82724f, 0.85);
-      graphics.fillTriangle(center.x - 5, center.y + 17, center.x + 19, center.y - 11, center.x + 39, center.y + 17);
-      graphics.lineStyle(2, 0xc1ae79, 0.32);
-      graphics.lineBetween(center.x - 28, center.y + 20, center.x + 31, center.y + 20);
-    }
-
-    if (terrain === 'water') {
-      graphics.lineStyle(2, 0x8bd7e4, 0.48);
-      for (let index = -1; index <= 1; index += 1) {
-        const offset = ((seed + index * 11) % 12) - 6;
-        graphics.lineBetween(center.x - 31 + offset, center.y + index * 15, center.x - 7 + offset, center.y + index * 15);
-        graphics.lineBetween(center.x + 4 + offset, center.y + index * 15, center.x + 30 + offset, center.y + index * 15);
-      }
-    }
 
     if (terrain === 'bridge') {
-      graphics.lineStyle(2, 0x8bd7e4, 0.4);
-      graphics.lineBetween(center.x - 43, center.y - 28, center.x + 43, center.y - 28);
-      graphics.lineBetween(center.x - 43, center.y + 28, center.x + 43, center.y + 28);
-      graphics.fillStyle(0x3d2d1c, 0.92);
-      graphics.fillRect(center.x - 49, center.y - 20, 98, 40);
-      graphics.fillStyle(0x9b7242, 1);
-      graphics.fillRect(center.x - 49, center.y - 16, 98, 32);
-      graphics.lineStyle(2, 0x50351d, 0.9);
-      for (let x = -42; x <= 42; x += 12) {
-        graphics.lineBetween(center.x + x, center.y - 16, center.x + x, center.y + 16);
-      }
-      graphics.lineStyle(3, 0xc29a5f, 0.7);
-      graphics.lineBetween(center.x - 47, center.y - 17, center.x + 47, center.y - 17);
-      graphics.lineBetween(center.x - 47, center.y + 17, center.x + 47, center.y + 17);
+      const image = this.add.image(center.x, center.y, BRIDGE_TERRAIN_ART.textureKey)
+        .setDisplaySize(BRIDGE_TERRAIN_ART.displayWidth, BRIDGE_TERRAIN_ART.displayHeight);
+      this.boardLayer?.add(image);
+      return;
     }
 
     if (terrain === 'cliff') {
@@ -463,107 +650,43 @@ export class GameScene extends Phaser.Scene {
     const center = this.center(decoration.coord);
     const graphics = this.add.graphics();
 
-    if (decoration.type === 'road' && terrainAt(decoration.coord) !== 'bridge') {
-      const angles = [0, Math.PI / 3, -Math.PI / 3];
-      const angle = angles[(decoration.coord.q + decoration.coord.r * 2) % angles.length];
-      const dx = Math.cos(angle) * 52;
-      const dy = Math.sin(angle) * 52;
-      graphics.lineStyle(18, 0x4a3520, 0.38);
-      graphics.lineBetween(center.x - dx, center.y - dy, center.x + dx, center.y + dy);
-      graphics.lineStyle(11, 0xa17c4e, 0.48);
-      graphics.lineBetween(center.x - dx, center.y - dy, center.x + dx, center.y + dy);
-      graphics.lineStyle(2, 0xc8a46c, 0.28);
-      graphics.lineBetween(center.x - dx, center.y - dy - 3, center.x + dx, center.y + dy - 3);
-    }
-
     if (decoration.type === 'village') {
-      graphics.fillStyle(0x132017, 0.45);
-      graphics.fillEllipse(center.x, center.y + 22, 76, 21);
-      for (const [dx, dy, scale] of [[-22, 5, 1], [12, -7, 0.85]] as const) {
-        graphics.fillStyle(0xc8b98e, 1);
-        graphics.fillRect(center.x + dx - 13 * scale, center.y + dy - 7 * scale, 26 * scale, 24 * scale);
-        graphics.fillStyle(0x7b3024, 1);
-        graphics.fillTriangle(
-          center.x + dx - 17 * scale, center.y + dy - 7 * scale,
-          center.x + dx, center.y + dy - 24 * scale,
-          center.x + dx + 17 * scale, center.y + dy - 7 * scale,
-        );
-        graphics.fillStyle(0x473326, 1);
-        graphics.fillRect(center.x + dx - 3 * scale, center.y + dy + 5 * scale, 7 * scale, 12 * scale);
-      }
+      graphics.fillStyle(0x07100a, 0.3);
+      graphics.fillEllipse(center.x + 3, center.y + 26, 54, 18);
+      this.boardLayer?.add(graphics);
+      const image = this.add.image(center.x, center.y + TOWN_ART.bottomOffset, TOWN_ART.textureKey)
+        .setOrigin(0.5, 1)
+        .setDisplaySize(TOWN_ART.displayWidth, TOWN_ART.displayHeight);
+      this.boardLayer?.add(image);
+      return;
     }
 
     if (decoration.type === 'ruin') {
-      graphics.fillStyle(0x252b27, 0.38);
-      graphics.fillEllipse(center.x, center.y + 22, 77, 22);
-      graphics.fillStyle(0x8c8b78, 1);
-      graphics.fillRect(center.x - 28, center.y - 19, 10, 40);
-      graphics.fillRect(center.x + 9, center.y - 8, 10, 31);
-      graphics.fillRect(center.x - 31, center.y - 23, 17, 7);
-      graphics.fillRect(center.x + 6, center.y - 12, 17, 7);
-      graphics.fillTriangle(center.x - 9, center.y + 7, center.x + 3, center.y - 1, center.x + 7, center.y + 14);
-      graphics.lineStyle(2, 0xc2bea0, 0.34);
-      graphics.lineBetween(center.x - 24, center.y - 18, center.x - 23, center.y + 16);
+      graphics.fillStyle(0x07100a, 0.3);
+      graphics.fillEllipse(center.x + 3, center.y + 26, 52, 18);
+      this.boardLayer?.add(graphics);
+      const image = this.add.image(center.x, center.y + RUIN_ART.bottomOffset, RUIN_ART.textureKey)
+        .setOrigin(0.5, 1)
+        .setDisplaySize(RUIN_ART.displayWidth, RUIN_ART.displayHeight);
+      this.boardLayer?.add(image);
+      return;
     }
-    this.boardLayer?.add(graphics);
   }
 
-  private addSite(coord: Coord, type: 'keep' | 'fort' | 'well', owner: PlayerId | null): void {
+  private addSite(coord: Coord, type: SiteType): void {
     const center = this.center(coord);
-    const ownerColor = owner ? PLAYER_COLORS[owner] : 0xd2c5a2;
+    const art = SITE_ART[type];
     const graphics = this.add.graphics();
-    graphics.fillStyle(0x0c120e, 0.5);
-    graphics.fillEllipse(center.x + 4, center.y + 26, 78, 25);
-
-    if (type === 'keep') {
-      graphics.fillStyle(0x29322c, 1);
-      graphics.fillRect(center.x - 29, center.y - 16, 58, 47);
-      graphics.fillStyle(ownerColor, 0.95);
-      graphics.fillRect(center.x - 35, center.y - 31, 18, 58);
-      graphics.fillRect(center.x + 17, center.y - 31, 18, 58);
-      graphics.fillRect(center.x - 23, center.y - 24, 46, 13);
-      for (const x of [-34, -23, 18, 29]) graphics.fillRect(center.x + x, center.y - 38, 7, 11);
-      graphics.fillStyle(0x101713, 1);
-      graphics.fillRect(center.x - 7, center.y + 7, 14, 24);
-    } else if (type === 'fort') {
-      graphics.fillStyle(0x252c2a, 0.95);
-      graphics.fillCircle(center.x, center.y, 47);
-      graphics.lineStyle(6, 0x9a9d8b, 1);
-      graphics.strokeCircle(center.x, center.y, 43);
-      graphics.fillStyle(0x777d73, 1);
-      graphics.fillRect(center.x - 34, center.y - 19, 68, 46);
-      graphics.fillStyle(0x969b8d, 1);
-      for (const [dx, dy] of [[-32, -26], [32, -26], [-39, 13], [39, 13]] as const) {
-        graphics.fillCircle(center.x + dx, center.y + dy, 13);
-        graphics.fillRect(center.x + dx - 11, center.y + dy - 10, 22, 25);
-        for (const tooth of [-9, 0, 9]) {
-          graphics.fillRect(center.x + dx + tooth - 3, center.y + dy - 18, 6, 9);
-        }
-      }
-      graphics.fillStyle(0x555d55, 1);
-      graphics.fillRect(center.x - 22, center.y - 31, 44, 47);
-      for (const x of [-20, -7, 7, 20]) graphics.fillRect(center.x + x - 3, center.y - 39, 7, 10);
-      graphics.fillStyle(0x202723, 1);
-      graphics.fillRect(center.x - 8, center.y - 5, 16, 32);
-      graphics.lineStyle(3, 0x34291c, 1);
-      graphics.lineBetween(center.x + 2, center.y - 58, center.x + 2, center.y - 28);
-      graphics.fillStyle(ownerColor, 1);
-      graphics.fillTriangle(center.x + 4, center.y - 56, center.x + 26, center.y - 48, center.x + 4, center.y - 40);
-    } else {
-      graphics.fillStyle(0x283c3b, 1);
-      graphics.fillCircle(center.x, center.y, 29);
-      graphics.lineStyle(7, ownerColor, 1);
-      graphics.strokeCircle(center.x, center.y, 27);
-      graphics.lineStyle(3, 0xb7f5ef, 0.9);
-      graphics.strokeCircle(center.x, center.y, 14);
-      graphics.fillStyle(0x75d5df, 0.85);
-      graphics.fillCircle(center.x, center.y, 9);
-    }
-    graphics.lineStyle(3, ownerColor, 0.95);
-    graphics.strokeCircle(center.x, center.y, type === 'well' ? 35 : type === 'fort' ? 51 : 42);
+    graphics.fillStyle(0x07100a, 0.34);
+    graphics.fillEllipse(center.x + 3, center.y + 30, art.displayWidth * 0.72, 20);
     this.boardLayer?.add(graphics);
 
-    const label = this.add.text(center.x, center.y + (type === 'fort' ? 55 : 42), type === 'keep' ? 'KEEP' : type === 'fort' ? 'FORT' : 'WELL', {
+    const image = this.add.image(center.x, center.y + art.bottomOffset, art.textureKey)
+      .setOrigin(0.5, 1)
+      .setDisplaySize(art.displayWidth, art.displayHeight);
+    this.boardLayer?.add(image);
+
+    const label = this.add.text(center.x, center.y + art.labelOffset, type === 'keep' ? 'KEEP' : type === 'fort' ? 'FORT' : 'WELL', {
       fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#fff5d4', fontStyle: 'bold',
       stroke: '#101510', strokeThickness: 4,
     }).setOrigin(0.5);
@@ -575,7 +698,10 @@ export class GameScene extends Phaser.Scene {
     const definition = unitDefinition(unit);
     const selected = unit.id === this.selectedUnitId;
     const scale = definition.id === 'commander' ? 1.12 : 1;
-    const art = UNIT_ART[definition.id as UnitDefinitionId];
+    const artId: UnitDefinitionId = unit.definitionId === 'commander'
+      ? unit.owner === 1 ? 'humanCommander' : 'undeadCommander'
+      : unit.definitionId as UnitDefinitionId;
+    const art = UNIT_ART[artId];
     const container = this.add.container(center.x, center.y);
     const graphics = this.add.graphics();
     if (art) {
@@ -629,8 +755,9 @@ export class GameScene extends Phaser.Scene {
         art.animations.idle.textureKey,
       ).setOrigin(art.anchorX, art.anchorY);
       sprite.setScale(art.scale * scale);
-      const facing = this.unitFacings.get(unit.id)
+      const previousFacing = this.unitFacings.get(unit.id)
         ?? (unit.owner === 1 ? art.defaultFacing : 'north-west');
+      const facing = this.closestEnemyFacing(unit, previousFacing);
       this.unitFacings.set(unit.id, facing);
       sprite.setFlipX(art.mirroredFacings.includes(facing));
       sprite.play(art.animations.idle.animationKey);
@@ -661,7 +788,7 @@ export class GameScene extends Phaser.Scene {
       container.add(exhausted);
     }
     this.boardLayer?.add(container);
-    this.renderedUnits.set(unit.id, { container, sprite, art });
+    this.renderedUnits.set(unit.id, { container, sprite, art, hpText: hp });
   }
 
   private setAnimationLock(locked: boolean): void {
@@ -693,16 +820,39 @@ export class GameScene extends Phaser.Scene {
 
   private faceUnit(unitId: string, from: Phaser.Math.Vector2, to: Phaser.Math.Vector2): void {
     const previous = this.unitFacings.get(unitId) ?? 'south-east';
+    const facing = this.facingToward(from, to, previous);
+    this.unitFacings.set(unitId, facing);
+    const view = this.renderedUnits.get(unitId);
+    if (view?.sprite && view.art) view.sprite.setFlipX(view.art.mirroredFacings.includes(facing));
+  }
+
+  private facingToward(
+    from: Phaser.Math.Vector2,
+    to: Phaser.Math.Vector2,
+    previous: UnitFacing,
+  ): UnitFacing {
     const vertical = to.y < from.y ? 'north' : 'south';
     const horizontal = to.x < from.x
       ? 'west'
       : to.x > from.x
         ? 'east'
         : previous.endsWith('west') ? 'west' : 'east';
-    const facing = `${vertical}-${horizontal}` as UnitFacing;
-    this.unitFacings.set(unitId, facing);
-    const view = this.renderedUnits.get(unitId);
-    if (view?.sprite && view.art) view.sprite.setFlipX(view.art.mirroredFacings.includes(facing));
+    return `${vertical}-${horizontal}` as UnitFacing;
+  }
+
+  private closestEnemyFacing(unit: UnitState, previous: UnitFacing): UnitFacing {
+    let closestEnemy: UnitState | undefined;
+    let closestDistance = Number.POSITIVE_INFINITY;
+    for (const candidate of this.state.units) {
+      if (candidate.owner === unit.owner) continue;
+      const distance = hexDistance(unit.coord, candidate.coord);
+      if (distance >= closestDistance) continue;
+      closestEnemy = candidate;
+      closestDistance = distance;
+    }
+    return closestEnemy
+      ? this.facingToward(this.center(unit.coord), this.center(closestEnemy.coord), previous)
+      : previous;
   }
 
   private playUnitAnimation(unitId: string, state: UnitAnimationState): void {
@@ -936,7 +1086,7 @@ export class GameScene extends Phaser.Scene {
     this.selectedUnitId = null;
     this.displaceTargetId = null;
     this.mode = 'card';
-    this.message = `Choose a highlighted spawn hex for ${card.name}.`;
+    this.message = `Choose a highlighted empty Keep or Fort for ${card.name}.`;
     this.renderAll();
   }
 
@@ -954,15 +1104,26 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleEndTurn(): void {
-    if (this.animationInProgress) return;
+    setDebugStatus(`Turn: End Turn clicked during Player ${this.state.currentPlayer}'s turn.`, 'active');
+    if (this.animationInProgress) {
+      setDebugStatus('Turn blocked: an animation is still in progress.', 'warning');
+      return;
+    }
     if (this.mode === 'restore-target') {
       this.message = 'Resolve the Light Mage restore first.';
+      setDebugStatus('Turn blocked: the Light Mage restore target is unresolved.', 'warning');
       return this.renderHud();
     }
     const result = endTurn(this.state);
     this.clearInteraction();
     this.message = result.message;
     this.renderAll();
+    setDebugStatus(
+      result.ok
+        ? `Turn advanced to Player ${this.state.currentPlayer}; waiting for the AI loop.`
+        : `Turn failed: ${result.message}`,
+      result.ok ? 'active' : 'error',
+    );
   }
 
   private clearInteraction(): void {
@@ -983,7 +1144,7 @@ export class GameScene extends Phaser.Scene {
   private renderHud(): void {
     const current = this.state.players[this.state.currentPlayer];
     const manaCount = document.querySelector<HTMLElement>('#mana-count');
-    if (manaCount) manaCount.textContent = `${current.mana}`;
+    if (manaCount) manaCount.textContent = `${current.mana}/${MAX_MANA}`;
     const turnIndicator = document.querySelector<HTMLElement>('#turn-indicator');
     if (turnIndicator) turnIndicator.textContent = `Player ${this.state.currentPlayer} turn`;
 
@@ -1058,7 +1219,11 @@ export class GameScene extends Phaser.Scene {
         this.selectedCardIndex === index ? 'selected' : '',
         shouldDeal ? 'deal-in' : '',
       ].filter(Boolean).join(' ');
-      button.disabled = card.cost > player.mana || this.state.winner !== null || this.animationInProgress;
+      const hasSummonSite = card.type !== 'unit' || getValidSummonCoords(this.state).length > 0;
+      button.disabled = card.cost > player.mana
+        || !hasSummonSite
+        || this.state.winner !== null
+        || this.animationInProgress;
       button.dataset.handIndex = `${index}`;
       button.setAttribute('aria-label', `${card.name}, ${card.cost} mana`);
       const fanOffset = index - (player.hand.length - 1) / 2;
@@ -1070,6 +1235,10 @@ export class GameScene extends Phaser.Scene {
         button.style.setProperty('--card-mask', `url("${cardArt}")`);
       } else if (index === 1) {
         button.dataset.holoStyle = 'cosmos';
+      } else if (index === 3) {
+        button.dataset.holoStyle = 'radiant';
+      } else if (index === 4) {
+        button.dataset.holoStyle = 'reverse';
       }
       button.innerHTML = `
         <span class="card-surface">

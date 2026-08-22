@@ -50,11 +50,17 @@ Avoid vague prompts such as `sword sound`, `magic noise`, or `monster sound`. Av
 
 ## SFX candidate command
 
-Run from `D:\grok\stable-audio-3`. Generate at least two candidates with deterministic seeds:
+Use the NidoCardBattle wrapper. It follows the WorldXplore-proven path: generate latents, decode without the model's destructive output clamp, preserve PCM24 WAV masters, activity-trim with pre-roll and natural tail, fade, normalize with MP3 headroom, encode, and validate. Generate exactly one event set at a time during semantic review:
 
 ```powershell
-.\.venv\Scripts\stable-audio.exe --model small-sfx -p "<full prompt>" --duration 1.2 --seed 5101 -o outputs\nidocardbattle\candidates\event-a.mp3
-.\.venv\Scripts\stable-audio.exe --model small-sfx -p "<full prompt>" --duration 1.2 --seed 15101 -o outputs\nidocardbattle\candidates\event-b.mp3
+D:\grok\stable-audio-3\.venv\Scripts\python.exe `
+  .agents\skills\nidocardbattle-audio-pipeline\scripts\generate_sfx_candidates.py `
+  combat-hit-melee-v2 `
+  --event-id combat-hit-melee `
+  --trigger "A normal close-range attack reaches its impact frame and deals damage." `
+  --prompt "TrackType: SFX, isolated close-up foley recording, exactly one steel sword impact against padded leather armor, compact dry metal contact and short body thud, no blade swing, no second hit, no voice, no footsteps, no explosion, no music, no ambience" `
+  --kind impact --duration 1.3 --minimum 0.35 --tail-ms 180 `
+  --seed 827001 --volume 0.85 --cooldown-ms 80 --pool 3
 ```
 
 If both candidates share the same semantic defect, rewrite the prompt before trying more seeds.
@@ -70,6 +76,7 @@ Runtime candidate target:
 - zero full-scale clipped samples;
 - decoded peak no higher than -1 dBFS;
 - meaningful RMS and crest factor;
+- no broadband high-frequency collapse for short SFX;
 - clean beginning and natural ending for one-shots;
 - lowercase kebab-case filename matching its intended audio-map identifier.
 
@@ -183,6 +190,7 @@ Keep battle music beneath decision-making and SFX. The game should remain readab
 | Symptom | Likely cause | Corrective action |
 | --- | --- | --- |
 | harsh constant noise | decoder output clipped/collapsed | regenerate with the known-good local pipeline; do not repair the clipped MP3 |
+| noisy impact that passes peak/RMS checks | broadband high-frequency collapse | reject it with the short-SFX spectral gate; change seed or source workflow before review |
 | tiny click or missing attack | over-aggressive crop | regenerate or preserve pre-roll and natural decay |
 | MP3 peak above 0 dBFS | insufficient encoding headroom | re-encode from a clean source with headroom |
 | correct metrics, wrong sound | prompt drift | rewrite source/action/material wording and audition new deterministic seeds |

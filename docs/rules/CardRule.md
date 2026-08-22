@@ -22,8 +22,8 @@ This file owns deck, hand, card-type, faction, and summoning rules.
 
 ## Unit Cards
 - **CRU1** - Unit Cards cost mana to play.
-- **CRU2** - A summoned unit must be placed on a free hex adjacent to a friendly spawn source.
-- **CRU3** - Friendly spawn sources are a controlled Home Keep, a controlled Fort, or a friendly unit with the **Invoker** trait.
+- **CRU2** - A summoned unit must be placed directly on the hex of a friendly spawn source.
+- **CRU3** - Friendly spawn sources are controlled Home Keeps and controlled Forts; an occupied spawn source cannot summon a unit.
 - **CRU4** - A summoned unit enters **Exhausted**.
 
 ## Tactic Cards
@@ -33,5 +33,5 @@ This file owns deck, hand, card-type, faction, and summoning rules.
 - **CRC4** - **Grave Lock** is an Undead Tactic costing **3 mana**. Choose one currently passable hex that is not already Grave Locked. Until the start of the caster's next turn, no unit may enter or leave that hex through movement, summoning, or displacement. Attacks and ranged effects are not blocked by Grave Lock.
 - **CRC5** - **Build Bridge** is a Shared Tactic costing **2 mana**. Choose one empty Water hex; it permanently becomes a Bridge and follows `MPT6`.
 - **CRC6** - **Scorch** is a Human Tactic costing **1 mana**. Choose one Forest hex; it permanently becomes Plain and thereafter follows `MPT1` instead of the Forest rules.
-- **CRC7** - **Raise Fort** is a Human Tactic costing **4 mana**. Choose one empty Plain or Hill hex with no existing or pending site; create a Human-controlled Fort there. That Fort is a spawn source under `CRU3` and is captured normally under `MPC1`-`MPC3`.
-- **CRC8** - **Profane Well** is an Undead Tactic costing **2 mana**. Sacrifice one friendly non-Commander unit standing on a Plain, Forest, or Hill hex with no existing or pending site. After the end of that player's next 3 turns, create an Undead-controlled Mana Well on that hex; its income then follows `ECM1`.
+- **CRC7** - **Raise Fort** is a Human Tactic costing **4 mana**. Choose one empty Plain or Hill hex with no existing or pending site; create a Human-controlled Fort there. That Fort follows `CRU3` and is captured normally under `MPC1`-`MPC3`.
+- **CRC8** - **Profane Well** is an Undead Tactic costing **2 mana**. Sacrifice one friendly non-Commander unit standing on a Plain, Forest, or Hill hex with no existing or pending site. After the end of that player's next 3 turns, create an Undead-controlled Mana Well on that hex; its income then follows `ECM3`.

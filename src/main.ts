@@ -29,7 +29,7 @@ new Phaser.Game({
   parent: 'game-container',
   width: window.innerWidth,
   height: window.innerHeight,
-  backgroundColor: '#17251d',
+  backgroundColor: '#02091a',
   scene: [AnimatedPrototypeGameScene],
   scale: {
     mode: Phaser.Scale.RESIZE,

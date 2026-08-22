@@ -16,11 +16,13 @@ import {
   getValidSummonCoords,
   isPassable,
   isStoppedByBlocking,
+  MAX_MANA,
   moveUnit,
   playUnitCard,
   rallyAdjacentAllies,
   restoreAdjacentAlly,
   soulLinkUnit,
+  STARTING_MANA,
   terrainAt,
   unitDefinition,
 } from './engine';
@@ -67,11 +69,11 @@ describe('faction rosters and decks', () => {
     expect(UNIT_DEFINITIONS.longbowRanger).toMatchObject({ maxHp: 1, attack: 1, range: 3, traits: ['Ranged', 'Assist'] });
     expect(UNIT_DEFINITIONS.boneArcher).toMatchObject({ maxHp: 1, attack: 1, range: 3, traits: ['Ranged', 'Assist'] });
     expect(UNIT_DEFINITIONS.silverwingCavalry).toMatchObject({ maxHp: 5, attack: 4, move: 4, traits: ['Flying', 'AgileAssault'] });
-    expect(UNIT_DEFINITIONS.necromancer).toMatchObject({ range: 3, traits: ['Invoker', 'Ranged', 'Necromancy'], ability: 'Curse' });
+    expect(UNIT_DEFINITIONS.necromancer).toMatchObject({ range: 3, traits: ['Ranged', 'Necromancy'], ability: 'Curse' });
     expect(UNIT_DEFINITIONS.graveKnight).toMatchObject({ maxHp: 5, attack: 3, ability: 'Cleave' });
     expect(UNIT_DEFINITIONS.vampire).toMatchObject({ maxHp: 4, attack: 3, move: 3, ability: 'BloodDrain' });
     expect(UNIT_DEFINITIONS.wraith).toMatchObject({ maxHp: 3, attack: 2, move: 4, traits: ['Phase'] });
-    expect(UNIT_DEFINITIONS.bannerCaptain).toMatchObject({ cost: 4, maxHp: 4, traits: ['Invoker'] });
+    expect(UNIT_DEFINITIONS.bannerCaptain).toMatchObject({ cost: 4, maxHp: 4, traits: [] });
     expect(UNIT_DEFINITIONS.windAdept).toMatchObject({ cost: 3, maxHp: 2, attack: 1, move: 3, range: 2, ability: 'Displace' });
   });
 
@@ -131,6 +133,36 @@ describe('map baseline', () => {
     expect(isPassable({ q: 8, r: 3 })).toBe(false);
     expect(terrainAt({ q: 5, r: 5 })).toBe('mountain');
     expect(isPassable({ q: 5, r: 5 })).toBe(false);
+  });
+});
+
+describe('stored mana economy', () => {
+  it('starts both players at 3 mana and carries unspent mana into daily Keep income', () => {
+    const state = freshState();
+    expect(state.players[1].mana).toBe(STARTING_MANA);
+    expect(state.players[2].mana).toBe(STARTING_MANA);
+
+    endTurn(state, fixedRandom);
+    expect(state.players[2].mana).toBe(3);
+    endTurn(state, fixedRandom);
+    expect(state.players[1].mana).toBe(4);
+  });
+
+  it('pays each controlled Well 2 mana every third player turn and caps storage at 10', () => {
+    const state = freshState();
+    state.sites.find((site) => site.id === 'well-northwest')!.owner = 1;
+
+    endTurn(state, fixedRandom);
+    endTurn(state, fixedRandom);
+    endTurn(state, fixedRandom);
+    endTurn(state, fixedRandom);
+    expect(state.currentPlayer).toBe(1);
+    expect(state.players[1].mana).toBe(7);
+
+    state.players[1].mana = MAX_MANA;
+    endTurn(state, fixedRandom);
+    endTurn(state, fixedRandom);
+    expect(state.players[1].mana).toBe(MAX_MANA);
   });
 });
 
@@ -209,6 +241,8 @@ describe('Silverwing Cavalry Agile Assault', () => {
     const state = freshState();
     state.players[1].hand = ['silverwingCavalry'];
     state.players[1].mana = 6;
+    const commander = state.units.find((unit) => unit.owner === 1 && unit.definitionId === 'commander')!;
+    commander.coord = { q: 1, r: 9 };
     const result = playUnitCard(state, 0, getValidSummonCoords(state)[0]);
     expect(result.ok).toBe(true);
     expect(state.units.find((unit) => unit.id === result.summonedUnitId)?.exhausted).toBe(true);
@@ -319,12 +353,30 @@ describe('Undead specialist attacks', () => {
 });
 
 describe('existing summon, restore, capture and victory rules', () => {
-  it('Invoker remains a spawn source', () => {
+  it('starts with each Home Keep empty and immediately usable for summoning', () => {
     const state = freshState();
-    state.currentPlayer = 2;
-    for (const site of state.sites) if (site.type === 'keep' || site.type === 'fort') site.owner = 1;
-    state.units = [makeUnit('invoker', 'necromancer', 2, { q: 5, r: 4 })];
-    expect(getValidSummonCoords(state, 2).some((coord) => coordKey(coord) === coordKey({ q: 6, r: 4 }))).toBe(true);
+    const humanKeep = state.sites.find((site) => site.id === 'keep-1')!;
+    const undeadKeep = state.sites.find((site) => site.id === 'keep-2')!;
+
+    expect(getValidSummonCoords(state, 1)).toEqual([humanKeep.coord]);
+    expect(getValidSummonCoords(state, 2)).toEqual([undeadKeep.coord]);
+
+    state.players[1].hand = ['royalGuard'];
+    expect(playUnitCard(state, 0, humanKeep.coord).ok).toBe(true);
+  });
+
+  it('summons only on an empty controlled Keep or Fort', () => {
+    const state = freshState();
+    const keep = state.sites.find((site) => site.id === 'keep-1')!;
+    const fort = state.sites.find((site) => site.id === 'fort-north')!;
+    fort.owner = 1;
+
+    state.units = [makeUnit('keep-occupant', 'commander', 1, { ...keep.coord })];
+    expect(getValidSummonCoords(state, 1)).toEqual([fort.coord]);
+    state.units = [makeUnit('fort-occupant', 'royalGuard', 1, { ...fort.coord })];
+    expect(getValidSummonCoords(state, 1)).toEqual([keep.coord]);
+    state.units.push(makeUnit('keep-occupant', 'commander', 1, { ...keep.coord }));
+    expect(getValidSummonCoords(state, 1)).toEqual([]);
   });
 
   it('Light Mage Restore still heals an adjacent ally by 2', () => {

@@ -78,7 +78,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       game.message = result.message;
     };
 
-    game.playAiAction = async (action) => this.playAiAction(game, action, originalAttack);
+    game.playAiAction = async (action) => this.playAnimatedAiAction(game, action, originalAttack);
 
     this.events.once('shutdown', () => {
       this.motion = undefined;
@@ -87,7 +87,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
     });
   }
 
-  private async playAiAction(
+  private async playAnimatedAiAction(
     game: AnimatedSceneInternals,
     action: AiAction,
     fallbackAttack: (attackerId: string, defenderId: string) => Promise<void>,
@@ -209,6 +209,10 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       await motion.finishAttack(attackerView, attackPose.source);
       game.message = result.message;
       return result;
+    }
+
+    for (const [unitId, view] of game.renderedUnits) {
+      view.hpText?.setText(`${Math.max(0, findUnit(game.state, unitId)?.hp ?? 0)}`);
     }
 
     const events = this.damageEvents(before, game.state);

@@ -111,7 +111,7 @@ describe('smart enemy AI', () => {
   it('searches a complete move then attack sequence to kill the Commander', () => {
     const state = minimalAiTurnState();
     state.units = [
-      makeUnit('human-commander', 'commander', 1, { q: 5, r: 4 }, { hp: 2 }),
+      makeUnit('human-commander', 'commander', 1, { q: 4, r: 4 }, { hp: 2 }),
       makeUnit('undead-attacker', 'skeletalInfantry', 2, { q: 2, r: 4 }),
       makeUnit('undead-commander', 'commander', 2, { q: 12, r: 8 }),
     ];
@@ -121,6 +121,16 @@ describe('smart enemy AI', () => {
     expect(plan.actions.some((action) => action.kind === 'move' && action.unitId === 'undead-attacker')).toBe(true);
     expect(plan.actions.some((action) => action.kind === 'attack' && action.targetId === 'human-commander')).toBe(true);
     expect(plan.searchedStates).toBeGreaterThan(1);
+  });
+
+  it('advances units instead of spending its whole opening turn on summons', () => {
+    const state = createGameState(fixedRandom);
+    endTurn(state, fixedRandom);
+
+    const plan = planSmartAiTurn(state, { ...deterministicSearch, maxDepth: 5 });
+
+    expect(plan.actions.some((action) => action.kind === 'move' || action.kind === 'attack')).toBe(true);
+    expect(plan.actions.every((action) => action.kind === 'summon')).toBe(false);
   });
 
   it('includes Banshee Displace combinations in its legal action search', () => {

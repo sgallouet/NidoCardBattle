@@ -23,6 +23,7 @@ import {
   unitAt,
   unitDefinition,
 } from './engine';
+import { elapsedSince, setDebugStatus } from './DebugStatus';
 import { GameScene } from './GameScene';
 
 interface HighlightSets {
@@ -58,6 +59,8 @@ export class AiGameScene extends GameScene {
   private aiTurnInProgress = false;
   private aiWorker: Worker | null = null;
   private aiRequestId = 0;
+  private aiStartedAt = 0;
+  private aiHeartbeat: number | null = null;
 
   create(): void {
     super.create();
@@ -65,10 +68,16 @@ export class AiGameScene extends GameScene {
     if (typeof Worker !== 'undefined') {
       this.aiWorker = new Worker(new URL('./ai.worker.ts', import.meta.url), { type: 'module' });
       this.aiWorker.onmessage = (event: MessageEvent<AiWorkerResponse>) => {
-        void this.finishWorkerPlan(event.data);
+        void this.finishWorkerPlan(event.data).catch((error: unknown) => this.reportAiFailure(error));
       };
-      this.aiWorker.onerror = () => this.fallbackToMainThread();
-      this.events.once('shutdown', () => this.aiWorker?.terminate());
+      this.aiWorker.onerror = (event) => {
+        setDebugStatus(`AI worker error after ${elapsedSince(this.aiStartedAt)}: ${event.message || 'unknown error'}.`, 'error');
+        this.fallbackToMainThread();
+      };
+      this.events.once('shutdown', () => {
+        this.stopAiHeartbeat();
+        this.aiWorker?.terminate();
+      });
     }
   }
 
@@ -249,18 +258,22 @@ export class AiGameScene extends GameScene {
       || scene.state.currentPlayer !== 2) return;
 
     this.aiTurnInProgress = true;
+    this.aiStartedAt = performance.now();
     scene.animationInProgress = true;
     scene.clearInteraction();
     scene.message = 'Enemy thinking…';
     scene.renderAll();
     this.hideAiHand();
+    this.startAiHeartbeat();
 
     if (!this.aiWorker) {
+      setDebugStatus('AI: Web Worker unavailable; planning on the main thread.', 'warning');
       this.fallbackToMainThread();
       return;
     }
 
     this.aiRequestId += 1;
+    setDebugStatus(`AI: request ${this.aiRequestId} sent to worker; thinking…`, 'active');
     this.aiWorker.postMessage({
       requestId: this.aiRequestId,
       state: scene.state,
@@ -270,11 +283,16 @@ export class AiGameScene extends GameScene {
 
   private async finishWorkerPlan(response: AiWorkerResponse): Promise<void> {
     if (response.requestId !== this.aiRequestId) return;
+    this.stopAiHeartbeat();
     const scene = this as unknown as GameSceneInternals;
     if (scene.state.winner || scene.state.currentPlayer !== 2) {
       this.finishAiUi(scene);
       return;
     }
+    setDebugStatus(
+      `AI: plan received in ${elapsedSince(this.aiStartedAt)} — ${response.plan.actions.length} actions, ${response.plan.searchedStates} states${response.plan.timedOut ? ', budget reached' : ''}.`,
+      response.plan.timedOut ? 'warning' : 'active',
+    );
     await this.playAiPlan(scene, response.plan);
   }
 
@@ -287,19 +305,27 @@ export class AiGameScene extends GameScene {
 
     this.aiWorker?.terminate();
     this.aiWorker = null;
+    this.stopAiHeartbeat();
+    const planningStartedAt = performance.now();
     const plan = planSmartAiTurn(scene.state, COMMON_AI_OPTIONS);
-    void this.playAiPlan(scene, plan);
+    setDebugStatus(
+      `AI: main-thread plan finished in ${elapsedSince(planningStartedAt)} — ${plan.actions.length} actions, ${plan.searchedStates} states.`,
+      plan.timedOut ? 'warning' : 'active',
+    );
+    void this.playAiPlan(scene, plan).catch((error: unknown) => this.reportAiFailure(error));
   }
 
   private async playAiPlan(scene: GameSceneInternals, plan: AiPlan): Promise<void> {
     const messages: string[] = [];
-    for (const action of plan.actions) {
+    for (const [index, action] of plan.actions.entries()) {
       if (scene.state.winner || scene.state.currentPlayer !== 2) break;
+      setDebugStatus(`AI: running action ${index + 1}/${plan.actions.length} (${action.kind}).`, 'active');
       const result = scene.playAiAction
         ? await scene.playAiAction(action)
         : applyAiAction(scene.state, action);
       if (!result.ok) {
         messages.push(`AI plan stopped: ${result.message}`);
+        setDebugStatus(`AI replay stopped on action ${index + 1}: ${result.message}`, 'error');
         break;
       }
       messages.push(result.message);
@@ -310,6 +336,7 @@ export class AiGameScene extends GameScene {
     }
 
     if (!scene.state.winner && scene.state.currentPlayer === 2) {
+      setDebugStatus('AI: actions complete; ending Player 2 turn.', 'active');
       const result = endTurn(scene.state);
       messages.push(result.message);
       scene.message = result.message;
@@ -323,7 +350,32 @@ export class AiGameScene extends GameScene {
       : messages.length > 0
         ? `Enemy turn complete: ${messages.at(-1)}`
         : 'Enemy turn complete.';
+    setDebugStatus(
+      `AI turn complete in ${elapsedSince(this.aiStartedAt)}; control is with Player ${scene.state.currentPlayer}.`,
+      'success',
+    );
     this.finishAiUi(scene);
+  }
+
+  private startAiHeartbeat(): void {
+    this.stopAiHeartbeat();
+    this.aiHeartbeat = window.setInterval(() => {
+      const elapsed = elapsedSince(this.aiStartedAt);
+      setDebugStatus(`AI: worker still thinking after ${elapsed}; no plan received yet.`, 'warning');
+    }, 500);
+  }
+
+  private stopAiHeartbeat(): void {
+    if (this.aiHeartbeat === null) return;
+    window.clearInterval(this.aiHeartbeat);
+    this.aiHeartbeat = null;
+  }
+
+  private reportAiFailure(error: unknown): void {
+    this.stopAiHeartbeat();
+    const message = error instanceof Error ? error.message : String(error);
+    setDebugStatus(`AI failed during planning/replay after ${elapsedSince(this.aiStartedAt)}: ${message}`, 'error');
+    console.error('AI turn failed.', error);
   }
 
   private hideAiHand(): void {

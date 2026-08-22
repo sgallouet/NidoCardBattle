@@ -91,8 +91,8 @@ describe('engine-owned legal actions', () => {
     const action = getLegalGameActions(state, 1, { includeCards: true }).find((candidate) =>
       candidate.kind === 'summon'
       && candidate.cardId === 'lightMage'
-      && candidate.destination.q === 3
-      && candidate.destination.r === 8
+      && candidate.destination.q === 2
+      && candidate.destination.r === 9
       && candidate.restoreTargetId === 'damaged-guard');
 
     expect(action).toBeDefined();

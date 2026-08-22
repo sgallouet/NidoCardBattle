@@ -10,6 +10,7 @@ export interface AnimatedUnitView {
   container: Phaser.GameObjects.Container;
   sprite?: Phaser.GameObjects.Sprite;
   art?: UnitArtDefinition;
+  hpText?: Phaser.GameObjects.Text;
 }
 
 interface TweenValues {

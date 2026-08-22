@@ -1,12 +1,18 @@
 import Phaser from 'phaser';
 import type { Coord, GameState, PlayerId } from '../data/types';
+import {
+  ActionReadabilityLayer,
+  type ActionReadabilitySceneInternals,
+} from './ActionReadability';
 import { PersistentAiGameScene } from './PersistentAiGameScene';
+import { SpellHud, type SpellHudSceneInternals } from './SpellHud';
 import {
   TacticalReadabilityLayer,
   type TacticalSceneInternals,
 } from './TacticalReadability';
 
-interface PrototypeSceneInternals extends TacticalSceneInternals {
+interface PrototypeSceneInternals
+  extends TacticalSceneInternals, ActionReadabilitySceneInternals, SpellHudSceneInternals {
   state: GameState;
   boardLayer?: Phaser.GameObjects.Container;
   renderedUnits: Map<string, { container: Phaser.GameObjects.Container }>;
@@ -22,22 +28,33 @@ const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x55b9f3, 2: 0xf05b67 };
 
 export class PrototypeGameScene extends PersistentAiGameScene {
   private readability?: TacticalReadabilityLayer;
+  private actionReadability?: ActionReadabilityLayer;
+  private spellHud?: SpellHud;
 
   create(): void {
     super.create();
     const scene = this as unknown as PrototypeSceneInternals;
+
+    this.spellHud = new SpellHud(this, scene);
+    this.spellHud.install();
+
     const originalRenderAll = scene.renderAll.bind(this);
     this.readability = new TacticalReadabilityLayer(this, scene);
+    this.actionReadability = new ActionReadabilityLayer(this, scene);
 
     scene.renderAll = () => {
       originalRenderAll();
       this.renderTacticPlaceholders(scene);
       this.readability?.render();
+      this.actionReadability?.render();
     };
 
     this.readability.install();
+    this.actionReadability.install();
     this.events.once('shutdown', () => {
       this.readability = undefined;
+      this.actionReadability = undefined;
+      this.spellHud = undefined;
     });
 
     // The base scene has already rendered once during create(). Redraw once so

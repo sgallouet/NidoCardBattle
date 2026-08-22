@@ -26,7 +26,7 @@ import {
 } from './engine';
 
 /**
- * Complete gameplay action vocabulary consumed by both humans and AI.
+ * Complete gameplay action vocabulary consumed by AI, simulation and replay-style systems.
  * Passive traits never appear here: they resolve inside the engine when one of these actions is applied.
  * New active abilities should be added here, not in the AI planner.
  */
@@ -40,16 +40,18 @@ export type GameAction =
   | { kind: 'soulLink'; unitId: string; targetId: string }
   | { kind: 'curse'; unitId: string; targetId: string };
 
-export const GAME_ACTION_KINDS: GameAction['kind'][] = [
-  'summon',
-  'tactic',
-  'move',
-  'attack',
-  'displace',
-  'rally',
-  'soulLink',
-  'curse',
-];
+const GAME_ACTION_KIND_SET = {
+  summon: true,
+  tactic: true,
+  move: true,
+  attack: true,
+  displace: true,
+  rally: true,
+  soulLink: true,
+  curse: true,
+} satisfies Record<GameAction['kind'], true>;
+
+export const GAME_ACTION_KINDS = Object.keys(GAME_ACTION_KIND_SET) as GameAction['kind'][];
 
 export interface LegalActionOptions {
   includeCards?: boolean;
@@ -70,38 +72,38 @@ const restoreTargetsForSummon = (state: GameState, playerId: PlayerId, destinati
 const abilityActions = (state: GameState, unitId: string, ability: Ability | undefined): GameAction[] => {
   if (!ability) return [];
 
-  if (ability === 'Displace') {
-    return getDisplaceTargets(state, unitId).flatMap((target) =>
-      getDisplaceDestinations(state, unitId, target.id).map((destination) => ({
-        kind: 'displace' as const,
+  switch (ability) {
+    case 'Displace':
+      return getDisplaceTargets(state, unitId).flatMap((target) =>
+        getDisplaceDestinations(state, unitId, target.id).map((destination) => ({
+          kind: 'displace' as const,
+          unitId,
+          targetId: target.id,
+          destination,
+        })));
+    case 'Rally':
+      return getRallyTargets(state, unitId).length > 0 ? [{ kind: 'rally', unitId }] : [];
+    case 'SoulLink':
+      return getSoulLinkTargets(state, unitId).map((target) => ({
+        kind: 'soulLink' as const,
         unitId,
         targetId: target.id,
-        destination,
-      })));
+      }));
+    case 'Curse':
+      return getCurseTargets(state, unitId).map((target) => ({
+        kind: 'curse' as const,
+        unitId,
+        targetId: target.id,
+      }));
+    case 'Restore':
+    case 'BloodDrain':
+    case 'Cleave':
+      return [];
+    default: {
+      const unhandledAbility: never = ability;
+      return unhandledAbility;
+    }
   }
-
-  if (ability === 'Rally') {
-    return getRallyTargets(state, unitId).length > 0 ? [{ kind: 'rally', unitId }] : [];
-  }
-
-  if (ability === 'SoulLink') {
-    return getSoulLinkTargets(state, unitId).map((target) => ({
-      kind: 'soulLink' as const,
-      unitId,
-      targetId: target.id,
-    }));
-  }
-
-  if (ability === 'Curse') {
-    return getCurseTargets(state, unitId).map((target) => ({
-      kind: 'curse' as const,
-      unitId,
-      targetId: target.id,
-    }));
-  }
-
-  // Restore is a summon-triggered choice. Blood Drain and Cleave are passive attack effects.
-  return [];
 };
 
 /** Engine-owned legal action generation. The AI must never recreate unit/card rules itself. */
@@ -192,6 +194,10 @@ export const applyGameAction = (state: GameState, action: GameAction): ActionRes
       return soulLinkUnit(state, action.unitId, action.targetId);
     case 'curse':
       return curseUnit(state, action.unitId, action.targetId);
+    default: {
+      const unhandledAction: never = action;
+      return unhandledAction;
+    }
   }
 };
 

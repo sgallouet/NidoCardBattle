@@ -8,7 +8,7 @@ Gameplay rules in this file own match flow and victory only. Other rule files ow
 ## Turn
 - **GRT1** - Resolve start-of-turn mana income according to `EconomyRule.md`.
 - **GRT2** - Draw 1 card.
-- **GRT3** - Play any number of cards while mana allows.
+- **GRT3** - Card plays may occur before, between, or after unit activations while mana allows.
 - **GRT4** - Activate units in any order.
 - **GRT5** - Resolve end-of-turn captures according to `MapRule.md`.
 - **GRT6** - Resolve any active Commander victory countdown.

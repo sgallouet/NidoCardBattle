@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import './style.css';
-import { AiGameScene } from './game/AiGameScene';
+import { PersistentAiGameScene } from './game/PersistentAiGameScene';
 
 const app = document.querySelector<HTMLElement>('#app');
 const fullscreenButton = document.querySelector<HTMLButtonElement>('#fullscreen-button');
@@ -30,7 +30,7 @@ new Phaser.Game({
   width: window.innerWidth,
   height: window.innerHeight,
   backgroundColor: '#17251d',
-  scene: [AiGameScene],
+  scene: [PersistentAiGameScene],
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.NO_CENTER,

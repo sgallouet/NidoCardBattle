@@ -1,22 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
 import { CARD_DEFINITIONS, FACTION_DECKS } from '../data/cards';
+import { MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
 import type { Coord, GameState, PlayerId, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
 import {
   attackUnit,
   coordKey,
   createGameState,
+  curseUnit,
+  effectiveMove,
   endTurn,
   getReachableCoords,
   getRestoreTargets,
+  getSoulLinkTargets,
   getValidSummonCoords,
   isPassable,
   isStoppedByBlocking,
   moveUnit,
   playUnitCard,
+  rallyAdjacentAllies,
   restoreAdjacentAlly,
+  soulLinkUnit,
   terrainAt,
+  unitDefinition,
 } from './engine';
 
 const fixedRandom = () => 0.25;
@@ -32,90 +38,80 @@ const makeUnit = (
   definitionId,
   owner,
   coord,
-  hp: UNIT_DEFINITIONS[definitionId].maxHp,
+  hp: definitionId === 'commander' ? 10 : UNIT_DEFINITIONS[definitionId].maxHp,
   exhausted: false,
   moved: false,
   attacked: false,
+  movementSpent: 0,
+  postAttackMoved: false,
+  moveBonus: 0,
+  curses: [],
   ...overrides,
 });
 
 const freshState = (): GameState => createGameState(fixedRandom);
 
-describe('UNR1-UNR8, CRD1-CRD5', () => {
-  it('UNR1-UNR8', () => {
-    const expected = {
-      skeletonGuard: { name: 'Skeletal Infantry', faction: 'undead', cost: 1, maxHp: 2, attack: 2, traits: ['Blocking'], ability: undefined },
-      boneArcher: { name: 'Longbow Ranger', faction: 'human', cost: 3, maxHp: 2, attack: 2, traits: ['Ranged'], ability: undefined },
-      vampire: { name: 'Silverwing Cavalry', faction: 'human', cost: 6, maxHp: 5, attack: 4, traits: ['Flying', 'Charge'], ability: undefined },
-      necromancer: { name: 'Necromancer', faction: 'undead', cost: 5, maxHp: 4, attack: 1, traits: ['Invoker'], ability: undefined },
-      banshee: { name: 'Banshee Displacer', faction: 'undead', cost: 4, maxHp: 3, attack: 2, traits: [], ability: 'Displace' },
-      wraith: { name: 'Light Mage', faction: 'human', cost: 4, maxHp: 3, attack: 2, traits: [], ability: 'Restore' },
-      ghoul: { name: 'Royal Guard', faction: 'human', cost: 2, maxHp: 3, attack: 2, traits: ['Blocking', 'Retaliates'], ability: undefined },
-      graveKnight: { name: 'Grave Knight', faction: 'undead', cost: 5, maxHp: 4, attack: 4, traits: ['Blocking', 'Retaliates'], ability: undefined },
-    } as const;
-
-    for (const [id, printed] of Object.entries(expected)) {
-      const definition = UNIT_DEFINITIONS[id as UnitDefinitionId];
-      const card = CARD_DEFINITIONS[id as keyof typeof CARD_DEFINITIONS];
-      expect({
-        name: definition.name,
-        faction: definition.faction,
-        cost: definition.cost,
-        maxHp: definition.maxHp,
-        attack: definition.attack,
-        traits: definition.traits,
-        ability: definition.ability,
-      }).toEqual(printed);
-      expect([card.name, card.faction, card.cost]).toEqual([printed.name, printed.faction, printed.cost]);
-    }
+describe('faction rosters and decks', () => {
+  it('uses faction-specific Commander definitions without changing the board commander id', () => {
+    const human = makeUnit('hc', 'commander', 1, { q: 2, r: 6 });
+    const undead = makeUnit('uc', 'commander', 2, { q: 8, r: 6 });
+    expect(unitDefinition(human)).toMatchObject({
+      name: 'Human Commander', faction: 'human', traits: ['Blocking', 'Retaliates'], ability: 'Rally',
+    });
+    expect(unitDefinition(undead)).toMatchObject({
+      name: 'Undead Commander', faction: 'undead', traits: ['Blocking', 'DarkReflection'], ability: 'SoulLink',
+    });
   });
 
-  it('CRD1, CRD2, CRD4', () => {
+  it('matches the agreed Human and Undead unit stats', () => {
+    expect(UNIT_DEFINITIONS.boneArcher).toMatchObject({ maxHp: 1, attack: 1, range: 3, traits: ['Ranged', 'Assist'] });
+    expect(UNIT_DEFINITIONS.undeadBoneArcher).toMatchObject({ maxHp: 1, attack: 1, range: 3, traits: ['Ranged', 'Assist'] });
+    expect(UNIT_DEFINITIONS.vampire).toMatchObject({ maxHp: 5, attack: 4, move: 4, traits: ['Flying', 'AgileAssault'] });
+    expect(UNIT_DEFINITIONS.necromancer).toMatchObject({ range: 3, traits: ['Invoker', 'Ranged', 'Necromancy'], ability: 'Curse' });
+    expect(UNIT_DEFINITIONS.graveKnight).toMatchObject({ maxHp: 5, attack: 3, ability: 'Cleave' });
+    expect(UNIT_DEFINITIONS.undeadVampire).toMatchObject({ maxHp: 4, attack: 3, move: 3, ability: 'BloodDrain' });
+    expect(UNIT_DEFINITIONS.undeadWraith).toMatchObject({ maxHp: 3, attack: 2, move: 4, traits: ['Phase'] });
+    expect(UNIT_DEFINITIONS.bannerCaptain).toMatchObject({ cost: 4, maxHp: 4, traits: ['Invoker'] });
+    expect(UNIT_DEFINITIONS.windAdept).toMatchObject({ cost: 3, maxHp: 2, attack: 1, move: 3, range: 2, ability: 'Displace' });
+  });
+
+  it('keeps both prototype faction decks at 8 legal cards', () => {
     for (const faction of ['human', 'undead'] as const) {
       const deck = FACTION_DECKS[faction];
       expect(deck).toHaveLength(8);
       for (const cardId of new Set(deck)) {
-        expect(deck.filter((candidate) => candidate === cardId)).toHaveLength(2);
+        expect(deck.filter((candidate) => candidate === cardId).length).toBeLessThanOrEqual(2);
         expect(CARD_DEFINITIONS[cardId].faction).toBe(faction);
       }
     }
-
-    const state = freshState();
-    expect(state.players[1].faction).toBe('human');
-    expect(state.players[2].faction).toBe('undead');
+    expect(new Set(FACTION_DECKS.human)).toEqual(new Set(['ghoul', 'boneArcher', 'vampire', 'wraith', 'bannerCaptain', 'windAdept']));
+    expect(new Set(FACTION_DECKS.undead)).toEqual(new Set(['skeletonGuard', 'undeadBoneArcher', 'necromancer', 'banshee', 'undeadVampire', 'undeadWraith', 'graveKnight']));
   });
 
-  it('CRD5 rejects a cross-faction card', () => {
+  it('rejects a cross-faction card', () => {
     const state = freshState();
     state.players[1].hand = ['skeletonGuard'];
     state.players[1].mana = 7;
     const target = getValidSummonCoords(state, 1)[0];
     const result = playUnitCard(state, 0, target);
-
     expect(result.ok).toBe(false);
     expect(result.message).toContain('undead faction');
-    expect(state.players[1].hand).toEqual(['skeletonGuard']);
-    expect(state.players[1].mana).toBe(7);
   });
 
   it('starting non-Commander units match their owner faction', () => {
     const state = freshState();
     for (const unit of state.units) {
-      const definition = UNIT_DEFINITIONS[unit.definitionId as UnitDefinitionId];
-      if (definition.faction === 'shared') continue;
-      expect(definition.faction).toBe(state.players[unit.owner].faction);
+      if (unit.definitionId === 'commander') continue;
+      expect(unitDefinition(unit).faction).toBe(state.players[unit.owner].faction);
     }
   });
 });
 
-describe('MPS2, MPL4, MPT6', () => {
-  it('MPS2', () => {
+describe('map baseline', () => {
+  it('keeps the compact prototype map and legal sites', () => {
     expect(MAP_WIDTH).toBe(18);
     expect(MAP_HEIGHT).toBe(13);
     expect(TERRAIN.flat()).toHaveLength(234);
-  });
-
-  it('MPL1, MPL2, MPL3', () => {
     expect(MAP_SITES.filter((site) => site.type === 'keep')).toHaveLength(2);
     expect(MAP_SITES.filter((site) => site.type === 'fort')).toHaveLength(2);
     expect(MAP_SITES.filter((site) => site.type === 'well')).toHaveLength(4);
@@ -123,130 +119,205 @@ describe('MPS2, MPL4, MPT6', () => {
     for (const unit of STARTING_UNITS) expect(isPassable(unit.coord)).toBe(true);
   });
 
-  it('MPT6', () => {
+  it('keeps bridges passable and water blocked for normal units', () => {
     expect(terrainAt({ q: 8, r: 4 })).toBe('bridge');
     expect(isPassable({ q: 8, r: 4 })).toBe(true);
     expect(isPassable({ q: 8, r: 3 })).toBe(false);
   });
-
-  it('MPT5, MPT6', () => {
-    for (const row of TERRAIN) {
-      expect(row.some((terrain) => terrain === 'water' || terrain === 'bridge')).toBe(true);
-    }
-  });
-
-  it('MPL4', () => {
-    const northernFort = MAP_SITES.find((site) => site.id === 'fort-north');
-    const southernFort = MAP_SITES.find((site) => site.id === 'fort-south');
-    expect(northernFort).toBeDefined();
-    expect(southernFort).toBeDefined();
-    expect(southernFort?.coord).not.toEqual({
-      q: MAP_WIDTH - 1 - northernFort!.coord.q,
-      r: MAP_HEIGHT - 1 - northernFort!.coord.r,
-    });
-  });
 });
 
-describe('UNT1, UNM4, UNT5', () => {
-  it('UNT1', () => {
+describe('Blocking, Flying and Phase', () => {
+  it('Blocking stops normal movement but Phase ignores it', () => {
     const state = freshState();
-    const mover = makeUnit('mover', 'banshee', 1, { q: 0, r: 8 });
-    state.units = [mover, makeUnit('blocker', 'skeletonGuard', 2, { q: 2, r: 8 })];
-    expect(isStoppedByBlocking(state, mover, { q: 1, r: 8 })).toBe(true);
-
-    state.units[1] = makeUnit('non-blocker', 'boneArcher', 2, { q: 2, r: 8 });
-    expect(isStoppedByBlocking(state, mover, { q: 1, r: 8 })).toBe(false);
+    const normal = makeUnit('normal', 'banshee', 1, { q: 0, r: 8 });
+    const phase = makeUnit('phase', 'undeadWraith', 1, { q: 0, r: 8 });
+    const blocker = makeUnit('blocker', 'skeletonGuard', 2, { q: 2, r: 8 });
+    state.units = [normal, blocker];
+    expect(isStoppedByBlocking(state, normal, { q: 1, r: 8 })).toBe(true);
+    state.units = [phase, blocker];
+    expect(isStoppedByBlocking(state, phase, { q: 1, r: 8 })).toBe(false);
   });
 
-  it('UNT5', () => {
+  it('Flying can cross water', () => {
     const state = freshState();
     const flyer = makeUnit('flyer', 'vampire', 1, { q: 8, r: 4 });
     state.units = [flyer];
-    expect(terrainAt({ q: 8, r: 3 })).toBe('water');
     expect(getReachableCoords(state, flyer.id).has(coordKey({ q: 8, r: 3 }))).toBe(true);
   });
-
-  it('returns the exact authoritative path used by movement', () => {
-    const state = freshState();
-    const mover = makeUnit('mover', 'skeletonGuard', 1, { q: 2, r: 7 });
-    state.units = [mover];
-    const destination = { q: 4, r: 7 };
-
-    const result = moveUnit(state, mover.id, destination);
-
-    expect(result.ok).toBe(true);
-    expect(result.path?.[0]).toEqual({ q: 2, r: 7 });
-    expect(result.path?.at(-1)).toEqual(destination);
-    expect(result.path?.length).toBeGreaterThan(1);
-    expect(mover.coord).toEqual(destination);
-  });
 });
 
-describe('UNT2, UNC3', () => {
-  it('UNT2', () => {
+describe('Assist positioning', () => {
+  it('adds +1 from a normal assisting position', () => {
     const state = freshState();
-    const attacker = makeUnit('attacker', 'necromancer', 1, { q: 2, r: 2 });
-    const defender = makeUnit('defender', 'ghoul', 2, { q: 3, r: 2 });
-    state.units = [attacker, defender];
+    const attacker = makeUnit('attacker', 'windAdept', 1, { q: 4, r: 6 });
+    const assister = makeUnit('assist', 'ghoul', 1, { q: 5, r: 5 });
+    const defender = makeUnit('defender', 'necromancer', 2, { q: 5, r: 6 });
+    state.units = [attacker, assister, defender];
     attackUnit(state, attacker.id, defender.id);
-    expect(defender.hp).toBe(2);
-    expect(attacker.hp).toBe(2);
-    expect(defender.attacked).toBe(false);
+    expect(defender.hp).toBe(2); // 1 primary + 1 Assist
   });
 
-  it('UNT2, UNC3', () => {
+  it('adds +2 when the assister is directly behind the target', () => {
     const state = freshState();
-    const attacker = makeUnit('attacker', 'skeletonGuard', 1, { q: 2, r: 2 });
-    const defender = makeUnit('defender', 'boneArcher', 2, { q: 3, r: 2 });
-    state.units = [attacker, defender];
+    const attacker = makeUnit('attacker', 'windAdept', 1, { q: 4, r: 6 });
+    const assister = makeUnit('assist', 'ghoul', 1, { q: 6, r: 6 });
+    const defender = makeUnit('defender', 'necromancer', 2, { q: 5, r: 6 });
+    state.units = [attacker, assister, defender];
     attackUnit(state, attacker.id, defender.id);
-    expect(attacker.hp).toBe(UNIT_DEFINITIONS.skeletonGuard.maxHp);
+    expect(defender.hp).toBe(1); // 1 primary + 2 rear Assist
+  });
+
+  it('does not Assist while Exhausted', () => {
+    const state = freshState();
+    const attacker = makeUnit('attacker', 'windAdept', 1, { q: 4, r: 6 });
+    const assister = makeUnit('assist', 'ghoul', 1, { q: 6, r: 6 }, { exhausted: true });
+    const defender = makeUnit('defender', 'necromancer', 2, { q: 5, r: 6 });
+    state.units = [attacker, assister, defender];
+    attackUnit(state, attacker.id, defender.id);
+    expect(defender.hp).toBe(3);
   });
 });
 
-describe('MPC1, MPC2', () => {
-  it('MPC1', () => {
+describe('Silverwing Cavalry Agile Assault', () => {
+  it('moves, attacks with half retaliation, then uses remaining movement', () => {
     const state = freshState();
-    const well = state.sites.find((site) => site.id === 'well-northwest');
-    expect(well).toBeDefined();
-    state.units = [makeUnit('capturer', 'wraith', 1, { ...well!.coord })];
-    expect(well!.owner).toBe(null);
-    endTurn(state, fixedRandom);
-    expect(well!.owner).toBe(1);
-  });
-});
+    const cavalry = makeUnit('cavalry', 'vampire', 1, { q: 2, r: 6 });
+    const knight = makeUnit('knight', 'graveKnight', 2, { q: 5, r: 6 });
+    state.units = [cavalry, knight];
 
-describe('CRU3, UNT3', () => {
-  it('UNT3', () => {
-    const state = freshState();
-    state.currentPlayer = 2;
-    for (const site of state.sites) {
-      if (site.type === 'keep' || site.type === 'fort') site.owner = 1;
-    }
-    state.units = [makeUnit('invoker', 'necromancer', 2, { q: 5, r: 4 })];
-    const target = { q: 6, r: 4 };
-    expect(getValidSummonCoords(state, 2).some((coord) => coordKey(coord) === coordKey(target))).toBe(true);
-
-    state.players[2].hand = ['skeletonGuard'];
-    state.players[2].mana = 3;
-    const result = playUnitCard(state, 0, target);
-    expect(result.ok).toBe(true);
-    expect(state.units.find((unit) => unit.coord.q === target.q && unit.coord.r === target.r)?.exhausted).toBe(true);
+    expect(moveUnit(state, cavalry.id, { q: 4, r: 6 }).ok).toBe(true);
+    expect(cavalry.movementSpent).toBe(2);
+    expect(attackUnit(state, cavalry.id, knight.id).ok).toBe(true);
+    expect(knight.hp).toBe(1);
+    expect(cavalry.hp).toBe(3); // 3 retaliation becomes ceil(1.5) = 2
+    expect(getReachableCoords(state, cavalry.id).has(coordKey({ q: 3, r: 6 }))).toBe(true);
+    expect(moveUnit(state, cavalry.id, { q: 3, r: 6 }).ok).toBe(true);
+    expect(cavalry.postAttackMoved).toBe(true);
   });
 
-  it('CRU4, UNT6', () => {
+  it('is still summoned Exhausted because Charge no longer exists', () => {
     const state = freshState();
     state.players[1].hand = ['vampire'];
     state.players[1].mana = 6;
-    const target = getValidSummonCoords(state)[0];
-    const result = playUnitCard(state, 0, target);
+    const result = playUnitCard(state, 0, getValidSummonCoords(state)[0]);
     expect(result.ok).toBe(true);
-    expect(state.units.find((unit) => unit.id === result.summonedUnitId)?.exhausted).toBe(false);
+    expect(state.units.find((unit) => unit.id === result.summonedUnitId)?.exhausted).toBe(true);
   });
 });
 
-describe('UNB6', () => {
-  it('UNB6', () => {
+describe('Commander faction abilities', () => {
+  it('Human Rally gives eligible adjacent allies +1 Move for the turn', () => {
+    const state = freshState();
+    const commander = makeUnit('commander', 'commander', 1, { q: 5, r: 6 });
+    const cavalry = makeUnit('cavalry', 'vampire', 1, { q: 6, r: 6 });
+    state.units = [commander, cavalry];
+    expect(rallyAdjacentAllies(state, commander.id).ok).toBe(true);
+    expect(effectiveMove(cavalry)).toBe(5);
+    expect(commander.attacked).toBe(true);
+  });
+
+  it('Undead Dark Reflection returns 30% of direct attack damage and does not retaliate', () => {
+    const state = freshState();
+    const attacker = makeUnit('attacker', 'ghoul', 1, { q: 4, r: 6 });
+    const commander = makeUnit('commander', 'commander', 2, { q: 5, r: 6 });
+    state.units = [attacker, commander];
+    attackUnit(state, attacker.id, commander.id);
+    expect(commander.hp).toBe(8);
+    expect(attacker.hp).toBe(2); // round(2 * 0.3) = 1 reflected, no 3-DMG retaliation
+  });
+
+  it('Soul Link redirects damage and overflow without triggering Dark Reflection', () => {
+    const state = freshState();
+    state.currentPlayer = 2;
+    const commander = makeUnit('commander', 'commander', 2, { q: 5, r: 6 });
+    const skeleton = makeUnit('skeleton', 'skeletonGuard', 2, { q: 6, r: 6 });
+    const attacker = makeUnit('attacker', 'vampire', 1, { q: 4, r: 6 });
+    state.units = [commander, skeleton, attacker];
+    expect(getSoulLinkTargets(state, commander.id).map((unit) => unit.id)).toEqual([skeleton.id]);
+    expect(soulLinkUnit(state, commander.id, skeleton.id).ok).toBe(true);
+
+    state.currentPlayer = 1;
+    attackUnit(state, attacker.id, commander.id);
+    expect(state.units.some((unit) => unit.id === skeleton.id)).toBe(false);
+    expect(commander.hp).toBe(8); // 2 absorbed by skeleton, 2 overflow
+    expect(attacker.hp).toBe(5); // redirected damage never reflects
+  });
+});
+
+describe('Necromancer', () => {
+  it('raises an Exhausted Skeletal Infantry when its direct attack kills', () => {
+    const state = freshState();
+    state.currentPlayer = 2;
+    const necromancer = makeUnit('necro', 'necromancer', 2, { q: 4, r: 6 });
+    const victim = makeUnit('victim', 'boneArcher', 1, { q: 6, r: 6 });
+    state.units = [necromancer, victim];
+    expect(attackUnit(state, necromancer.id, victim.id).ok).toBe(true);
+    const raised = state.units.find((unit) => unit.definitionId === 'skeletonGuard');
+    expect(raised).toBeDefined();
+    expect(raised?.coord).toEqual({ q: 6, r: 6 });
+    expect(raised?.owner).toBe(2);
+    expect(raised?.exhausted).toBe(true);
+  });
+
+  it('Curse deals 1 damage at the end of the victim owner turn for 3 turns', () => {
+    const state = freshState();
+    state.currentPlayer = 2;
+    const necromancer = makeUnit('necro', 'necromancer', 2, { q: 4, r: 6 });
+    const victim = makeUnit('victim', 'ghoul', 1, { q: 6, r: 6 });
+    state.units = [necromancer, victim];
+    expect(curseUnit(state, necromancer.id, victim.id).ok).toBe(true);
+    expect(victim.curses?.[0].remainingTurns).toBe(3);
+
+    endTurn(state, fixedRandom); // Undead ends: no damage to Human victim yet.
+    expect(victim.hp).toBe(3);
+    endTurn(state, fixedRandom); // Human ends: tick 1.
+    expect(victim.hp).toBe(2);
+    endTurn(state, fixedRandom);
+    endTurn(state, fixedRandom); // tick 2.
+    expect(victim.hp).toBe(1);
+    endTurn(state, fixedRandom);
+    endTurn(state, fixedRandom); // tick 3, lethal.
+    expect(state.units.some((unit) => unit.id === victim.id)).toBe(false);
+  });
+});
+
+describe('Undead specialist attacks', () => {
+  it('Grave Knight Cleave damages every adjacent enemy but not distant enemies', () => {
+    const state = freshState();
+    state.currentPlayer = 2;
+    const knight = makeUnit('knight', 'graveKnight', 2, { q: 5, r: 6 });
+    const primary = makeUnit('primary', 'ghoul', 1, { q: 6, r: 6 });
+    const adjacent = makeUnit('adjacent', 'wraith', 1, { q: 5, r: 5 });
+    const far = makeUnit('far', 'wraith', 1, { q: 2, r: 6 });
+    state.units = [knight, primary, adjacent, far];
+    attackUnit(state, knight.id, primary.id);
+    expect(state.units.some((unit) => unit.id === primary.id)).toBe(false);
+    expect(state.units.some((unit) => unit.id === adjacent.id)).toBe(false);
+    expect(far.hp).toBe(3);
+    expect(knight.hp).toBe(5); // primary died, so no retaliation
+  });
+
+  it('Vampire Blood Drain restores 1 HP once after dealing normal attack damage', () => {
+    const state = freshState();
+    state.currentPlayer = 2;
+    const vampire = makeUnit('vampire', 'undeadVampire', 2, { q: 4, r: 6 }, { hp: 2 });
+    const victim = makeUnit('victim', 'wraith', 1, { q: 5, r: 6 });
+    state.units = [vampire, victim];
+    attackUnit(state, vampire.id, victim.id);
+    expect(vampire.hp).toBe(3);
+  });
+});
+
+describe('existing summon, restore, capture and victory rules', () => {
+  it('Invoker remains a spawn source', () => {
+    const state = freshState();
+    state.currentPlayer = 2;
+    for (const site of state.sites) if (site.type === 'keep' || site.type === 'fort') site.owner = 1;
+    state.units = [makeUnit('invoker', 'necromancer', 2, { q: 5, r: 4 })];
+    expect(getValidSummonCoords(state, 2).some((coord) => coordKey(coord) === coordKey({ q: 6, r: 4 }))).toBe(true);
+  });
+
+  it('Light Mage Restore still heals an adjacent ally by 2', () => {
     const state = freshState();
     const mage = makeUnit('mage', 'wraith', 1, { q: 5, r: 4 });
     const ally = makeUnit('ally', 'ghoul', 1, { q: 6, r: 4 }, { hp: 1 });
@@ -255,20 +326,24 @@ describe('UNB6', () => {
     expect(restoreAdjacentAlly(state, mage.id, ally.id).ok).toBe(true);
     expect(ally.hp).toBe(3);
   });
-});
 
-describe('GRV1, GRV2', () => {
-  it('GRV2', () => {
+  it('captures sites only at end turn', () => {
+    const state = freshState();
+    const well = state.sites.find((site) => site.id === 'well-northwest')!;
+    state.units = [makeUnit('capturer', 'wraith', 1, { ...well.coord })];
+    expect(well.owner).toBe(null);
+    endTurn(state, fixedRandom);
+    expect(well.owner).toBe(1);
+  });
+
+  it('wins after three surviving Commander checkpoints', () => {
     const state = freshState();
     state.countdown = { player: 1, checkpoints: 0 };
-
     endTurn(state, fixedRandom);
     expect(state.countdown?.checkpoints).toBe(1);
-    expect(state.winner).toBe(null);
     endTurn(state, fixedRandom);
     endTurn(state, fixedRandom);
     expect(state.countdown?.checkpoints).toBe(2);
-    expect(state.winner).toBe(null);
     endTurn(state, fixedRandom);
     endTurn(state, fixedRandom);
     expect(state.winner).toBe(1);

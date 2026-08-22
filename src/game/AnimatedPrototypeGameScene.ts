@@ -294,7 +294,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       && sameCoord(unit.coord, defenderCoord));
     if (newSkeleton) {
       motion.spawnNecromancyBurst(defenderCoord, game.center.bind(this));
-      await this.wait(220);
+      await this.waitForAnimation(220);
     }
 
     if (attackerDamage && attackerDamage.damage > 0) {
@@ -353,7 +353,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
     });
   }
 
-  private wait(duration: number): Promise<void> {
+  private waitForAnimation(duration: number): Promise<void> {
     return new Promise((resolve) => this.time.delayedCall(duration, resolve));
   }
 }

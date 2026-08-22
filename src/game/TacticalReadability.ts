@@ -463,8 +463,6 @@ export class TacticalReadabilityLayer {
       case 'scorch': label = 'PLAIN'; break;
       case 'raiseFort': label = 'FORT'; break;
       case 'profaneWell': label = 'WELL · 3'; break;
-      case 'damage': label = `−${card.effect.amount}`; break;
-      case 'heal': label = `+${card.effect.amount}`; break;
     }
     this.addBadge(this.hoveredCoord, label, card.faction === 'undead' ? 0x6f3ca4 : card.faction === 'human' ? 0x326e93 : 0x806737, 0, -43, 11);
   }

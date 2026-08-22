@@ -127,8 +127,8 @@ export class AiGameScene extends GameScene {
       const card = cardId ? CARD_DEFINITIONS[cardId] : undefined;
       if (scene.mode === 'card' && card?.type === 'tactic') {
         highlight.summon.clear();
-        for (const target of getTacticTargetCoords(scene.state, cardId)) highlight.summon.add(coordKey(target));
-        for (const target of getTacticTargets(scene.state, cardId)) highlight.summon.add(coordKey(target.coord));
+        for (const target of getTacticTargetCoords(scene.state, card.id)) highlight.summon.add(coordKey(target));
+        for (const target of getTacticTargets(scene.state, card.id)) highlight.summon.add(coordKey(target.coord));
       }
 
       const selected = scene.selectedUnitId ? findUnit(scene.state, scene.selectedUnitId) : undefined;
@@ -306,7 +306,7 @@ export class AiGameScene extends GameScene {
       scene.message = result.message;
       scene.renderAll();
       this.hideAiHand();
-      await this.wait(75);
+      await this.waitForAiAction(75);
     }
 
     if (!scene.state.winner && scene.state.currentPlayer === 2) {
@@ -315,7 +315,7 @@ export class AiGameScene extends GameScene {
       scene.message = result.message;
       scene.renderAll();
       this.hideAiHand();
-      await this.wait(90);
+      await this.waitForAiAction(90);
     }
 
     scene.message = scene.state.winner === 2
@@ -330,7 +330,7 @@ export class AiGameScene extends GameScene {
     document.querySelector<HTMLElement>('#hand')?.replaceChildren();
   }
 
-  private wait(duration: number): Promise<void> {
+  private waitForAiAction(duration: number): Promise<void> {
     return new Promise((resolve) => this.time.delayedCall(duration, resolve));
   }
 

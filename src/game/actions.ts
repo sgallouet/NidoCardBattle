@@ -13,11 +13,13 @@ import {
   getRallyTargets,
   getReachableCoords,
   getSoulLinkTargets,
+  getTacticTargetCoords,
   getTacticTargets,
   getValidSummonCoords,
   hexDistance,
   moveUnit,
   playTacticCard,
+  playTacticCardAtCoord,
   playUnitCard,
   rallyAdjacentAllies,
   restoreAdjacentAlly,
@@ -33,6 +35,7 @@ import {
 export type GameAction =
   | { kind: 'summon'; handIndex: number; cardId: CardDefinitionId; destination: Coord; restoreTargetId?: string }
   | { kind: 'tactic'; handIndex: number; cardId: CardDefinitionId; targetId: string }
+  | { kind: 'tactic'; handIndex: number; cardId: CardDefinitionId; destination: Coord }
   | { kind: 'move'; unitId: string; destination: Coord }
   | { kind: 'attack'; unitId: string; targetId: string }
   | { kind: 'displace'; unitId: string; targetId: string; destination: Coord }
@@ -122,7 +125,10 @@ export const getLegalGameActions = (
     player.hand.forEach((rawCardId, handIndex) => {
       const cardId = rawCardId as CardDefinitionId;
       const card = CARD_DEFINITIONS[cardId];
-      if (!card || seenCards.has(cardId) || card.faction !== player.faction || card.cost > player.mana) return;
+      if (!card
+        || seenCards.has(cardId)
+        || (card.faction !== 'shared' && card.faction !== player.faction)
+        || card.cost > player.mana) return;
       seenCards.add(cardId);
 
       if (card.type === 'unit') {
@@ -142,6 +148,9 @@ export const getLegalGameActions = (
       } else {
         for (const target of getTacticTargets(state, cardId)) {
           actions.push({ kind: 'tactic', handIndex, cardId, targetId: target.id });
+        }
+        for (const destination of getTacticTargetCoords(state, cardId)) {
+          actions.push({ kind: 'tactic', handIndex, cardId, destination });
         }
       }
     });
@@ -180,6 +189,7 @@ export const applyGameAction = (state: GameState, action: GameAction): ActionRes
       if (state.players[state.currentPlayer].hand[action.handIndex] !== action.cardId) {
         return { ok: false, message: 'Planned tactic card is no longer at that hand index.' };
       }
+      if ('destination' in action) return playTacticCardAtCoord(state, action.handIndex, action.destination);
       return playTacticCard(state, action.handIndex, action.targetId);
     }
     case 'move':

@@ -242,8 +242,8 @@ const exactCommanderThreatAdjustment = (state: GameState, perspective: PlayerId)
 };
 
 /**
- * Search-cache signature serializes full UnitState objects, so new serializable status fields are
- * considered automatically rather than accidentally merging strategically different positions.
+ * Search-cache signature serializes full state-bearing gameplay data so strategically different
+ * board-effect states are never merged by the planner.
  */
 const stateSignature = (state: GameState, includeCurrentHand: boolean): string => {
   const units = [...state.units]
@@ -251,6 +251,11 @@ const stateSignature = (state: GameState, includeCurrentHand: boolean): string =
     .map((unit) => JSON.stringify(unit))
     .join('|');
   const sites = state.sites.map((site) => `${site.id}:${site.owner ?? 0}`).join('|');
+  const builtBridges = [...state.builtBridges].map(coordKey).sort().join(',');
+  const tileEffects = [...state.tileEffects]
+    .sort((a, b) => coordKey(a.coord).localeCompare(coordKey(b.coord)))
+    .map((effect) => JSON.stringify(effect))
+    .join('|');
   const current = state.players[state.currentPlayer];
   const hand = includeCurrentHand ? current.hand.join(',') : '';
   return [
@@ -259,6 +264,8 @@ const stateSignature = (state: GameState, includeCurrentHand: boolean): string =
     hand,
     units,
     sites,
+    builtBridges,
+    tileEffects,
     `${state.countdown?.player ?? 0}:${state.countdown?.checkpoints ?? 0}`,
     state.winner ?? 0,
     state.nextUnitId,
@@ -327,7 +334,7 @@ const actionPriority = (state: GameState, action: AiAction, actor: PlayerId): nu
     return 900 + relationBonus + commanderBonus;
   }
 
-  // Untargeted active abilities (for example Rally) stay near the front of exploration.
+  // Untargeted active abilities and tile-target tactics stay near the front of exploration.
   return 1_100;
 };
 

@@ -1,11 +1,13 @@
 # CardRule.md
 
-This file owns deck, hand, card-type, and summoning rules.
+This file owns deck, hand, card-type, faction, and summoning rules.
 
 ## Deck
-- **CRD1** - Prototype deck size is **16 cards**.
+- **CRD1** - Prototype faction deck size is **8 cards**.
 - **CRD2** - A deck may contain at most 2 copies of the same card.
 - **CRD3** - When the deck is empty, shuffle the discard pile into a new deck.
+- **CRD4** - The current prototype assigns Player 1 the **Human** faction and Player 2 the **Undead** faction, and each player draws only from that faction's prebuilt deck.
+- **CRD5** - Every card belongs to exactly one faction and may only be played by a player of that faction.
 
 ## Hand
 - **CRH1** - Start the match with 4 cards.

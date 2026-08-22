@@ -57,7 +57,7 @@ const damageTaken = (before: UnitState, after: GameState): number =>
 export class TacticalReadabilityLayer {
   private layer?: Phaser.GameObjects.Container;
   private hoveredCoord: Coord | null = null;
-  private captureMarkers: Phaser.GameObjects.GameObject[] = [];
+  private captureMarkers: Phaser.GameObjects.Graphics[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -97,6 +97,10 @@ export class TacticalReadabilityLayer {
     this.renderTacticContext();
   }
 
+  private hoverAffectsPresentation(): boolean {
+    return this.game.mode === 'unit' || this.game.mode === 'card';
+  }
+
   private readonly handleUpdate = (): void => {
     if (this.captureMarkers.length === 0) return;
     const alpha = 0.5 + Math.sin(this.scene.time.now / 330) * 0.28;
@@ -112,13 +116,13 @@ export class TacticalReadabilityLayer {
     if ((next === null && this.hoveredCoord === null)
       || (next !== null && this.hoveredCoord !== null && sameCoord(next, this.hoveredCoord))) return;
     this.hoveredCoord = next;
-    this.render();
+    if (this.hoverAffectsPresentation()) this.render();
   };
 
   private readonly handleGameOut = (): void => {
     if (this.hoveredCoord === null) return;
     this.hoveredCoord = null;
-    this.render();
+    if (this.hoverAffectsPresentation()) this.render();
   };
 
   private coordAtWorldPoint(x: number, y: number): Coord | null {

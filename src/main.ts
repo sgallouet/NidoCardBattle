@@ -16,8 +16,18 @@ try {
   tileBordersVisible = true;
 }
 
-const originalLineStyle = Phaser.GameObjects.Graphics.prototype.lineStyle;
-Phaser.GameObjects.Graphics.prototype.lineStyle = function (
+type GraphicsLineStyle = (
+  this: Phaser.GameObjects.Graphics,
+  lineWidth?: number,
+  color?: number,
+  alpha?: number,
+) => Phaser.GameObjects.Graphics;
+
+const graphicsPrototype = Phaser.GameObjects.Graphics.prototype as unknown as {
+  lineStyle: GraphicsLineStyle;
+};
+const originalLineStyle = graphicsPrototype.lineStyle;
+graphicsPrototype.lineStyle = function (
   lineWidth = 1,
   color = 0xffffff,
   alpha = 1,

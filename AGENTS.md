@@ -41,6 +41,13 @@ NidoCardBattle is deliberately small. Prefer the simplest implementation that ma
 - Do not overwrite or destructively edit source art.
 - Put generated, cropped, converted, or processed game-ready assets under `assets/game/`.
 
+## Static Art
+
+- Use `$nidocardbattle-static-art-pipeline` whenever creating, replacing, processing, or promoting card, unit, terrain, site, key, or static marketing art.
+- Treat generated images as candidates until reviewed; preserve untouched source art under `assets/source/` and promote only accepted processed runtime assets to `assets/game/`.
+- For itch.io art, keep untouched candidates under `assets/source/marketing/itch/` and approved publishing exports under `release/itch/art/`.
+- Never present AI-generated promotional composites as gameplay screenshots; screenshots must come from the running game.
+
 ## Visual FX
 
 - Use `$nidocardbattle-vfx-pipeline` whenever adding, copying, replacing, or tuning combat, projectile, spell, summon, death, terrain, or tactical visual effects.

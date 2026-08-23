@@ -1,6 +1,10 @@
-/* Keep card input aligned with the animated/tilted visual surface.
-   The surface is translated/scaled independently from the button shell, so it must
-   participate in hit testing or the raised edges look clickable but are not. */
+/* Only the transformed visible card surface should receive pointer input.
+   The parent button keeps keyboard focus/click semantics, but its untransformed
+   rectangle must not steal pointer events from overlapping cards. */
+.card {
+  pointer-events: none;
+}
+
 .card-surface {
   pointer-events: auto;
 }

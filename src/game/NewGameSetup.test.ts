@@ -22,16 +22,17 @@ describe('CRU3 configurable new-game spawn sources', () => {
 
       const slot = STARTING_SIDE_SLOTS[side];
       const keep = state.sites.find((site) => site.id === slot.keepId);
+      expect(keep).toBeDefined();
+      if (!keep) throw new Error(`Missing configured Home Keep ${slot.keepId}.`);
+
       expect(state.players[1].faction).toBe('undead');
-      expect(keep?.owner).toBe(1);
-      expect(
-        getValidSummonCoords(state, 1).some((coord) => keep && sameCoord(coord, keep.coord)),
-      ).toBe(true);
+      expect(keep.owner).toBe(1);
+      expect(getValidSummonCoords(state, 1).some((coord) => sameCoord(coord, keep.coord))).toBe(true);
       expect(siteArtFor('keep', 1).textureKey).toBe('site-keep-undead');
 
       state.players[1].hand = ['skeletalInfantry'];
       state.players[1].mana = 3;
-      const result = playUnitCard(state, 0, slot.keepId === keep?.id ? keep.coord : slot.commander);
+      const result = playUnitCard(state, 0, keep.coord);
       expect(result.ok).toBe(true);
     });
   }

@@ -1,6 +1,14 @@
 import type { GameState } from '../data/types';
 import { AiGameScene } from './AiGameScene';
 import { MAX_MANA } from './engine';
+import {
+  alignCommanderRuntimeForLocalFaction,
+  chooseNewGameSetup,
+  configureFreshGameState,
+  consumePendingNewGameSetup,
+  savePendingNewGameSetup,
+  startSideLabel,
+} from './NewGameSetup';
 import { clearSavedGameState, loadSavedGameState, saveGameState } from './save';
 
 interface PersistentSceneInternals {
@@ -13,12 +21,21 @@ export class PersistentAiGameScene extends AiGameScene {
   create(): void {
     const scene = this as unknown as PersistentSceneInternals;
     const saved = loadSavedGameState();
+    const pendingSetup = saved ? null : consumePendingNewGameSetup();
+
     if (saved) {
       for (const playerId of [1, 2] as const) {
         saved.players[playerId].mana = Math.min(MAX_MANA, Math.max(0, saved.players[playerId].mana));
       }
       scene.state = saved;
+      alignCommanderRuntimeForLocalFaction(saved.players[1].faction);
       scene.message = `Saved match resumed on turn ${saved.turnNumber}.`;
+    } else if (pendingSetup) {
+      configureFreshGameState(scene.state, pendingSetup);
+      const factionName = pendingSetup.faction === 'human' ? 'Human' : 'Undead';
+      scene.message = `${factionName} deployed at the ${startSideLabel(pendingSetup.side)} start.`;
+    } else {
+      alignCommanderRuntimeForLocalFaction(scene.state.players[1].faction);
     }
 
     super.create();
@@ -42,10 +59,16 @@ export class PersistentAiGameScene extends AiGameScene {
 
     const newGameButton = document.querySelector<HTMLButtonElement>('#new-game-button');
     const startNewGame = (): void => {
-      if (!window.confirm('Start a new game? Your current match will be discarded.')) return;
-      persistenceEnabled = false;
-      clearSavedGameState();
-      window.location.reload();
+      void chooseNewGameSetup().then((setup) => {
+        if (!setup) return;
+        if (!savePendingNewGameSetup(setup)) {
+          window.alert('Unable to start a new game because browser session storage is unavailable.');
+          return;
+        }
+        persistenceEnabled = false;
+        clearSavedGameState();
+        window.location.reload();
+      });
     };
     newGameButton?.addEventListener('click', startNewGame);
 

@@ -1,0 +1,174 @@
+name: Apply tile border modes and layering fix
+
+on:
+  push:
+    paths:
+      - .github/workflows/patch-tile-border-layering.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch border modes and render order
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          main = Path('src/main.ts')
+          text = main.read_text()
+
+          old_state = """const TILE_BORDER_STORAGE_KEY = 'nido.tileBordersVisible';
+
+let tileBordersVisible = true;
+try {
+  tileBordersVisible = window.localStorage.getItem(TILE_BORDER_STORAGE_KEY) !== 'false';
+} catch {
+  tileBordersVisible = true;
+}
+"""
+          new_state = """type TileBorderMode = 'full' | 'half' | 'off';
+
+const TILE_BORDER_STORAGE_KEY = 'nido.tileBorderMode';
+const LEGACY_TILE_BORDER_STORAGE_KEY = 'nido.tileBordersVisible';
+
+let tileBorderMode: TileBorderMode = 'full';
+try {
+  const stored = window.localStorage.getItem(TILE_BORDER_STORAGE_KEY);
+  if (stored === 'full' || stored === 'half' || stored === 'off') {
+    tileBorderMode = stored;
+  } else if (window.localStorage.getItem(LEGACY_TILE_BORDER_STORAGE_KEY) === 'false') {
+    tileBorderMode = 'off';
+  }
+} catch {
+  tileBorderMode = 'full';
+}
+
+const nextTileBorderMode = (mode: TileBorderMode): TileBorderMode => {
+  if (mode === 'full') return 'half';
+  if (mode === 'half') return 'off';
+  return 'full';
+};
+"""
+          if old_state not in text:
+              raise SystemExit('main.ts state block not found')
+          text = text.replace(old_state, new_state, 1)
+
+          old_line_style = """  const isIdleTileBorder = lineWidth === 2 && color === 0x263828 && alpha === 0.95;
+  return originalLineStyle.call(
+    this,
+    lineWidth,
+    color,
+    !tileBordersVisible && isIdleTileBorder ? 0 : alpha,
+  );
+"""
+          new_line_style = """  const isIdleTileBorder = lineWidth === 2 && color === 0x263828 && alpha === 0.95;
+  const adjustedWidth = isIdleTileBorder
+    ? tileBorderMode === 'full' ? 2 : tileBorderMode === 'half' ? 1 : 0
+    : lineWidth;
+  return originalLineStyle.call(this, adjustedWidth, color, alpha);
+"""
+          if old_line_style not in text:
+              raise SystemExit('main.ts lineStyle block not found')
+          text = text.replace(old_line_style, new_line_style, 1)
+
+          old_button = """const updateTileBorderButton = (): void => {
+  if (!tileBorderButton) return;
+  tileBorderButton.textContent = `Borders: ${tileBordersVisible ? 'On' : 'Off'}`;
+  tileBorderButton.setAttribute('aria-pressed', `${tileBordersVisible}`);
+  tileBorderButton.setAttribute(
+    'aria-label',
+    tileBordersVisible ? 'Hide hex tile borders' : 'Show hex tile borders',
+  );
+  tileBorderButton.title = tileBordersVisible ? 'Hide hex tile borders' : 'Show hex tile borders';
+  tileBorderButton.disabled = MAP_RENDER_MODE === 'authored';
+};
+"""
+          new_button = """const updateTileBorderButton = (): void => {
+  if (!tileBorderButton) return;
+  const currentLabel = tileBorderMode === 'full' ? 'Full' : tileBorderMode === 'half' ? 'Half' : 'Off';
+  const nextMode = nextTileBorderMode(tileBorderMode);
+  tileBorderButton.textContent = `Borders: ${currentLabel}`;
+  tileBorderButton.setAttribute('aria-pressed', `${tileBorderMode !== 'off'}`);
+  tileBorderButton.setAttribute('aria-label', `Cycle hex tile borders to ${nextMode}`);
+  tileBorderButton.title = `Cycle hex tile borders to ${nextMode}`;
+  tileBorderButton.disabled = MAP_RENDER_MODE === 'authored';
+};
+"""
+          if old_button not in text:
+              raise SystemExit('main.ts button block not found')
+          text = text.replace(old_button, new_button, 1)
+
+          old_click = """tileBorderButton?.addEventListener('click', () => {
+  tileBordersVisible = !tileBordersVisible;
+  try {
+    window.localStorage.setItem(TILE_BORDER_STORAGE_KEY, `${tileBordersVisible}`);
+  } catch {
+    // Keep the in-memory preference when storage is unavailable.
+  }
+  updateTileBorderButton();
+
+  if (!game.scene.isActive('game')) return;
+  const scene = game.scene.getScene('game') as unknown as { renderAll?: () => void };
+  scene.renderAll?.();
+});
+"""
+          new_click = """tileBorderButton?.addEventListener('click', () => {
+  tileBorderMode = nextTileBorderMode(tileBorderMode);
+  try {
+    window.localStorage.setItem(TILE_BORDER_STORAGE_KEY, tileBorderMode);
+  } catch {
+    // Keep the in-memory preference when storage is unavailable.
+  }
+  updateTileBorderButton();
+
+  if (!game.scene.isActive('game')) return;
+  const scene = game.scene.getScene('game') as unknown as { renderAll?: () => void };
+  scene.renderAll?.();
+});
+"""
+          if old_click not in text:
+              raise SystemExit('main.ts click block not found')
+          text = text.replace(old_click, new_click, 1)
+          main.write_text(text)
+
+          scene = Path('src/game/GameScene.ts')
+          text = scene.read_text()
+          terrain_detail = """        if (!this.useGeneratedMapPreview && terrain !== 'plain' && terrain !== 'forest' && terrain !== 'water') {
+          this.addTerrainDetail(coord, center);
+        }
+"""
+          marker = """        const hex = this.add.graphics();
+"""
+          if marker not in text or terrain_detail not in text:
+              raise SystemExit('GameScene.ts render markers not found')
+          text = text.replace(marker, terrain_detail + '\n' + marker, 1)
+          trailing = """        this.boardLayer.add(hex);
+        if (!this.useGeneratedMapPreview && terrain !== 'plain' && terrain !== 'forest' && terrain !== 'water') {
+          this.addTerrainDetail(coord, center);
+        }
+"""
+          replacement = """        this.boardLayer.add(hex);
+"""
+          if trailing not in text:
+              raise SystemExit('GameScene.ts trailing terrain detail block not found')
+          text = text.replace(trailing, replacement, 1)
+          scene.write_text(text)
+          PY
+      - name: Typecheck and build
+        run: npm ci && npm run build
+      - name: Commit patch and remove one-time workflow
+        shell: bash
+        run: |
+          rm .github/workflows/patch-tile-border-layering.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main.ts src/game/GameScene.ts .github/workflows/patch-tile-border-layering.yml
+          git commit -m "Add half tile borders and fix render layering"
+          git push origin HEAD:main

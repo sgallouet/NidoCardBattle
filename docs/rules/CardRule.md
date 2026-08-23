@@ -6,7 +6,7 @@ This file owns deck, hand, card-type, faction, and summoning rules.
 - **CRD1** - Prototype faction deck size is **8 cards**.
 - **CRD2** - A deck may contain at most 2 copies of the same card.
 - **CRD3** - When the deck is empty, shuffle the discard pile into a new deck.
-- **CRD4** - The current prototype assigns Player 1 the **Human** faction and Player 2 the **Undead** faction; each player draws from that faction's prebuilt deck, which may also contain Shared Tactic Cards under `CRD6`.
+- **CRD4** - At New Game, the local player chooses the **Human** or **Undead** faction and the AI uses the other faction; each player draws from that faction's prebuilt deck, which may also contain Shared Tactic Cards under `CRD6`.
 - **CRD5** - A faction-specific card may only be played by a player of that faction.
 - **CRD6** - A **Shared** Tactic Card may be included in either faction's deck and played by either faction.
 

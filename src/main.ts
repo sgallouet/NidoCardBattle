@@ -3,18 +3,7 @@ import './style.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
 import { AnimatedPrototypeGameScene } from './game/AnimatedPrototypeGameScene';
 
-const app = document.querySelector<HTMLElement>('#app');
-const fullscreenButton = document.querySelector<HTMLButtonElement>('#fullscreen-button');
-const mapRenderButton = document.querySelector<HTMLButtonElement>('#map-render-button');
-const tileBorderButton = document.querySelector<HTMLButtonElement>('#tile-border-button');
-const TILE_BORDER_STORAGE_KEY = 'nido.tileBordersVisible';
-
-let tileBordersVisible = true;
-try {
-  tileBordersVisible = window.localStorage.getItem(TILE_BORDER_STORAGE_KEY) !== 'false';
-} catch {
-  tileBordersVisible = true;
-}
+type TileBorderMode = 'full' | 'half' | 'off';
 
 type GraphicsLineStyle = (
   this: Phaser.GameObjects.Graphics,
@@ -22,6 +11,31 @@ type GraphicsLineStyle = (
   color?: number,
   alpha?: number,
 ) => Phaser.GameObjects.Graphics;
+
+const app = document.querySelector<HTMLElement>('#app');
+const fullscreenButton = document.querySelector<HTMLButtonElement>('#fullscreen-button');
+const mapRenderButton = document.querySelector<HTMLButtonElement>('#map-render-button');
+const tileBorderButton = document.querySelector<HTMLButtonElement>('#tile-border-button');
+const TILE_BORDER_STORAGE_KEY = 'nido.tileBorderMode';
+const LEGACY_TILE_BORDER_STORAGE_KEY = 'nido.tileBordersVisible';
+
+let tileBorderMode: TileBorderMode = 'full';
+try {
+  const stored = window.localStorage.getItem(TILE_BORDER_STORAGE_KEY);
+  if (stored === 'full' || stored === 'half' || stored === 'off') {
+    tileBorderMode = stored;
+  } else if (window.localStorage.getItem(LEGACY_TILE_BORDER_STORAGE_KEY) === 'false') {
+    tileBorderMode = 'off';
+  }
+} catch {
+  tileBorderMode = 'full';
+}
+
+const nextTileBorderMode = (mode: TileBorderMode): TileBorderMode => {
+  if (mode === 'full') return 'half';
+  if (mode === 'half') return 'off';
+  return 'full';
+};
 
 const graphicsPrototype = Phaser.GameObjects.Graphics.prototype as unknown as {
   lineStyle: GraphicsLineStyle;
@@ -33,12 +47,10 @@ graphicsPrototype.lineStyle = function (
   alpha = 1,
 ): Phaser.GameObjects.Graphics {
   const isIdleTileBorder = lineWidth === 2 && color === 0x263828 && alpha === 0.95;
-  return originalLineStyle.call(
-    this,
-    lineWidth,
-    color,
-    !tileBordersVisible && isIdleTileBorder ? 0 : alpha,
-  );
+  const adjustedWidth = isIdleTileBorder
+    ? tileBorderMode === 'full' ? 2 : tileBorderMode === 'half' ? 1 : 0
+    : lineWidth;
+  return originalLineStyle.call(this, adjustedWidth, color, alpha);
 };
 
 const updateFullscreenButton = (): void => {
@@ -61,13 +73,12 @@ const updateMapRenderButton = (): void => {
 
 const updateTileBorderButton = (): void => {
   if (!tileBorderButton) return;
-  tileBorderButton.textContent = `Borders: ${tileBordersVisible ? 'On' : 'Off'}`;
-  tileBorderButton.setAttribute('aria-pressed', `${tileBordersVisible}`);
-  tileBorderButton.setAttribute(
-    'aria-label',
-    tileBordersVisible ? 'Hide hex tile borders' : 'Show hex tile borders',
-  );
-  tileBorderButton.title = tileBordersVisible ? 'Hide hex tile borders' : 'Show hex tile borders';
+  const currentLabel = tileBorderMode === 'full' ? 'Full' : tileBorderMode === 'half' ? 'Half' : 'Off';
+  const nextMode = nextTileBorderMode(tileBorderMode);
+  tileBorderButton.textContent = `Borders: ${currentLabel}`;
+  tileBorderButton.setAttribute('aria-pressed', `${tileBorderMode !== 'off'}`);
+  tileBorderButton.setAttribute('aria-label', `Cycle hex tile borders to ${nextMode}`);
+  tileBorderButton.title = `Cycle hex tile borders to ${nextMode}`;
   tileBorderButton.disabled = MAP_RENDER_MODE === 'authored';
 };
 
@@ -108,9 +119,9 @@ const game = new Phaser.Game({
 });
 
 tileBorderButton?.addEventListener('click', () => {
-  tileBordersVisible = !tileBordersVisible;
+  tileBorderMode = nextTileBorderMode(tileBorderMode);
   try {
-    window.localStorage.setItem(TILE_BORDER_STORAGE_KEY, `${tileBordersVisible}`);
+    window.localStorage.setItem(TILE_BORDER_STORAGE_KEY, tileBorderMode);
   } catch {
     // Keep the in-memory preference when storage is unavailable.
   }

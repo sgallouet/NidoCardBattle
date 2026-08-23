@@ -21,111 +21,82 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           scene = Path('src/game/GameScene.ts')
           text = scene.read_text()
 
-          old_state = """interface DragState {
-            startX: number;
-            startY: number;
-            scrollX: number;
-            scrollY: number;
-            moved: boolean;
-          }
-          """
-          new_state = """interface DragState {
+          text, count = re.subn(
+              r"interface DragState \{\s*startX: number;\s*startY: number;\s*scrollX: number;\s*scrollY: number;\s*moved: boolean;\s*\}",
+              """interface DragState {
             startX: number;
             startY: number;
             lastX: number;
             lastY: number;
             moved: boolean;
-          }
-          """
-          if old_state not in text:
-              raise SystemExit('DragState block not found')
-          text = text.replace(old_state, new_state, 1)
+          }""",
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit(f'Expected one DragState block, replaced {count}')
 
-          old_handlers = """    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-              if (!pointer.isDown) return;
-              this.dragState = {
-                startX: pointer.x,
-                startY: pointer.y,
-                scrollX: camera.scrollX,
-                scrollY: camera.scrollY,
-                moved: false,
-              };
-            });
+          start = text.index("    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {")
+          end = text.index("    this.input.on('pointerup', () => {", start)
+          replacement = """    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            if (!pointer.isDown) return;
+            this.dragState = {
+              startX: pointer.x,
+              startY: pointer.y,
+              lastX: pointer.x,
+              lastY: pointer.y,
+              moved: false,
+            };
+          });
 
-            this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-              if (!pointer.isDown || !this.dragState) return;
-              const dx = pointer.x - this.dragState.startX;
-              const dy = pointer.y - this.dragState.startY;
-              if (!this.dragState.moved && Math.hypot(dx, dy) < 7) return;
+          this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+            if (!pointer.isDown || !this.dragState) return;
+
+            if (!this.dragState.moved) {
+              const startDx = pointer.x - this.dragState.startX;
+              const startDy = pointer.y - this.dragState.startY;
+              if (Math.hypot(startDx, startDy) < 7) return;
+
+              // Crossing the threshold only arms panning. Rebase here so none of
+              // the click/drag dead-zone distance is ever applied as a camera jump.
               this.dragState.moved = true;
-              this.game.canvas.classList.add('dragging');
-              camera.setScroll(
-                this.dragState.scrollX - dx / camera.zoom,
-                this.dragState.scrollY - dy / camera.zoom,
-              );
-              this.constrainCamera();
-            });
-          """
-          new_handlers = """    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-              if (!pointer.isDown) return;
-              this.dragState = {
-                startX: pointer.x,
-                startY: pointer.y,
-                lastX: pointer.x,
-                lastY: pointer.y,
-                moved: false,
-              };
-            });
-
-            this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-              if (!pointer.isDown || !this.dragState) return;
-
-              if (!this.dragState.moved) {
-                const startDx = pointer.x - this.dragState.startX;
-                const startDy = pointer.y - this.dragState.startY;
-                if (Math.hypot(startDx, startDy) < 7) return;
-
-                // Crossing the click/drag threshold only arms panning. Rebase here so the
-                // threshold distance is never applied to the camera as one catch-up jump.
-                this.dragState.moved = true;
-                this.dragState.lastX = pointer.x;
-                this.dragState.lastY = pointer.y;
-                this.game.canvas.classList.add('dragging');
-                return;
-              }
-
-              const dx = pointer.x - this.dragState.lastX;
-              const dy = pointer.y - this.dragState.lastY;
               this.dragState.lastX = pointer.x;
               this.dragState.lastY = pointer.y;
-              if (dx === 0 && dy === 0) return;
+              this.game.canvas.classList.add('dragging');
+              return;
+            }
 
-              camera.setScroll(
-                camera.scrollX - dx / camera.zoom,
-                camera.scrollY - dy / camera.zoom,
-              );
-              this.constrainCamera();
-            });
+            const dx = pointer.x - this.dragState.lastX;
+            const dy = pointer.y - this.dragState.lastY;
+            this.dragState.lastX = pointer.x;
+            this.dragState.lastY = pointer.y;
+            if (dx === 0 && dy === 0) return;
+
+            camera.setScroll(
+              camera.scrollX - dx / camera.zoom,
+              camera.scrollY - dy / camera.zoom,
+            );
+            this.constrainCamera();
+          });
+
           """
-          if old_handlers not in text:
-              raise SystemExit('Camera drag handlers not found')
-          text = text.replace(old_handlers, new_handlers, 1)
+          text = text[:start] + replacement + text[end:]
           scene.write_text(text)
 
           main = Path('src/main.ts')
           text = main.read_text()
-          old_import = "import { SmoothDragGameScene } from './game/SmoothDragGameScene';"
-          new_import = "import { AnimatedPrototypeGameScene } from './game/AnimatedPrototypeGameScene';"
-          if old_import not in text:
-              raise SystemExit('SmoothDragGameScene import not found')
-          text = text.replace(old_import, new_import, 1)
-          if 'scene: [SmoothDragGameScene],' not in text:
-              raise SystemExit('SmoothDragGameScene scene registration not found')
-          text = text.replace('scene: [SmoothDragGameScene],', 'scene: [AnimatedPrototypeGameScene],', 1)
+          text = text.replace(
+              "import { SmoothDragGameScene } from './game/SmoothDragGameScene';",
+              "import { AnimatedPrototypeGameScene } from './game/AnimatedPrototypeGameScene';",
+          )
+          text = text.replace('scene: [SmoothDragGameScene],', 'scene: [AnimatedPrototypeGameScene],')
+          if 'SmoothDragGameScene' in text:
+              raise SystemExit('SmoothDragGameScene reference remains in main.ts')
           main.write_text(text)
 
           smooth = Path('src/game/SmoothDragGameScene.ts')
@@ -142,6 +113,6 @@ jobs:
           rm .github/workflows/patch-drag-direct.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/game/GameScene.ts src/main.ts src/game/SmoothDragGameScene.ts .github/workflows/patch-drag-direct.yml
+          git add -A
           git commit -m "Fix camera drag startup teleport"
           git push origin HEAD:main

@@ -139,8 +139,8 @@ type SelectionFxMode = 'current' | 'premium';
 interface DragState {
   startX: number;
   startY: number;
-  scrollX: number;
-  scrollY: number;
+  lastX: number;
+  lastY: number;
   moved: boolean;
 }
 
@@ -325,29 +325,45 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (!pointer.isDown) return;
-      this.dragState = {
-        startX: pointer.x,
-        startY: pointer.y,
-        scrollX: camera.scrollX,
-        scrollY: camera.scrollY,
-        moved: false,
-      };
-    });
+  if (!pointer.isDown) return;
+  this.dragState = {
+    startX: pointer.x,
+    startY: pointer.y,
+    lastX: pointer.x,
+    lastY: pointer.y,
+    moved: false,
+  };
+});
 
-    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!pointer.isDown || !this.dragState) return;
-      const dx = pointer.x - this.dragState.startX;
-      const dy = pointer.y - this.dragState.startY;
-      if (!this.dragState.moved && Math.hypot(dx, dy) < 7) return;
-      this.dragState.moved = true;
-      this.game.canvas.classList.add('dragging');
-      camera.setScroll(
-        this.dragState.scrollX - dx / camera.zoom,
-        this.dragState.scrollY - dy / camera.zoom,
-      );
-      this.constrainCamera();
-    });
+this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+  if (!pointer.isDown || !this.dragState) return;
+
+  if (!this.dragState.moved) {
+    const startDx = pointer.x - this.dragState.startX;
+    const startDy = pointer.y - this.dragState.startY;
+    if (Math.hypot(startDx, startDy) < 7) return;
+
+    // Crossing the threshold only arms panning. Rebase here so none of
+    // the click/drag dead-zone distance is ever applied as a camera jump.
+    this.dragState.moved = true;
+    this.dragState.lastX = pointer.x;
+    this.dragState.lastY = pointer.y;
+    this.game.canvas.classList.add('dragging');
+    return;
+  }
+
+  const dx = pointer.x - this.dragState.lastX;
+  const dy = pointer.y - this.dragState.lastY;
+  this.dragState.lastX = pointer.x;
+  this.dragState.lastY = pointer.y;
+  if (dx === 0 && dy === 0) return;
+
+  camera.setScroll(
+    camera.scrollX - dx / camera.zoom,
+    camera.scrollY - dy / camera.zoom,
+  );
+  this.constrainCamera();
+});
 
     this.input.on('pointerup', () => {
       if (this.dragState?.moved) {

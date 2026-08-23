@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import './style.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
-import { AnimatedPrototypeGameScene } from './game/AnimatedPrototypeGameScene';
+import { SmoothDragGameScene } from './game/SmoothDragGameScene';
 
 type TileBorderMode = 'full' | 'half' | 'off';
 
@@ -123,7 +123,7 @@ const game = new Phaser.Game({
   width: window.innerWidth,
   height: window.innerHeight,
   backgroundColor: '#02091a',
-  scene: [AnimatedPrototypeGameScene],
+  scene: [SmoothDragGameScene],
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.NO_CENTER,

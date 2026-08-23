@@ -21,7 +21,7 @@ import wellHumanShadow from '../../assets/game/sites/shadows/well-human.webp?url
 import wellNeutralShadow from '../../assets/game/sites/shadows/well-neutral.webp?url';
 import wellUndeadShadow from '../../assets/game/sites/shadows/well-undead.webp?url';
 import { projectedShadowArt, type ProjectedShadowArtDefinition } from './artShadow';
-import type { PlayerId, SiteType } from './types';
+import type { Faction, PlayerId, SiteType } from './types';
 
 export interface SiteArtDefinition {
   textureKey: string;
@@ -34,6 +34,16 @@ export interface SiteArtDefinition {
 }
 
 type SiteOwnerVariant = 'neutral' | 'human' | 'undead';
+
+const OWNER_FACTIONS: Record<PlayerId, Faction> = {
+  1: 'human',
+  2: 'undead',
+};
+
+export function setSiteOwnerFactions(player1: Faction, player2: Faction): void {
+  OWNER_FACTIONS[1] = player1;
+  OWNER_FACTIONS[2] = player2;
+}
 
 const KEEP_STANDARD_ART: SiteArtDefinition = {
   textureKey: 'site-keep',
@@ -126,9 +136,8 @@ export const SITE_SHADOW_TEXTURES: ProjectedShadowArtDefinition[] = SITE_ART_TEX
 );
 
 function ownerVariant(owner: PlayerId | null): SiteOwnerVariant {
-  if (owner === 1) return 'human';
-  if (owner === 2) return 'undead';
-  return 'neutral';
+  if (owner === null) return 'neutral';
+  return OWNER_FACTIONS[owner];
 }
 
 export function siteArtFor(type: SiteType, owner: PlayerId | null): SiteArtDefinition {

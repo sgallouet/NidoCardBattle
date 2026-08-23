@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import './style.css';
+import './cardHitAreaFix.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
 import { SmoothDragGameScene } from './game/SmoothDragGameScene';
 

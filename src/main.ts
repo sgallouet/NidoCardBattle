@@ -6,6 +6,30 @@ import { AnimatedPrototypeGameScene } from './game/AnimatedPrototypeGameScene';
 const app = document.querySelector<HTMLElement>('#app');
 const fullscreenButton = document.querySelector<HTMLButtonElement>('#fullscreen-button');
 const mapRenderButton = document.querySelector<HTMLButtonElement>('#map-render-button');
+const tileBorderButton = document.querySelector<HTMLButtonElement>('#tile-border-button');
+const TILE_BORDER_STORAGE_KEY = 'nido.tileBordersVisible';
+
+let tileBordersVisible = true;
+try {
+  tileBordersVisible = window.localStorage.getItem(TILE_BORDER_STORAGE_KEY) !== 'false';
+} catch {
+  tileBordersVisible = true;
+}
+
+const originalLineStyle = Phaser.GameObjects.Graphics.prototype.lineStyle;
+Phaser.GameObjects.Graphics.prototype.lineStyle = function (
+  lineWidth = 1,
+  color = 0xffffff,
+  alpha = 1,
+): Phaser.GameObjects.Graphics {
+  const isIdleTileBorder = lineWidth === 2 && color === 0x263828 && alpha === 0.95;
+  return originalLineStyle.call(
+    this,
+    lineWidth,
+    color,
+    !tileBordersVisible && isIdleTileBorder ? 0 : alpha,
+  );
+};
 
 const updateFullscreenButton = (): void => {
   if (!fullscreenButton) return;
@@ -25,6 +49,18 @@ const updateMapRenderButton = (): void => {
   mapRenderButton.title = `Switch to ${nextLabel} map rendering`;
 };
 
+const updateTileBorderButton = (): void => {
+  if (!tileBorderButton) return;
+  tileBorderButton.textContent = `Borders: ${tileBordersVisible ? 'On' : 'Off'}`;
+  tileBorderButton.setAttribute('aria-pressed', `${tileBordersVisible}`);
+  tileBorderButton.setAttribute(
+    'aria-label',
+    tileBordersVisible ? 'Hide hex tile borders' : 'Show hex tile borders',
+  );
+  tileBorderButton.title = tileBordersVisible ? 'Hide hex tile borders' : 'Show hex tile borders';
+  tileBorderButton.disabled = MAP_RENDER_MODE === 'authored';
+};
+
 fullscreenButton?.addEventListener('click', async () => {
   if (document.fullscreenElement) {
     await document.exitFullscreen();
@@ -42,8 +78,9 @@ mapRenderButton?.addEventListener('click', () => {
   window.location.assign(url);
 });
 updateMapRenderButton();
+updateTileBorderButton();
 
-new Phaser.Game({
+const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game-container',
   width: window.innerWidth,
@@ -58,4 +95,18 @@ new Phaser.Game({
     antialias: true,
     pixelArt: false,
   },
+});
+
+tileBorderButton?.addEventListener('click', () => {
+  tileBordersVisible = !tileBordersVisible;
+  try {
+    window.localStorage.setItem(TILE_BORDER_STORAGE_KEY, `${tileBordersVisible}`);
+  } catch {
+    // Keep the in-memory preference when storage is unavailable.
+  }
+  updateTileBorderButton();
+
+  if (!game.scene.isActive('game')) return;
+  const scene = game.scene.getScene('game') as unknown as { renderAll?: () => void };
+  scene.renderAll?.();
 });

@@ -102,11 +102,26 @@ export const MAP_GARRISONS: MapGarrison[] = [
   { id: 'garrison-south-south', fortId: 'fort-south', coord: { q: 9, r: 10 } },
 ];
 
+export const STARTING_SIDE_SLOTS = {
+  bottomLeft: {
+    keepId: 'keep-1',
+    commander: { q: 2, r: 8 },
+    frontline: { q: 3, r: 8 },
+    support: { q: 3, r: 10 },
+  },
+  upperRight: {
+    keepId: 'keep-2',
+    commander: { q: 15, r: 4 },
+    frontline: { q: 14, r: 4 },
+    support: { q: 14, r: 2 },
+  },
+} as const;
+
 export const STARTING_UNITS = [
-  { definitionId: 'commander', owner: 1 as const, coord: { q: 2, r: 8 } },
-  { definitionId: 'royalGuard', owner: 1 as const, coord: { q: 3, r: 8 } },
-  { definitionId: 'longbowRanger', owner: 1 as const, coord: { q: 3, r: 10 } },
-  { definitionId: 'commander', owner: 2 as const, coord: { q: 15, r: 4 } },
-  { definitionId: 'skeletalInfantry', owner: 2 as const, coord: { q: 14, r: 4 } },
-  { definitionId: 'necromancer', owner: 2 as const, coord: { q: 14, r: 2 } },
+  { definitionId: 'commander', owner: 1 as const, coord: STARTING_SIDE_SLOTS.bottomLeft.commander },
+  { definitionId: 'royalGuard', owner: 1 as const, coord: STARTING_SIDE_SLOTS.bottomLeft.frontline },
+  { definitionId: 'longbowRanger', owner: 1 as const, coord: STARTING_SIDE_SLOTS.bottomLeft.support },
+  { definitionId: 'commander', owner: 2 as const, coord: STARTING_SIDE_SLOTS.upperRight.commander },
+  { definitionId: 'skeletalInfantry', owner: 2 as const, coord: STARTING_SIDE_SLOTS.upperRight.frontline },
+  { definitionId: 'necromancer', owner: 2 as const, coord: STARTING_SIDE_SLOTS.upperRight.support },
 ];

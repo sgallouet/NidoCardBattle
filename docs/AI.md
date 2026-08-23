@@ -38,9 +38,12 @@ This document describes AI architecture only. Gameplay rules remain authoritativ
 ## Simulation
 - `simulateAiMatch(seed)` runs one deterministic headless match with the real game engine.
 - `simulateAiBatch(...)` aggregates faction win rate, first-player win rate, match length, stalemates, Commander deaths, objective control, unit/card usage, all gameplay action kinds, AI search cost, timeouts, and plan replay failures.
+- `generateBattleLog(...)` records a compact initial state, every resolved AI action, the resulting state delta, end-turn effects, planner diagnostics, available legal-action counts, and the final state in a versioned JSON schema.
+- `analyzeBattleLogs(...)` derives processable faction metrics and evidence-linked AI, simulation, and pacing findings from one or more detailed logs.
 - Batch simulations alternate Human and Undead as Player 1 by default so faction strength is not confused with first-move advantage.
 - Simulation repetition fingerprints include full unit status state so Curse, Soul Link, movement bonuses, and future status effects cannot create false repetitions.
 - `npm run simulate` runs a reproducible 12-match baseline report without loading Phaser or game art.
+- `npm run battlelog -- --matches 2 --seed 20260823` writes detailed alternating-first-player logs and their analysis under `reports/battle-logs/`. Use `--out <path>` to choose another output file.
 
 ## Known Limits From Self-Review
 - Opponent response search models visible board actions only and deliberately does not guess hidden cards yet.

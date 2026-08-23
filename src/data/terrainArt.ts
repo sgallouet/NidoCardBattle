@@ -34,8 +34,8 @@ export const FOREST_TERRAIN_ART = {
 export const HILL_TERRAIN_ART = {
   textureKey: 'terrain-hill-overlay',
   url: hillOverlay,
-  displayWidth: 76,
-  displayHeight: 76,
+  displayWidth: 87,
+  displayHeight: 87,
 } as const;
 
 export const MOUNTAIN_TERRAIN_ART = {

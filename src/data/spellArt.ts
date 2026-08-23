@@ -1,7 +1,7 @@
-import curse from '../../assets/game/ui/spells/curse.svg?url';
-import displace from '../../assets/game/ui/spells/displace.svg?url';
-import rally from '../../assets/game/ui/spells/rally.svg?url';
-import soulLink from '../../assets/game/ui/spells/soul-link.svg?url';
+import curse from '../../assets/game/ui/spells/curse.webp?url';
+import displace from '../../assets/game/ui/spells/displace.webp?url';
+import rally from '../../assets/game/ui/spells/rally.webp?url';
+import soulLink from '../../assets/game/ui/spells/soul-link.webp?url';
 
 export type ActiveSpellId = 'Curse' | 'Displace' | 'Rally' | 'SoulLink';
 

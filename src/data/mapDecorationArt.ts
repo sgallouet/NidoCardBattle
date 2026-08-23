@@ -1,5 +1,7 @@
 import ruin from '../../assets/game/decorations/ruin.webp?url';
+import ruinShadow from '../../assets/game/decorations/shadows/ruin.webp?url';
 import town from '../../assets/game/decorations/town.webp?url';
+import { projectedShadowArt } from './artShadow';
 
 export const RUIN_ART = {
   textureKey: 'decoration-ruin',
@@ -7,6 +9,7 @@ export const RUIN_ART = {
   displayWidth: 72,
   displayHeight: 70,
   bottomOffset: 29,
+  shadow: projectedShadowArt('decoration-ruin-shadow', ruinShadow, 256, 247, 70, 0.46),
 } as const;
 
 export const TOWN_ART = {

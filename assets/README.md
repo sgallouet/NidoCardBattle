@@ -9,6 +9,7 @@
 - Exact duplicate attachments were not copied a second time.
 - `assets/game/cards/` contains 512 × 768 lossless WebP cards selected for the live card-art map.
 - `assets/game/units/` contains compact game-ready battlefield art; animated units keep their state sheets in a unit-specific folder.
+- `assets/game/units/shadows/` contains static unit sprites with baked contact shadows. Install the tooling with `python -m pip install -r tools/requirements-shadows.txt`, then regenerate with `python tools/bake_unit_shadows.py`; generation settings and source mappings live in `manifest.json` beside the outputs. Animated units retain their authored frame shadows.
 - `assets/game/sites/` contains cropped, compact battlefield site art.
 - `assets/game/decorations/` contains cropped, compact non-gameplay map decorations.
 - Other `assets/game/` folders contain processed, cropped, or exported game-ready assets for their named systems.

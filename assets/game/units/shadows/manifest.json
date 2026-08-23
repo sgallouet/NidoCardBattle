@@ -1,0 +1,73 @@
+{
+  "version": 2,
+  "defaults": {
+    "frameSize": 200,
+    "alphaThreshold": 20,
+    "groundPercentile": 0.99,
+    "contactBand": 18,
+    "widthFactor": 0.52,
+    "minWidth": 54,
+    "maxWidth": 112,
+    "heightRatio": 0.2,
+    "groundOffset": 1,
+    "blurRadius": 3,
+    "opacity": 0.3,
+    "color": [7, 16, 10]
+  },
+  "units": [
+    {
+      "id": "humanCommander",
+      "source": "assets/game/units/human/human-commander.webp",
+      "output": "assets/game/units/shadows/human-commander.webp"
+    },
+    {
+      "id": "royalGuard",
+      "source": "assets/game/units/human/royal-guard.webp",
+      "output": "assets/game/units/shadows/royal-guard.webp"
+    },
+    {
+      "id": "longbowRanger",
+      "source": "assets/game/units/human/longbow-ranger.webp",
+      "output": "assets/game/units/shadows/longbow-ranger.webp"
+    },
+    {
+      "id": "silverwingCavalry",
+      "source": "assets/game/units/human/silverwing-cavalry.webp",
+      "output": "assets/game/units/shadows/silverwing-cavalry.webp"
+    },
+    {
+      "id": "undeadCommander",
+      "source": "assets/game/units/undead/undead-commander.webp",
+      "output": "assets/game/units/shadows/undead-commander.webp"
+    },
+    {
+      "id": "necromancer",
+      "source": "assets/game/units/undead/necromancer.webp",
+      "output": "assets/game/units/shadows/necromancer.webp"
+    },
+    {
+      "id": "banshee",
+      "source": "assets/game/units/undead/banshee.webp",
+      "output": "assets/game/units/shadows/banshee.webp",
+      "blurRadius": 5,
+      "opacity": 0.2
+    },
+    {
+      "id": "vampire",
+      "source": "assets/game/units/undead/vampire.webp",
+      "output": "assets/game/units/shadows/vampire.webp"
+    },
+    {
+      "id": "wraith",
+      "source": "assets/game/units/undead/wraith.webp",
+      "output": "assets/game/units/shadows/wraith.webp",
+      "blurRadius": 5,
+      "opacity": 0.2
+    },
+    {
+      "id": "graveKnight",
+      "source": "assets/game/units/undead/grave-knight.webp",
+      "output": "assets/game/units/shadows/grave-knight.webp"
+    }
+  ]
+}

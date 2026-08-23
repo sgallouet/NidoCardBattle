@@ -10,13 +10,13 @@ This file is the runtime audio contract and acceptance registry. Generated candi
 
 ## Accepted assets
 
-None yet.
-
-When adding an accepted asset, record:
-
 | ID | File | Trigger | Kind | Volume | Cooldown / Pool | Notes |
 | --- | --- | --- | --- | ---: | --- | --- |
-| example-id | `sfx/example-id.mp3` | Exact gameplay/UI lifecycle event | impact/ui/etc. | 1.0 | e.g. 120 ms / pool 2 | Replace this example row when first real asset is accepted. |
+| `combat-assist` | `sfx/combat-assist.mp3` | An Assist unit's supporting strike reaches its target and contributes damage. | impact | 0.62 | Animation-serialized / pool 1 | Derived from approved `crit-crack.mp3`; user approved 2026-08-23. |
+| `combat-hit-melee` | `sfx/combat-hit-melee.mp3` | A close-range attack or retaliation reaches its visual impact after successfully dealing damage. | impact | 0.85 | Animation-serialized / pool 1 | Adapted from WorldXplore `crit-crack.mp3`; user approved 2026-08-23. |
+| `combat-hit-ranged` | `sfx/combat-hit-ranged.mp3` | A ranged attack or retaliation reaches its visual impact after successfully dealing damage. | impact | 0.78 | Animation-serialized / pool 1 | Stable Audio candidate A; user approved 2026-08-23. |
+| `combat-retaliation` | `sfx/combat-retaliation.mp3` | A defender begins a valid retaliation after the initiating attack successfully deals damage. | impact | 0.58 | Animation-serialized / pool 1 | Adapted from WorldXplore `sword-draw.mp3`; user approved 2026-08-23. |
+| `unit-summon-human` | `sfx/unit-summon-human.mp3` | A Human unit is successfully created from a unit card. | sting | 0.72 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-confirm.mp3`; user approved 2026-08-23. |
 
 ## Planned event contracts
 
@@ -28,13 +28,8 @@ These are generation/integration targets, not accepted files. Do not add runtime
 | --- | --- | --- | --- |
 | `ui-card-draw` | A card is successfully added to the active player's hand. | Short paper/card flick with restrained magical sheen. | 2+ candidates; very short. |
 | `ui-card-play` | A card play succeeds and its card leaves the hand. | Crisp card cast/release accent. | Generic layer; tactic-specific events may layer after it. |
-| `unit-summon-human` | A Human unit is successfully created from a unit card. | Clean heroic arcane arrival, light metal/wind accent. | Avoid long fanfare. |
 | `unit-summon-undead` | An Undead unit is successfully created from a unit card. | Bone/grave-air magical arrival. | Readable, not horror-heavy. |
 | `unit-move-step` | A rendered unit reaches a movement path hex after leaving its source hex. | Soft compact terrain-neutral movement tick. | Low volume; cooldown/pool required. |
-| `combat-hit-melee` | A normal close-range attack reaches its impact frame and deals damage. | Dry weapon/body impact. | Small pool preferred. |
-| `combat-hit-ranged` | A normal ranged attack reaches its impact frame and deals damage. | Sharp projectile impact. | Small pool preferred. |
-| `combat-retaliation` | Retaliation begins after a successful triggering attack. | Fast counter-attack accent layered with normal hit. | Must not play when no retaliation occurs. |
-| `combat-assist` | Assist contributes damage to a successful attack. | Brief supporting strike accent. | Distinct from the main hit; no full attack sound. |
 | `unit-death-human` | A Human unit is removed because its HP reached zero. | Short armor/body fall accent. | No long vocal by default. |
 | `unit-death-undead` | An Undead unit is removed because its HP reached zero. | Bone/spectral collapse accent. | Compact. |
 | `site-capture` | A site owner actually changes during capture resolution. | Positive tactical claim chime. | Same sound for either faction initially. |
@@ -80,13 +75,12 @@ These are generation/integration targets, not accepted files. Do not add runtime
 
 ## Generation order
 
-1. Core combat: `combat-hit-melee`, `combat-hit-ranged`, `combat-retaliation`, `combat-assist`.
-2. Unit lifecycle: summons and deaths.
-3. Card/UI: draw, play, turn handoff.
-4. Tactics: Grave Lock, Build Bridge, Scorch, Raise Fort, Profane Well events.
-5. Objectives: site capture, Commander death, countdown, victory.
-6. Abilities/traits.
-7. Ambience and music only after the SFX language feels coherent.
+1. Unit lifecycle: summons and deaths.
+2. Card/UI: draw, play, turn handoff.
+3. Tactics: Grave Lock, Build Bridge, Scorch, Raise Fort, Profane Well events.
+4. Objectives: site capture, Commander death, countdown, victory.
+5. Abilities/traits.
+6. Ambience and music only after the SFX language feels coherent.
 
 ## Integration rules
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_DEFINITIONS, FACTION_DECKS } from '../data/cards';
-import { MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
+import { MAP_GARRISONS, MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
 import type { Coord, GameState, PlayerId, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
 import {
@@ -14,6 +14,7 @@ import {
   getRestoreTargets,
   getSoulLinkTargets,
   getValidSummonCoords,
+  hexDistance,
   isPassable,
   isStoppedByBlocking,
   MAX_MANA,
@@ -123,7 +124,14 @@ describe('map baseline', () => {
     expect(MAP_SITES.filter((site) => site.type === 'keep')).toHaveLength(2);
     expect(MAP_SITES.filter((site) => site.type === 'fort')).toHaveLength(2);
     expect(MAP_SITES.filter((site) => site.type === 'well')).toHaveLength(4);
+    expect(MAP_GARRISONS).toHaveLength(6);
     for (const site of MAP_SITES) expect(isPassable(site.coord)).toBe(true);
+    for (const garrison of MAP_GARRISONS) {
+      const fort = MAP_SITES.find((site) => site.id === garrison.fortId)!;
+      expect(fort.type).toBe('fort');
+      expect(hexDistance(fort.coord, garrison.coord)).toBe(1);
+      expect(isPassable(garrison.coord)).toBe(true);
+    }
     for (const unit of STARTING_UNITS) expect(isPassable(unit.coord)).toBe(true);
   });
 
@@ -365,18 +373,33 @@ describe('existing summon, restore, capture and victory rules', () => {
     expect(playUnitCard(state, 0, humanKeep.coord).ok).toBe(true);
   });
 
-  it('summons only on an empty controlled Keep or Fort', () => {
+  it('summons only on an empty controlled Keep, Fort, or linked Garrison', () => {
     const state = freshState();
     const keep = state.sites.find((site) => site.id === 'keep-1')!;
     const fort = state.sites.find((site) => site.id === 'fort-north')!;
+    const garrisons = MAP_GARRISONS.filter((candidate) => candidate.fortId === fort.id);
     fort.owner = 1;
 
     state.units = [makeUnit('keep-occupant', 'commander', 1, { ...keep.coord })];
-    expect(getValidSummonCoords(state, 1)).toEqual([fort.coord]);
+    expect(getValidSummonCoords(state, 1)).toEqual([fort.coord, ...garrisons.map((garrison) => garrison.coord)]);
     state.units = [makeUnit('fort-occupant', 'royalGuard', 1, { ...fort.coord })];
+    expect(getValidSummonCoords(state, 1)).toEqual([keep.coord, ...garrisons.map((garrison) => garrison.coord)]);
+    state.units.push(...garrisons.map((garrison, index) =>
+      makeUnit(`garrison-occupant-${index}`, 'royalGuard', 1, { ...garrison.coord })));
     expect(getValidSummonCoords(state, 1)).toEqual([keep.coord]);
     state.units.push(makeUnit('keep-occupant', 'commander', 1, { ...keep.coord }));
     expect(getValidSummonCoords(state, 1)).toEqual([]);
+  });
+
+  it('does not let a Garrison capture its linked Fort directly', () => {
+    const state = freshState();
+    const fort = state.sites.find((site) => site.id === 'fort-north')!;
+    const garrison = MAP_GARRISONS.find((candidate) => candidate.fortId === fort.id)!;
+    state.units = [makeUnit('garrison-occupant', 'royalGuard', 1, { ...garrison.coord })];
+
+    endTurn(state, fixedRandom);
+
+    expect(fort.owner).toBe(null);
   });
 
   it('Light Mage Restore still heals an adjacent ally by 2', () => {

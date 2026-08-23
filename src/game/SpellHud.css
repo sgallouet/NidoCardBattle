@@ -102,7 +102,7 @@
 }
 
 .spell-button:disabled {
-  cursor: default;
+  cursor: var(--faction-cursor, default);
   opacity: .68;
   filter: grayscale(.72) brightness(.58);
 }

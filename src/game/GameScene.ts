@@ -1,10 +1,16 @@
 import Phaser from 'phaser';
+import combatAssistUrl from '../../assets/game/audio/sfx/combat-assist.mp3?url';
+import combatHitMeleeUrl from '../../assets/game/audio/sfx/combat-hit-melee.mp3?url';
+import combatHitRangedUrl from '../../assets/game/audio/sfx/combat-hit-ranged.mp3?url';
+import combatRetaliationUrl from '../../assets/game/audio/sfx/combat-retaliation.mp3?url';
+import unitSummonHumanUrl from '../../assets/game/audio/sfx/unit-summon-human.mp3?url';
 import generatedMapPreviewUrl from '../../assets/game/maps/generated-map-preview.png?url';
+import type { ProjectedShadowArtDefinition } from '../data/artShadow';
 import { CARD_ART } from '../data/cardArt';
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import { RUIN_ART, TOWN_ART } from '../data/mapDecorationArt';
-import { MAP_DECORATIONS, MAP_HEIGHT, MAP_WIDTH, type MapDecoration } from '../data/map';
-import { SITE_ART } from '../data/siteArt';
+import { MAP_DECORATIONS, MAP_GARRISONS, MAP_HEIGHT, MAP_WIDTH, type MapDecoration } from '../data/map';
+import { SITE_ART_TEXTURES, SITE_SHADOW_TEXTURES, garrisonArtFor, siteArtFor } from '../data/siteArt';
 import {
   BRIDGE_TERRAIN_ART,
   FOREST_TERRAIN_ART,
@@ -34,6 +40,7 @@ import {
   getAttackTargets,
   getDisplaceDestinations,
   getDisplaceTargets,
+  getGarrisonOwner,
   getReachableCoords,
   getRestoreTargets,
   getValidSummonCoords,
@@ -53,6 +60,7 @@ const ORIGIN_X = 200;
 const ORIGIN_Y = 120;
 const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
+const WORLD_Y_DEPTH_BASE = 1000;
 const GENERATED_MAP_TEXTURE_KEY = 'debug-generated-map-preview';
 const GENERATED_MAP_HEIGHT = 600;
 const GENERATED_MAP_VIEWPORT_HEIGHT_RATIO = 2;
@@ -64,6 +72,16 @@ const DEFAULT_TILE_ZOOM_STEPS = 3;
 const TOKEN_MOVEMENT_MS_PER_HEX = 190;
 const TOKEN_ATTACK_DURATION_MS = 500;
 const TOKEN_ATTACK_IMPACT_MS = 320;
+const COMBAT_ASSIST_AUDIO_KEY = 'combat-assist';
+const COMBAT_ASSIST_VOLUME = 0.62;
+const COMBAT_HIT_MELEE_AUDIO_KEY = 'combat-hit-melee';
+const COMBAT_HIT_MELEE_VOLUME = 0.85;
+const COMBAT_HIT_RANGED_AUDIO_KEY = 'combat-hit-ranged';
+const COMBAT_HIT_RANGED_VOLUME = 0.78;
+const COMBAT_RETALIATION_AUDIO_KEY = 'combat-retaliation';
+const COMBAT_RETALIATION_VOLUME = 0.58;
+const UNIT_SUMMON_HUMAN_AUDIO_KEY = 'unit-summon-human';
+const UNIT_SUMMON_HUMAN_VOLUME = 0.72;
 const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x55b9f3, 2: 0xf05b67 };
 const TERRAIN_PALETTES: Record<'cliff', number[]> = {
   cliff: [0x52585a, 0x606465, 0x494f51],
@@ -124,6 +142,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload(): void {
+    this.load.audio(COMBAT_ASSIST_AUDIO_KEY, combatAssistUrl);
+    this.load.audio(COMBAT_HIT_MELEE_AUDIO_KEY, combatHitMeleeUrl);
+    this.load.audio(COMBAT_HIT_RANGED_AUDIO_KEY, combatHitRangedUrl);
+    this.load.audio(COMBAT_RETALIATION_AUDIO_KEY, combatRetaliationUrl);
+    this.load.audio(UNIT_SUMMON_HUMAN_AUDIO_KEY, unitSummonHumanUrl);
     this.load.image(GENERATED_MAP_TEXTURE_KEY, generatedMapPreviewUrl);
     this.load.image(GALAXY_BACKGROUND_ART.map.textureKey, GALAXY_BACKGROUND_ART.map.url);
     this.load.image(GALAXY_BACKGROUND_ART.stars.textureKey, GALAXY_BACKGROUND_ART.stars.url);
@@ -136,8 +159,10 @@ export class GameScene extends Phaser.Scene {
     this.load.image(RIVER_WATER_ART.base.textureKey, RIVER_WATER_ART.base.url);
     this.load.image(RIVER_WATER_ART.displacement.textureKey, RIVER_WATER_ART.displacement.url);
     this.load.image(RUIN_ART.textureKey, RUIN_ART.url);
+    this.load.image(RUIN_ART.shadow.textureKey, RUIN_ART.shadow.url);
     this.load.image(TOWN_ART.textureKey, TOWN_ART.url);
-    for (const art of Object.values(SITE_ART)) this.load.image(art.textureKey, art.url);
+    for (const art of SITE_ART_TEXTURES) this.load.image(art.textureKey, art.url);
+    for (const shadow of SITE_SHADOW_TEXTURES) this.load.image(shadow.textureKey, shadow.url);
     for (const art of Object.values(UNIT_ART)) {
       if (!art) continue;
       for (const animation of Object.values(art.animations)) {
@@ -364,7 +389,6 @@ export class GameScene extends Phaser.Scene {
     this.boardLayer?.destroy(true);
     this.boardLayer = this.add.container(0, 0);
     const highlight = this.highlights();
-    const sitesByCoord = new Map(this.state.sites.map((site) => [coordKey(site.coord), site]));
     if (this.useGeneratedMapPreview) {
       const generatedMap = this.add.image(
         WORLD_WIDTH / 2,
@@ -432,11 +456,6 @@ export class GameScene extends Phaser.Scene {
         const hex = this.add.graphics();
         let stroke = 0x263828;
         let strokeWidth = this.useGeneratedMapPreview ? 0 : 2;
-        const siteOwner = sitesByCoord.get(key)?.owner;
-        if (!this.useGeneratedMapPreview && siteOwner) {
-          stroke = PLAYER_COLORS[siteOwner];
-          strokeWidth = 5;
-        }
         if (highlight.move.has(key)) {
           hex.fillStyle(0x50d6c2, 0.34);
           hex.fillPoints(points, true);
@@ -472,9 +491,13 @@ export class GameScene extends Phaser.Scene {
 
     if (!this.useGeneratedMapPreview) {
       for (const decoration of MAP_DECORATIONS) this.addMapDecoration(decoration);
-      for (const site of this.state.sites) this.addSite(site.coord, site.type);
+      for (const site of this.state.sites) this.addSite(site.coord, site.type, site.owner);
+      for (const garrison of MAP_GARRISONS) {
+        this.addGarrison(garrison.coord, getGarrisonOwner(this.state, garrison.fortId));
+      }
     }
     for (const unit of this.state.units) this.addUnit(unit);
+    this.boardLayer.sort('depth');
 
     if (this.state.winner) {
       const shade = this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 780, 250, 0x090d0a, 0.92)
@@ -649,48 +672,84 @@ export class GameScene extends Phaser.Scene {
 
   private addMapDecoration(decoration: MapDecoration): void {
     const center = this.center(decoration.coord);
-    const graphics = this.add.graphics();
+    const depth = WORLD_Y_DEPTH_BASE + center.y;
 
     if (decoration.type === 'village') {
+      const graphics = this.add.graphics().setDepth(depth);
       graphics.fillStyle(0x07100a, 0.3);
       graphics.fillEllipse(center.x + 3, center.y + 26, 54, 18);
       this.boardLayer?.add(graphics);
       const image = this.add.image(center.x, center.y + TOWN_ART.bottomOffset, TOWN_ART.textureKey)
         .setOrigin(0.5, 1)
-        .setDisplaySize(TOWN_ART.displayWidth, TOWN_ART.displayHeight);
+        .setDisplaySize(TOWN_ART.displayWidth, TOWN_ART.displayHeight)
+        .setDepth(depth);
       this.boardLayer?.add(image);
       return;
     }
 
     if (decoration.type === 'ruin') {
-      graphics.fillStyle(0x07100a, 0.3);
-      graphics.fillEllipse(center.x + 3, center.y + 26, 52, 18);
-      this.boardLayer?.add(graphics);
+      this.addProjectedShadow(center, RUIN_ART.bottomOffset, RUIN_ART.shadow, depth);
       const image = this.add.image(center.x, center.y + RUIN_ART.bottomOffset, RUIN_ART.textureKey)
         .setOrigin(0.5, 1)
-        .setDisplaySize(RUIN_ART.displayWidth, RUIN_ART.displayHeight);
+        .setDisplaySize(RUIN_ART.displayWidth, RUIN_ART.displayHeight)
+        .setDepth(depth);
       this.boardLayer?.add(image);
       return;
     }
   }
 
-  private addSite(coord: Coord, type: SiteType): void {
+  private addProjectedShadow(
+    center: Phaser.Math.Vector2,
+    bottomOffset: number,
+    shadowArt: ProjectedShadowArtDefinition,
+    depth: number,
+  ): void {
+    const shadow = this.add.image(center.x, center.y + bottomOffset, shadowArt.textureKey)
+      .setOrigin(shadowArt.originX, shadowArt.originY)
+      .setDisplaySize(shadowArt.displayWidth, shadowArt.displayHeight)
+      .setTint(0x07100a)
+      .setAlpha(shadowArt.alpha)
+      .setDepth(depth - 1);
+    this.boardLayer?.add(shadow);
+  }
+
+  private addSite(coord: Coord, type: SiteType, owner: PlayerId | null): void {
     const center = this.center(coord);
-    const art = SITE_ART[type];
-    const graphics = this.add.graphics();
-    graphics.fillStyle(0x07100a, 0.34);
-    graphics.fillEllipse(center.x + 3, center.y + 30, art.displayWidth * 0.72, 20);
-    this.boardLayer?.add(graphics);
+    const art = siteArtFor(type, owner);
+    const depth = WORLD_Y_DEPTH_BASE + center.y;
+
+    if (art.shadow) this.addProjectedShadow(center, art.bottomOffset, art.shadow, depth);
 
     const image = this.add.image(center.x, center.y + art.bottomOffset, art.textureKey)
       .setOrigin(0.5, 1)
-      .setDisplaySize(art.displayWidth, art.displayHeight);
+      .setDisplaySize(art.displayWidth, art.displayHeight)
+      .setDepth(depth);
     this.boardLayer?.add(image);
 
     const label = this.add.text(center.x, center.y + art.labelOffset, type === 'keep' ? 'KEEP' : type === 'fort' ? 'FORT' : 'WELL', {
       fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#fff5d4', fontStyle: 'bold',
       stroke: '#101510', strokeThickness: 4,
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(depth);
+    this.boardLayer?.add(label);
+  }
+
+  private addGarrison(coord: Coord, owner: PlayerId | null): void {
+    const center = this.center(coord);
+    const art = garrisonArtFor(owner);
+    const depth = WORLD_Y_DEPTH_BASE + center.y;
+
+    if (art.shadow) this.addProjectedShadow(center, art.bottomOffset, art.shadow, depth);
+
+    const image = this.add.image(center.x, center.y + art.bottomOffset, art.textureKey)
+      .setOrigin(0.5, 1)
+      .setDisplaySize(art.displayWidth, art.displayHeight)
+      .setDepth(depth);
+    this.boardLayer?.add(image);
+
+    const label = this.add.text(center.x, center.y + art.labelOffset, 'GARRISON', {
+      fontFamily: 'Arial, sans-serif', fontSize: '8px', color: '#fff5d4', fontStyle: 'bold',
+      stroke: '#101510', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(depth);
     this.boardLayer?.add(label);
   }
 
@@ -703,27 +762,10 @@ export class GameScene extends Phaser.Scene {
       ? unit.owner === 1 ? 'humanCommander' : 'undeadCommander'
       : unit.definitionId as UnitDefinitionId;
     const art = UNIT_ART[artId];
-    const container = this.add.container(center.x, center.y);
+    const container = this.add.container(center.x, center.y)
+      .setDepth(WORLD_Y_DEPTH_BASE + center.y);
     const graphics = this.add.graphics();
-    if (art) {
-      const shadow = art.shadow;
-      graphics.fillStyle(0x07100a, shadow.alpha);
-      graphics.fillEllipse(
-        shadow.offsetX,
-        shadow.offsetY,
-        shadow.width,
-        shadow.height,
-      );
-      if (selected) {
-        graphics.lineStyle(2, 0xffefb0, 0.9);
-        graphics.strokeEllipse(
-          shadow.offsetX,
-          shadow.offsetY,
-          shadow.width + 8,
-          shadow.height + 6,
-        );
-      }
-    } else {
+    if (!art) {
       graphics.fillStyle(0x07100a, 0.56);
       graphics.fillEllipse(4, 25, 58 * scale, 19 * scale);
       const tokenPoints = [
@@ -760,7 +802,8 @@ export class GameScene extends Phaser.Scene {
         ?? (unit.owner === 1 ? art.defaultFacing : 'north-west');
       const facing = this.closestEnemyFacing(unit, previousFacing);
       this.unitFacings.set(unit.id, facing);
-      sprite.setFlipX(art.mirroredFacings.includes(facing));
+      const flipX = art.mirroredFacings.includes(facing);
+      sprite.setFlipX(flipX);
       sprite.play(art.animations.idle.animationKey);
       const idleFrames = art.animations.idle.frameCount;
       if (idleFrames > 1) {
@@ -814,6 +857,10 @@ export class GameScene extends Phaser.Scene {
         y,
         duration,
         ease: 'Sine.easeInOut',
+        onUpdate: () => {
+          target.setDepth(WORLD_Y_DEPTH_BASE + target.y);
+          this.boardLayer?.sort('depth');
+        },
         onComplete: () => resolve(),
       });
     });
@@ -824,7 +871,9 @@ export class GameScene extends Phaser.Scene {
     const facing = this.facingToward(from, to, previous);
     this.unitFacings.set(unitId, facing);
     const view = this.renderedUnits.get(unitId);
-    if (view?.sprite && view.art) view.sprite.setFlipX(view.art.mirroredFacings.includes(facing));
+    if (view?.sprite && view.art) {
+      view.sprite.setFlipX(view.art.mirroredFacings.includes(facing));
+    }
   }
 
   private facingToward(
@@ -860,6 +909,26 @@ export class GameScene extends Phaser.Scene {
     const view = this.renderedUnits.get(unitId);
     if (!view?.sprite || !view.art) return;
     view.sprite.play(view.art.animations[state].animationKey, true);
+  }
+
+  private playCombatHit(ranged: boolean): void {
+    const key = ranged ? COMBAT_HIT_RANGED_AUDIO_KEY : COMBAT_HIT_MELEE_AUDIO_KEY;
+    const volume = ranged ? COMBAT_HIT_RANGED_VOLUME : COMBAT_HIT_MELEE_VOLUME;
+    this.sound.play(key, { volume });
+  }
+
+  playCombatAssist(): void {
+    this.sound.play(COMBAT_ASSIST_AUDIO_KEY, { volume: COMBAT_ASSIST_VOLUME });
+  }
+
+  private playCombatRetaliation(): void {
+    this.sound.play(COMBAT_RETALIATION_AUDIO_KEY, { volume: COMBAT_RETALIATION_VOLUME });
+  }
+
+  playUnitSummon(owner: PlayerId): void {
+    if (this.state.players[owner].faction === 'human') {
+      this.sound.play(UNIT_SUMMON_HUMAN_AUDIO_KEY, { volume: UNIT_SUMMON_HUMAN_VOLUME });
+    }
   }
 
   private async animateMovement(unitId: string, path: Coord[]): Promise<void> {
@@ -951,12 +1020,17 @@ export class GameScene extends Phaser.Scene {
 
     await this.animateAttackMotion(attackerId, defenderCoord, () => {
       result = attackUnit(this.state, attackerId, defenderId);
-      if (result.ok) this.showHitFeedback(defenderId, Math.max(0, defenderHpBefore - defender.hp));
+      if (result.ok) {
+        this.playCombatHit(unitDefinition(attacker).range > 1);
+        this.showHitFeedback(defenderId, Math.max(0, defenderHpBefore - defender.hp));
+      }
     });
 
     const retaliationDamage = Math.max(0, attackerHpBefore - attacker.hp);
     if (result.ok && retaliationDamage > 0 && findUnit(this.state, defenderId)) {
+      this.playCombatRetaliation();
       await this.animateAttackMotion(defenderId, attackerCoord, () => {
+        this.playCombatHit(unitDefinition(defender).range > 1);
         this.showHitFeedback(attackerId, retaliationDamage);
       });
     }
@@ -975,6 +1049,8 @@ export class GameScene extends Phaser.Scene {
       this.message = result.message;
       if (result.ok) {
         this.animatePlayedCard(this.selectedCardIndex);
+        const summoned = result.summonedUnitId ? findUnit(this.state, result.summonedUnitId) : undefined;
+        if (summoned) this.playUnitSummon(summoned.owner);
         const restoreTargets = result.summonedUnitId
           ? getRestoreTargets(this.state, result.summonedUnitId)
           : [];
@@ -1087,7 +1163,7 @@ export class GameScene extends Phaser.Scene {
     this.selectedUnitId = null;
     this.displaceTargetId = null;
     this.mode = 'card';
-    this.message = `Choose a highlighted empty Keep or Fort for ${card.name}.`;
+    this.message = `Choose a highlighted empty Keep, Fort, or Garrison for ${card.name}.`;
     this.renderAll();
   }
 
@@ -1206,6 +1282,7 @@ export class GameScene extends Phaser.Scene {
   private renderHand(): void {
     const hand = document.querySelector<HTMLElement>('#hand');
     if (!hand) return;
+    hand.classList.toggle('targeting', this.mode === 'card');
     const player = this.state.players[this.state.currentPlayer];
     const handSignature = `${this.state.currentPlayer}:${player.hand.join('|')}`;
     const shouldDeal = handSignature !== this.lastHandSignature;

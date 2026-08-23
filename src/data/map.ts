@@ -87,6 +87,21 @@ export const MAP_SITES: MapSite[] = [
   { id: 'well-southeast', type: 'well', coord: { q: 11, r: 10 }, initialOwner: null },
 ];
 
+export interface MapGarrison {
+  id: string;
+  fortId: string;
+  coord: Coord;
+}
+
+export const MAP_GARRISONS: MapGarrison[] = [
+  { id: 'garrison-north-west', fortId: 'fort-north', coord: { q: 6, r: 4 } },
+  { id: 'garrison-north-north', fortId: 'fort-north', coord: { q: 7, r: 3 } },
+  { id: 'garrison-north-south', fortId: 'fort-north', coord: { q: 7, r: 5 } },
+  { id: 'garrison-south-east', fortId: 'fort-south', coord: { q: 10, r: 9 } },
+  { id: 'garrison-south-north', fortId: 'fort-south', coord: { q: 9, r: 8 } },
+  { id: 'garrison-south-south', fortId: 'fort-south', coord: { q: 9, r: 10 } },
+];
+
 export const STARTING_UNITS = [
   { definitionId: 'commander', owner: 1 as const, coord: { q: 2, r: 8 } },
   { definitionId: 'royalGuard', owner: 1 as const, coord: { q: 3, r: 8 } },

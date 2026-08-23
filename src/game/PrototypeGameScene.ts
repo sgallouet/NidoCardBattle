@@ -6,6 +6,7 @@ import {
   type ActionReadabilitySceneInternals,
 } from './ActionReadability';
 import { AuthoredMapPresentation } from './AuthoredMapPresentation';
+import { FactionCursor, type FactionCursorSceneInternals } from './FactionCursor';
 import { PersistentAiGameScene } from './PersistentAiGameScene';
 import { SpellHud, type SpellHudSceneInternals } from './SpellHud';
 import {
@@ -14,7 +15,10 @@ import {
 } from './TacticalReadability';
 
 interface PrototypeSceneInternals
-  extends TacticalSceneInternals, ActionReadabilitySceneInternals, SpellHudSceneInternals {
+  extends TacticalSceneInternals,
+  ActionReadabilitySceneInternals,
+  SpellHudSceneInternals,
+  FactionCursorSceneInternals {
   state: GameState;
   boardLayer?: Phaser.GameObjects.Container;
   renderedUnits: Map<string, { container: Phaser.GameObjects.Container }>;
@@ -32,6 +36,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
   private readability?: TacticalReadabilityLayer;
   private actionReadability?: ActionReadabilityLayer;
   private spellHud?: SpellHud;
+  private factionCursor?: FactionCursor;
   private authoredMap?: AuthoredMapPresentation;
 
   create(): void {
@@ -40,6 +45,8 @@ export class PrototypeGameScene extends PersistentAiGameScene {
 
     this.spellHud = new SpellHud(this, scene);
     this.spellHud.install();
+    this.factionCursor = new FactionCursor(this, scene);
+    this.factionCursor.install();
     this.authoredMap = new AuthoredMapPresentation(this, MAP_RENDER_MODE);
 
     const originalRenderAll = scene.renderAll.bind(this);
@@ -60,6 +67,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
       this.readability = undefined;
       this.actionReadability = undefined;
       this.spellHud = undefined;
+      this.factionCursor = undefined;
       this.authoredMap = undefined;
     });
 

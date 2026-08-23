@@ -1,15 +1,16 @@
-import humanCommander from '../../assets/game/units/human/human-commander.webp?url';
-import longbowRanger from '../../assets/game/units/human/longbow-ranger.webp?url';
-import royalGuard from '../../assets/game/units/human/royal-guard.webp?url';
-import silverwingCavalry from '../../assets/game/units/human/silverwing-cavalry.webp?url';
+import humanCommander from '../../assets/game/units/shadows/human-commander.webp?url';
+import longbowRanger from '../../assets/game/units/shadows/longbow-ranger.webp?url';
+import royalGuard from '../../assets/game/units/shadows/royal-guard.webp?url';
+import silverwingCavalry from '../../assets/game/units/shadows/silverwing-cavalry.webp?url';
 import skeletalInfantryAttack from '../../assets/game/units/undead/skeletal_infantry/attack.png?url';
 import skeletalInfantryIdle from '../../assets/game/units/undead/skeletal_infantry/idle.png?url';
 import skeletalInfantryWalk from '../../assets/game/units/undead/skeletal_infantry/walk.png?url';
-import banshee from '../../assets/game/units/undead/banshee.webp?url';
-import graveKnight from '../../assets/game/units/undead/grave-knight.webp?url';
-import necromancer from '../../assets/game/units/undead/necromancer.webp?url';
-import undeadCommander from '../../assets/game/units/undead/undead-commander.webp?url';
-import wraith from '../../assets/game/units/undead/wraith.webp?url';
+import banshee from '../../assets/game/units/shadows/banshee.webp?url';
+import graveKnight from '../../assets/game/units/shadows/grave-knight.webp?url';
+import necromancer from '../../assets/game/units/shadows/necromancer.webp?url';
+import undeadCommander from '../../assets/game/units/shadows/undead-commander.webp?url';
+import vampire from '../../assets/game/units/shadows/vampire.webp?url';
+import wraith from '../../assets/game/units/shadows/wraith.webp?url';
 import type { UnitDefinitionId } from './units';
 
 export type UnitAnimationState = 'idle' | 'walk' | 'attack';
@@ -37,13 +38,6 @@ export interface UnitArtDefinition {
   attackDurationMs: number;
   attackImpactMs: number;
   animations: Record<UnitAnimationState, UnitAnimationClip>;
-  shadow: {
-    width: number;
-    height: number;
-    offsetX: number;
-    offsetY: number;
-    alpha: number;
-  };
 }
 
 const staticUnitArt = (
@@ -87,13 +81,6 @@ const staticUnitArt = (
       frameRate: 1,
       repeat: 0,
     },
-  },
-  shadow: {
-    width: 42,
-    height: 12,
-    offsetX: 1,
-    offsetY: 15,
-    alpha: 0.22,
   },
 });
 
@@ -141,16 +128,10 @@ export const UNIT_ART: Partial<Record<UnitDefinitionId, UnitArtDefinition>> = {
         repeat: 0,
       },
     },
-    shadow: {
-      width: 36,
-      height: 11,
-      offsetX: 1,
-      offsetY: 13,
-      alpha: 0.2,
-    },
   },
   necromancer: staticUnitArt(necromancer, 'necromancer'),
   banshee: staticUnitArt(banshee, 'banshee'),
+  vampire: staticUnitArt(vampire, 'vampire'),
   wraith: staticUnitArt(wraith, 'wraith'),
   graveKnight: staticUnitArt(graveKnight, 'grave-knight', 0.39),
 };

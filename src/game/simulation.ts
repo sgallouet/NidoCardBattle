@@ -1,10 +1,11 @@
 import type { CardDefinitionId } from '../data/cards';
-import type { Faction, GameState, PlayerId } from '../data/types';
+import type { ActionResult, Faction, GameState, PlayerId } from '../data/types';
 import { GAME_ACTION_KINDS, type GameAction } from './actions';
 import {
   SIMULATION_AI_OPTIONS,
   executeAiPlan,
   planAiTurn,
+  type AiPlan,
   type AiSearchOptions,
 } from './ai';
 import { coordKey, createGameState, STARTING_MANA } from './engine';
@@ -75,6 +76,31 @@ export interface SimulationBatchOptions extends Omit<SimulationOptions, 'firstPl
   seed?: number;
   alternateFirstPlayer?: boolean;
   firstPlayerFaction?: Faction;
+}
+
+/** Observer state is mutable and must be inspected or copied synchronously. */
+export interface SimulationObserver {
+  onMatchStarted?: (state: GameState) => void;
+  onTurnPlanned?: (event: {
+    halfTurn: number;
+    actor: PlayerId;
+    plan: AiPlan;
+    state: GameState;
+  }) => void;
+  onActionResolved?: (event: {
+    halfTurn: number;
+    actor: PlayerId;
+    action: GameAction;
+    result: ActionResult;
+    state: GameState;
+  }) => void;
+  onTurnEnded?: (event: {
+    halfTurn: number;
+    actor: PlayerId;
+    result: ActionResult;
+    state: GameState;
+  }) => void;
+  onMatchCompleted?: (event: { state: GameState; result: SimulationMatchResult }) => void;
 }
 
 const emptyActionCounts = (): SimulationActionCounts =>
@@ -213,7 +239,11 @@ const repetitionFingerprint = (state: GameState): string => {
   ].join(';');
 };
 
-export const simulateAiMatch = (seed: number, options: SimulationOptions = {}): SimulationMatchResult => {
+export const simulateAiMatch = (
+  seed: number,
+  options: SimulationOptions = {},
+  observer?: SimulationObserver,
+): SimulationMatchResult => {
   const maxHalfTurns = options.maxHalfTurns ?? 160;
   const repetitionLimit = options.repetitionLimit ?? 4;
   const firstPlayerFaction = options.firstPlayerFaction ?? 'human';
@@ -221,6 +251,7 @@ export const simulateAiMatch = (seed: number, options: SimulationOptions = {}): 
   const random = seededRandom(seed);
   const state = createGameState(random);
   configureFirstPlayer(state, firstPlayerFaction);
+  observer?.onMatchStarted?.(state);
   const playerFactions: Record<PlayerId, Faction> = {
     1: state.players[1].faction,
     2: state.players[2].faction,
@@ -258,12 +289,21 @@ export const simulateAiMatch = (seed: number, options: SimulationOptions = {}): 
 
     const actor = state.currentPlayer;
     const plan = planAiTurn(state, aiOptions);
+    const halfTurn = halfTurns + 1;
+    observer?.onTurnPlanned?.({ halfTurn, actor, plan, state });
     recordActions(actor, plan.actions, actionCounts, summonsByCard);
     totalSearchStates += plan.searchedStates;
     totalResponseStates += plan.responseStates;
     if (plan.timedOut) timedOutTurns += 1;
 
-    const turn = executeAiPlan(state, plan, random);
+    const turn = executeAiPlan(state, plan, random, {
+      onActionResolved: ({ action, result, state: currentState }) => {
+        observer?.onActionResolved?.({ halfTurn, actor, action, result, state: currentState });
+      },
+      onTurnEnded: ({ result, state: currentState }) => {
+        observer?.onTurnEnded?.({ halfTurn, actor, result, state: currentState });
+      },
+    });
     if (turn.actions.some((message) => message.startsWith('AI plan stopped:'))) planReplayFailures += 1;
     halfTurns += 1;
 
@@ -280,7 +320,7 @@ export const simulateAiMatch = (seed: number, options: SimulationOptions = {}): 
     2: objectiveCounts(state, 2),
   };
 
-  return {
+  const result: SimulationMatchResult = {
     seed,
     firstPlayerFaction,
     playerFactions,
@@ -300,6 +340,8 @@ export const simulateAiMatch = (seed: number, options: SimulationOptions = {}): 
     timedOutTurns,
     planReplayFailures,
   };
+  observer?.onMatchCompleted?.({ state, result });
+  return result;
 };
 
 const ratio = (numerator: number, denominator: number): number => denominator === 0 ? 0 : numerator / denominator;

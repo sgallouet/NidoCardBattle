@@ -41,6 +41,20 @@ export interface AiPlan {
   timedOut: boolean;
 }
 
+export interface AiExecutionObserver {
+  onActionResolved?: (event: {
+    actor: PlayerId;
+    action: AiAction;
+    result: ActionResult;
+    state: GameState;
+  }) => void;
+  onTurnEnded?: (event: {
+    actor: PlayerId;
+    result: ActionResult;
+    state: GameState;
+  }) => void;
+}
+
 export interface AiSearchOptions {
   beamWidth?: number;
   maxDepth?: number;
@@ -563,12 +577,14 @@ export const executeAiPlan = (
   state: GameState,
   plan: AiPlan,
   random: () => number = Math.random,
+  observer?: AiExecutionObserver,
 ): AiTurnResult => {
   const actor = state.currentPlayer;
   const messages: string[] = [];
   for (const action of plan.actions) {
     if (state.winner || state.currentPlayer !== actor) break;
     const result = applyAiAction(state, action);
+    observer?.onActionResolved?.({ actor, action, result, state });
     if (!result.ok) {
       messages.push(`AI plan stopped: ${result.message}`);
       break;
@@ -578,6 +594,7 @@ export const executeAiPlan = (
 
   if (!state.winner && state.currentPlayer === actor) {
     const result = endTurn(state, random);
+    observer?.onTurnEnded?.({ actor, result, state });
     messages.push(result.message);
     return {
       actions: messages,

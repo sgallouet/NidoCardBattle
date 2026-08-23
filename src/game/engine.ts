@@ -1,5 +1,5 @@
 import { CARD_DEFINITIONS, FACTION_DECKS, type CardDefinitionId } from '../data/cards';
-import { MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
+import { MAP_GARRISONS, MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
 import type {
   ActionResult,
   CardDefinition,
@@ -605,16 +605,26 @@ export const curseUnit = (state: GameState, actorId: string, targetId: string): 
 };
 
 export const getValidSummonCoords = (state: GameState, playerId: PlayerId = state.currentPlayer): Coord[] => {
-  return state.sites
+  const siteCoords = state.sites
     .filter((site) => site.owner === playerId
       && (site.type === 'keep' || site.type === 'fort')
       && !isGraveLocked(state, site.coord)
       && !unitAt(state, site.coord))
     .map((site) => ({ ...site.coord }));
+  const garrisonCoords = MAP_GARRISONS
+    .filter((garrison) => getGarrisonOwner(state, garrison.fortId) === playerId
+      && !isGraveLocked(state, garrison.coord)
+      && !unitAt(state, garrison.coord))
+    .map((garrison) => ({ ...garrison.coord }));
+  return [...siteCoords, ...garrisonCoords];
 };
 
+export const getGarrisonOwner = (state: GameState, fortId: string): PlayerId | null =>
+  state.sites.find((site) => site.id === fortId && site.type === 'fort')?.owner ?? null;
+
 const hasSiteAt = (state: GameState, coord: Coord): boolean =>
-  state.sites.some((site) => sameCoord(site.coord, coord));
+  state.sites.some((site) => sameCoord(site.coord, coord))
+  || MAP_GARRISONS.some((garrison) => sameCoord(garrison.coord, coord));
 
 const hasPendingWellAt = (state: GameState, coord: Coord): boolean =>
   state.pendingManaWells.some((well) => sameCoord(well.coord, coord));
@@ -692,7 +702,7 @@ export const playUnitCard = (state: GameState, handIndex: number, destination: C
   if ('ok' in validation) return validation;
   if (validation.type !== 'unit') return { ok: false, message: 'That card does not summon a unit.' };
   if (!getValidSummonCoords(state).some((coord) => sameCoord(coord, destination))) {
-    return { ok: false, message: 'Choose an empty controlled Keep or Fort.' };
+    return { ok: false, message: 'Choose an empty controlled Keep, Fort, or Garrison.' };
   }
   const playerId = state.currentPlayer;
   state.players[playerId].mana -= validation.cost;

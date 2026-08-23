@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { ActionResult, Coord, GameState, UnitState } from '../data/types';
+import type { ActionResult, Coord, GameState, PlayerId, UnitState } from '../data/types';
 import { ActionFxAnimator } from './ActionFxAnimator';
 import { applyAiAction, type AiAction } from './ai';
 import { BattlePresentation } from './BattlePresentation';
@@ -27,6 +27,10 @@ interface AnimatedSceneInternals {
   resolveAnimatedAttack: (attackerId: string, defenderId: string) => Promise<void>;
   faceUnit: (unitId: string, from: Phaser.Math.Vector2, to: Phaser.Math.Vector2) => void;
   center: (coord: Coord) => Phaser.Math.Vector2;
+  playCombatAssist: () => void;
+  playCombatHit: (ranged: boolean) => void;
+  playCombatRetaliation: () => void;
+  playUnitSummon: (owner: PlayerId) => void;
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
 }
 
@@ -153,6 +157,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       document.querySelector<HTMLElement>('#hand')?.replaceChildren();
       const summoned = result.summonedUnitId ? findUnit(game.state, result.summonedUnitId) : undefined;
       const view = result.summonedUnitId ? game.renderedUnits.get(result.summonedUnitId) : undefined;
+      if (summoned) game.playUnitSummon(summoned.owner);
       if (summoned && view && fx) await fx.summon(view, summoned.owner);
       return result;
     }
@@ -226,6 +231,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       && defenderDamage.damage > primaryTargetDamage
       && !redirected;
 
+    game.playCombatHit(attackPose.ranged);
     await motion.impact(
       defenderCoord,
       game.center.bind(this),
@@ -275,6 +281,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
           (from, to) => game.faceUnit(assister.id, from, to),
           true,
         );
+        game.playCombatAssist();
         await motion.impact(defenderCoord, game.center.bind(this), actualDamage >= 2 ? 1.18 : 0.9);
         if (this.actionFx) await this.actionFx.assistHit(defenderCoord, actualDamage);
         await Promise.all([
@@ -305,6 +312,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       const defenderDefinition = unitDefinition(defenderBefore);
       const survivingDefender = findUnit(game.state, defenderId);
       if (survivingDefender && defenderDefinition.traits.includes('Retaliates')) {
+        game.playCombatRetaliation();
         const counterPose = await motion.beginAttack(
           defenderView,
           defenderBefore,
@@ -312,6 +320,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
           (from, to) => game.faceUnit(defenderId, from, to),
           true,
         );
+        game.playCombatHit(counterPose.ranged);
         await motion.impact(attackerCoord, game.center.bind(this), attackerDamage.dead ? 1.45 : 1);
         await Promise.all([
           motion.hurt(

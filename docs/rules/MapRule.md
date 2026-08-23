@@ -12,11 +12,13 @@ This file owns map geometry, capture, and terrain rules.
 - **MPL2** - The map contains 2 neutral Forts.
 - **MPL3** - The map contains 4 Mana Wells.
 - **MPL4** - Layout should be deliberately asymmetric while giving both players comparable access to objectives and flanking routes.
+- **MPL5** - Each neutral Fort has 3 adjacent Garrisons that provide the additional spawn sources defined by `CRU3`.
 
 ## Capture
 - **MPC1** - Captures resolve only at the end of the active player's full turn.
 - **MPC2** - At capture resolution, every capturable location occupied by one of the active player's units becomes owned by that player.
 - **MPC3** - A captured location remains owned until ownership changes through `MPC2`.
+- **MPC4** - A Garrison cannot be captured directly; it always shares the owner of its linked Fort.
 
 ## Terrain
 - **MPT1** - Plain hexes have no modifier and cost 1 movement point to enter.

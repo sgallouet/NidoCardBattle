@@ -1,4 +1,5 @@
 import { STARTING_SIDE_SLOTS } from '../data/map';
+import { setSiteOwnerFactions } from '../data/siteArt';
 import type { Faction, GameState, PlayerId } from '../data/types';
 import { UNIT_ART } from '../data/unitArt';
 import { UNIT_DEFINITIONS } from '../data/units';
@@ -33,6 +34,7 @@ export const alignCommanderRuntimeForLocalFaction = (faction: Faction): void => 
   UNIT_DEFINITIONS.undeadCommander = localIsHuman ? BASE_UNDEAD_COMMANDER : BASE_HUMAN_COMMANDER;
   UNIT_ART.humanCommander = localIsHuman ? BASE_HUMAN_COMMANDER_ART : BASE_UNDEAD_COMMANDER_ART;
   UNIT_ART.undeadCommander = localIsHuman ? BASE_UNDEAD_COMMANDER_ART : BASE_HUMAN_COMMANDER_ART;
+  setSiteOwnerFactions(faction, localIsHuman ? 'undead' : 'human');
 };
 
 const swapFactionPayloads = (state: GameState): void => {

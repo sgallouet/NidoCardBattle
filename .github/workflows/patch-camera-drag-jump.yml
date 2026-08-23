@@ -1,0 +1,89 @@
+name: Fix camera drag startup jump
+
+on:
+  push:
+    paths:
+      - .github/workflows/patch-camera-drag-jump.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Smooth drag threshold transition
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          scene = Path('src/game/GameScene.ts')
+          text = scene.read_text()
+
+          old = """    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.isDown || !this.dragState) return;
+      const dx = pointer.x - this.dragState.startX;
+      const dy = pointer.y - this.dragState.startY;
+      if (!this.dragState.moved && Math.hypot(dx, dy) < 7) return;
+      this.dragState.moved = true;
+      this.game.canvas.classList.add('dragging');
+      camera.setScroll(
+        this.dragState.scrollX - dx / camera.zoom,
+        this.dragState.scrollY - dy / camera.zoom,
+      );
+      this.constrainCamera();
+    });
+"""
+
+          new = """    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.isDown || !this.dragState) return;
+      let dx = pointer.x - this.dragState.startX;
+      let dy = pointer.y - this.dragState.startY;
+
+      if (!this.dragState.moved) {
+        const distance = Math.hypot(dx, dy);
+        const dragThreshold = 7;
+        if (distance < dragThreshold) return;
+
+        // Consume the dead-zone distance instead of applying it all at once.
+        // This keeps click-vs-drag protection without the visible startup snap.
+        const thresholdRatio = dragThreshold / distance;
+        this.dragState.startX += dx * thresholdRatio;
+        this.dragState.startY += dy * thresholdRatio;
+        this.dragState.scrollX = camera.scrollX;
+        this.dragState.scrollY = camera.scrollY;
+        this.dragState.moved = true;
+        this.game.canvas.classList.add('dragging');
+
+        dx = pointer.x - this.dragState.startX;
+        dy = pointer.y - this.dragState.startY;
+      }
+
+      camera.setScroll(
+        this.dragState.scrollX - dx / camera.zoom,
+        this.dragState.scrollY - dy / camera.zoom,
+      );
+      this.constrainCamera();
+    });
+"""
+
+          if old not in text:
+              raise SystemExit('Expected camera drag block was not found; refusing to patch.')
+
+          scene.write_text(text.replace(old, new, 1))
+          PY
+      - name: Typecheck and build
+        run: npm ci && npm run build
+      - name: Commit fix and remove one-time workflow
+        shell: bash
+        run: |
+          rm .github/workflows/patch-camera-drag-jump.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/game/GameScene.ts .github/workflows/patch-camera-drag-jump.yml
+          git commit -m "Smooth camera drag startup"
+          git push origin HEAD:main

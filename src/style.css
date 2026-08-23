@@ -114,6 +114,35 @@ button { font: inherit; }
   backdrop-filter: blur(9px);
 }
 
+.victory-log-actions {
+  position: absolute;
+  z-index: 12;
+  top: calc(50% + 82px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  transform: translateX(-50%);
+}
+
+.victory-log-actions[hidden] { display: none; }
+
+.battle-log-download {
+  padding: 9px 15px;
+  border-color: #d8b967;
+  color: #fff3c7;
+  font-weight: 800;
+  background: linear-gradient(#66502c, #392c19);
+}
+
+.victory-log-actions span {
+  color: #cfc7b5;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .unit-owner-1 { color: var(--p1); }
 .unit-owner-2 { color: var(--p2); }
 

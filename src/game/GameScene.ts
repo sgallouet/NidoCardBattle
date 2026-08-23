@@ -33,7 +33,7 @@ import {
   PLAIN_TERRAIN_ART,
   RIVER_WATER_ART,
 } from '../data/terrainArt';
-import type { Coord, PlayerId, SiteType, UnitState } from '../data/types';
+import type { ActionResult, Coord, PlayerId, SiteType, UnitState } from '../data/types';
 import { GALAXY_BACKGROUND_ART, GALAXY_BACKGROUND_CONTRACT } from '../data/vfxArt';
 import {
   UNIT_ART,
@@ -43,6 +43,8 @@ import {
 } from '../data/unitArt';
 import type { UnitDefinitionId } from '../data/units';
 import { setDebugStatus } from './DebugStatus';
+import type { AiAction, AiPlan } from './ai';
+import { downloadLiveBattleLog, LiveBattleLogRecorder } from './liveBattleLog';
 import { SelectionHexFx } from './SelectionHexFx';
 import { TacticalHexFxLayer, type TacticalHexFxKind } from './TacticalHexFx';
 import {
@@ -172,6 +174,13 @@ export class GameScene extends Phaser.Scene {
   private selectionFxMode: SelectionFxMode = 'premium';
   private unitFacings = new Map<string, UnitFacing>();
   private message = 'Player 1 begins. Move a unit or play a card.';
+  private liveBattleLog?: LiveBattleLogRecorder;
+  private readonly handleBattleLogDownload = (): void => {
+    if (!this.state.winner || !this.liveBattleLog) return;
+    this.liveBattleLog.recordState(this.state, this.message);
+    downloadLiveBattleLog(this.liveBattleLog.createLog(this.state));
+    setDebugStatus('Battle log downloaded as compact JSON for AI review.', 'success');
+  };
   private readonly handleSelectionFxToggle = (): void => {
     this.selectionFxMode = this.selectionFxMode === 'premium' ? 'current' : 'premium';
     this.updateSelectionFxToggle();
@@ -238,6 +247,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.liveBattleLog = new LiveBattleLogRecorder(this.state);
     document.querySelector<HTMLButtonElement>('#end-turn-button')?.addEventListener('click', () => this.handleEndTurn());
     document.querySelector<HTMLButtonElement>('#cancel-button')?.addEventListener('click', () => this.cancelInteraction('Selection cleared.'));
     document.querySelector<HTMLButtonElement>('#ability-button')?.addEventListener('click', () => this.beginDisplace());
@@ -246,12 +256,16 @@ export class GameScene extends Phaser.Scene {
     document.querySelector<HTMLButtonElement>('#zoom-reset')?.addEventListener('click', () => this.resetCamera());
     const generatedMapToggle = document.querySelector<HTMLButtonElement>('#generated-map-toggle');
     const selectionFxToggle = document.querySelector<HTMLButtonElement>('#selection-fx-toggle');
+    const battleLogDownload = document.querySelector<HTMLButtonElement>('#battle-log-download-button');
     generatedMapToggle?.addEventListener('click', this.handleGeneratedMapToggle);
     selectionFxToggle?.addEventListener('click', this.handleSelectionFxToggle);
+    battleLogDownload?.addEventListener('click', this.handleBattleLogDownload);
     this.updateSelectionFxToggle();
     this.events.once('shutdown', () => {
       generatedMapToggle?.removeEventListener('click', this.handleGeneratedMapToggle);
       selectionFxToggle?.removeEventListener('click', this.handleSelectionFxToggle);
+      battleLogDownload?.removeEventListener('click', this.handleBattleLogDownload);
+      this.liveBattleLog = undefined;
       this.clearTacticalHexFx();
       this.clearSelectionHexFx();
       this.clearRiverSurface();
@@ -261,6 +275,18 @@ export class GameScene extends Phaser.Scene {
     this.createGalaxyBackdrop();
     this.renderAll();
     this.resetCamera();
+  }
+
+  recordAiPlan(plan: AiPlan): void {
+    this.liveBattleLog?.recordAiPlan(this.state, plan);
+  }
+
+  beginAiAction(): void {
+    this.liveBattleLog?.beginAiAction(this.state);
+  }
+
+  recordAiAction(actor: PlayerId, action: AiAction | { kind: 'endTurn' }, result: ActionResult): void {
+    this.liveBattleLog?.recordAiAction(this.state, actor, action, result);
   }
 
   private createUnitAnimations(): void {
@@ -471,6 +497,7 @@ export class GameScene extends Phaser.Scene {
   private renderAll(): void {
     this.renderBoard();
     this.renderHud();
+    this.liveBattleLog?.recordState(this.state, this.message);
   }
 
   private renderBoard(): void {
@@ -626,14 +653,21 @@ export class GameScene extends Phaser.Scene {
     this.boardLayer.sort('depth');
 
     if (this.state.winner) {
+      const defeatedPlayer: PlayerId = this.state.winner === 1 ? 2 : 1;
+      const eliminated = !this.state.units.some((unit) => unit.owner === defeatedPlayer);
       const shade = this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 780, 250, 0x090d0a, 0.92)
         .setStrokeStyle(3, 0xd8b967);
       const title = this.add.text(WORLD_WIDTH / 2, WORLD_HEIGHT / 2 - 25, `PLAYER ${this.state.winner} WINS`, {
         fontFamily: 'Georgia, serif', fontSize: '50px', color: '#f5d58e', fontStyle: 'bold',
       }).setOrigin(0.5);
-      const copy = this.add.text(WORLD_WIDTH / 2, WORLD_HEIGHT / 2 + 42, 'The Commander survived all three checkpoints.', {
+      const copy = this.add.text(
+        WORLD_WIDTH / 2,
+        WORLD_HEIGHT / 2 + 42,
+        eliminated ? 'The opposing army was eliminated.' : 'The Commander survived all three checkpoints.',
+        {
         fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#f4eee4',
-      }).setOrigin(0.5);
+        },
+      ).setOrigin(0.5);
       this.boardLayer.add([shade, title, copy]);
     }
   }
@@ -1517,6 +1551,8 @@ export class GameScene extends Phaser.Scene {
     }
     const status = document.querySelector<HTMLElement>('#status');
     if (status) status.textContent = this.message;
+    const victoryLogActions = document.querySelector<HTMLElement>('#victory-log-actions');
+    if (victoryLogActions) victoryLogActions.hidden = this.state.winner === null;
     const cancelButton = document.querySelector<HTMLButtonElement>('#cancel-button');
     if (cancelButton) cancelButton.disabled = !selected || this.animationInProgress;
     this.renderHand();

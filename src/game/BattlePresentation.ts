@@ -6,6 +6,7 @@ interface Snapshot {
   currentPlayer: PlayerId;
   countdown: VictoryCountdown | null;
   winner: PlayerId | null;
+  unitsRemaining: Record<PlayerId, number>;
 }
 
 interface BannerMessage {
@@ -19,6 +20,10 @@ const snapshot = (state: GameState): Snapshot => ({
   currentPlayer: state.currentPlayer,
   countdown: state.countdown ? { ...state.countdown } : null,
   winner: state.winner,
+  unitsRemaining: {
+    1: state.units.filter((unit) => unit.owner === 1).length,
+    2: state.units.filter((unit) => unit.owner === 2).length,
+  },
 });
 
 export class BattlePresentation {
@@ -36,9 +41,12 @@ export class BattlePresentation {
     const next = snapshot(state);
 
     if (next.winner !== this.previous.winner && next.winner) {
+      const defeatedPlayer: PlayerId = next.winner === 1 ? 2 : 1;
       this.enqueue({
         title: next.winner === 1 ? 'Victory' : 'Defeat',
-        subtitle: 'The final countdown is complete',
+        subtitle: next.unitsRemaining[defeatedPlayer] === 0
+          ? 'The opposing army was eliminated'
+          : 'The final countdown is complete',
         className: `victory player-${next.winner}`,
         duration: 1050,
       });

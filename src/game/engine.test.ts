@@ -382,6 +382,53 @@ describe('Undead specialist attacks', () => {
 });
 
 describe('existing summon, restore, capture and victory rules', () => {
+  it('applies GRV4 after attack damage removes the final opposing unit', () => {
+    const state = freshState();
+    const attacker = makeUnit('attacker', 'royalGuard', 1, { q: 5, r: 5 });
+    const humanCommander = makeUnit('human-commander', 'commander', 1, { q: 2, r: 6 });
+    const finalEnemy = makeUnit('final-enemy', 'skeletalInfantry', 2, { q: 6, r: 5 }, { hp: 1 });
+    state.units = [humanCommander, attacker, finalEnemy];
+
+    const result = attackUnit(state, attacker.id, finalEnemy.id);
+
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('Player 1 wins');
+    expect(state.winner).toBe(1);
+    expect(state.countdown).toBe(null);
+  });
+
+  it('applies GRV2 while another opposing unit survives', () => {
+    const state = freshState();
+    const attacker = makeUnit('attacker', 'royalGuard', 1, { q: 5, r: 5 });
+    const humanCommander = makeUnit('human-commander', 'commander', 1, { q: 2, r: 6 });
+    const enemyCommander = makeUnit('enemy-commander', 'commander', 2, { q: 6, r: 5 }, { hp: 1 });
+    const enemySurvivor = makeUnit('enemy-survivor', 'boneArcher', 2, { q: 10, r: 5 });
+    state.units = [humanCommander, attacker, enemyCommander, enemySurvivor];
+
+    attackUnit(state, attacker.id, enemyCommander.id);
+
+    expect(state.winner).toBe(null);
+    expect(state.countdown).toEqual({ player: 1, checkpoints: 0 });
+  });
+
+  it('applies GRV4 during end-of-turn curse resolution', () => {
+    const state = freshState();
+    const finalHuman = makeUnit('final-human', 'royalGuard', 1, { q: 5, r: 5 }, {
+      hp: 1,
+      curses: [{ sourcePlayer: 2, remainingTurns: 1 }],
+    });
+    const undeadCommander = makeUnit('undead-commander', 'commander', 2, { q: 10, r: 6 });
+    state.units = [finalHuman, undeadCommander];
+    const startingTurn = state.turnNumber;
+
+    const result = endTurn(state, fixedRandom);
+
+    expect(result).toEqual({ ok: true, message: 'Player 2 wins the match.' });
+    expect(state.winner).toBe(2);
+    expect(state.currentPlayer).toBe(1);
+    expect(state.turnNumber).toBe(startingTurn);
+  });
+
   it('starts with each Home Keep empty and immediately usable for summoning', () => {
     const state = freshState();
     const humanKeep = state.sites.find((site) => site.id === 'keep-1')!;

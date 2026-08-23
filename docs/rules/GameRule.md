@@ -15,6 +15,7 @@ Gameplay rules in this file own match flow and victory only. Other rule files ow
 - **GRT7** - End the turn.
 
 ## Victory
-- **GRV1** - The only way to win is to kill the enemy Commander, then keep your own Commander alive through the end of your next 3 turns.
+- **GRV1** - A player wins by either completing the Commander survival countdown under **GRV2**-**GRV3** or eliminating the opposing army under **GRV4**.
 - **GRV2** - The 3-turn countdown starts immediately when the enemy Commander dies; only the killer's own end-of-turn checkpoints count.
 - **GRV3** - If the killer's Commander dies before the third checkpoint is completed, that victory countdown is cancelled.
+- **GRV4** - When a player has no units remaining, the opposing player wins immediately.

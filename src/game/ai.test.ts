@@ -84,9 +84,9 @@ describe('smart enemy AI', () => {
     runSmartAiTurn(state, fixedRandom, deterministicSearch);
 
     expect(state.units.some((unit) => unit.id === 'human-commander')).toBe(false);
-    expect(state.countdown?.player).toBe(2);
-    expect(state.countdown?.checkpoints).toBe(1);
-    expect(state.currentPlayer).toBe(1);
+    expect(state.winner).toBe(2);
+    expect(state.countdown).toBe(null);
+    expect(state.currentPlayer).toBe(2);
   });
 
   it('can finish the final Commander survival checkpoint and win', () => {

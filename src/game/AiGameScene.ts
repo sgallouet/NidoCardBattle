@@ -55,6 +55,9 @@ interface GameSceneInternals {
   playTurnEnd: () => void;
   playUnitDeath: (owner: PlayerId, commander?: boolean) => void;
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
+  recordAiPlan: (plan: AiPlan) => void;
+  beginAiAction: () => void;
+  recordAiAction: (actor: PlayerId, action: AiAction | { kind: 'endTurn' }, result: ActionResult) => void;
 }
 
 interface AiWorkerResponse {
@@ -338,12 +341,16 @@ export class AiGameScene extends GameScene {
 
   private async playAiPlan(scene: GameSceneInternals, plan: AiPlan): Promise<void> {
     const messages: string[] = [];
+    scene.recordAiPlan(plan);
     for (const [index, action] of plan.actions.entries()) {
       if (scene.state.winner || scene.state.currentPlayer !== 2) break;
+      const actor = scene.state.currentPlayer;
+      scene.beginAiAction();
       setDebugStatus(`AI: running action ${index + 1}/${plan.actions.length} (${action.kind}).`, 'active');
       const result = scene.playAiAction
         ? await scene.playAiAction(action)
         : applyAiAction(scene.state, action);
+      scene.recordAiAction(actor, action, result);
       if (!result.ok) {
         messages.push(`AI plan stopped: ${result.message}`);
         setDebugStatus(`AI replay stopped on action ${index + 1}: ${result.message}`, 'error');
@@ -363,7 +370,9 @@ export class AiGameScene extends GameScene {
       const nextHandSize = scene.state.players[nextPlayer].hand.length;
       const pendingWellsBefore = new Map(scene.state.pendingManaWells.map((well) => [well.id, well.remainingTurns]));
       const commandersBefore = scene.state.units.filter((unit) => unit.definitionId === 'commander');
+      scene.beginAiAction();
       const result = endTurn(scene.state);
+      scene.recordAiAction(endingPlayer, { kind: 'endTurn' }, result);
       if (result.ok) {
         const deadCommander = commandersBefore.find((commander) => !findUnit(scene.state, commander.id));
         if (deadCommander) scene.playUnitDeath(deadCommander.owner, true);
@@ -388,7 +397,13 @@ export class AiGameScene extends GameScene {
     }
 
     scene.message = scene.state.winner === 2
-      ? 'The Undead Commander survived the countdown. Enemy wins.'
+      ? scene.state.units.some((unit) => unit.owner === 1)
+        ? 'The Undead Commander survived the countdown. Enemy wins.'
+        : 'The Human army was eliminated. Enemy wins.'
+      : scene.state.winner === 1
+        ? scene.state.units.some((unit) => unit.owner === 2)
+          ? 'The Human Commander survived the countdown. Player 1 wins.'
+          : 'The Undead army was eliminated. Player 1 wins.'
       : messages.length > 0
         ? `Enemy turn complete: ${messages.at(-1)}`
         : 'Enemy turn complete.';

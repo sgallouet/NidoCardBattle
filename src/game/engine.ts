@@ -311,6 +311,8 @@ export const getAttackTargets = (state: GameState, unitId: string): UnitState[] 
 const commanderAlive = (state: GameState, player: PlayerId): boolean =>
   state.units.some((unit) => unit.owner === player && unit.definitionId === 'commander' && unit.hp > 0);
 
+const opponentOf = (player: PlayerId): PlayerId => player === 1 ? 2 : 1;
+
 const removeDeadUnit = (state: GameState, unit: UnitState, sourcePlayer: PlayerId): void => {
   if (unit.definitionId === 'commander') {
     if (state.countdown?.player === unit.owner) state.countdown = null;
@@ -321,6 +323,10 @@ const removeDeadUnit = (state: GameState, unit: UnitState, sourcePlayer: PlayerI
   state.units = state.units.filter((candidate) => candidate.id !== unit.id);
   for (const commander of state.units) {
     if (commander.soulLinkTargetId === unit.id) commander.soulLinkTargetId = undefined;
+  }
+  if (!state.units.some((candidate) => candidate.owner === unit.owner)) {
+    state.winner = opponentOf(unit.owner);
+    state.countdown = null;
   }
 };
 
@@ -492,7 +498,8 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
   }
 
   const assistText = assisted > 0 ? ` + ${assisted} Assist` : '';
-  return { ok: true, message: `${attackerDef.name} attacked ${defenderDef.name} for ${dealt}${assistText}.` };
+  const victoryText = state.winner ? ` Player ${state.winner} wins the match.` : '';
+  return { ok: true, message: `${attackerDef.name} attacked ${defenderDef.name} for ${dealt}${assistText}.${victoryText}` };
 };
 
 export const getDisplaceTargets = (state: GameState, unitId: string): UnitState[] => {
@@ -842,6 +849,7 @@ export const endTurn = (state: GameState, random: () => number = Math.random): A
   const endingPlayer = state.currentPlayer;
   resolveCaptures(state, endingPlayer);
   resolveCurses(state, endingPlayer);
+  if (state.winner) return { ok: true, message: `Player ${state.winner} wins the match.` };
   resolvePendingManaWells(state, endingPlayer);
   if (state.countdown?.player === endingPlayer && commanderAlive(state, endingPlayer)) {
     state.countdown.checkpoints += 1;

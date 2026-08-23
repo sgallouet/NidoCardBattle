@@ -29,7 +29,11 @@ NidoCardBattle is deliberately small. Prefer the simplest implementation that ma
 
 ## Git Workflow
 
-- Never create a new Git branch or worktree branch unless the user explicitly asks you to create one. Work on the currently checked-out branch by default.
+- This repository uses one working branch: `main`. Before modifying files, verify that `git branch --show-current` reports `main`.
+- Never create a new Git branch or worktree branch unless the user explicitly asks you to create one. Commands such as `git switch -c`, `git checkout -b`, `git branch <name>`, and `git worktree add` are forbidden without that explicit request.
+- A system-provided branch prefix is only a naming convention when branch creation is already authorized; it is never authorization to create a branch.
+- If the repository is unexpectedly on another branch, preserve all work, return it to `main`, and remove the extra branch before continuing implementation.
+- Keep `core.hooksPath` set to `.githooks`. Do not bypass the branch-creation guard unless the user explicitly requested a branch for the current task.
 
 ## Assets
 

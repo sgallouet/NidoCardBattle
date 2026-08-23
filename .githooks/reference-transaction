@@ -1,0 +1,23 @@
+#!/bin/sh
+
+if [ "$1" != "prepared" ] || [ "$NIDOCARD_BRANCH_APPROVED" = "1" ]; then
+  exit 0
+fi
+
+zero=0000000000000000000000000000000000000000
+
+while read -r old_value new_value ref_name; do
+  case "$ref_name" in
+    refs/heads/main)
+      ;;
+    refs/heads/*)
+      if [ "$old_value" = "$zero" ] && [ "$new_value" != "$zero" ]; then
+        echo "Blocked creation of $ref_name: NidoCardBattle uses only main." >&2
+        echo "Set NIDOCARD_BRANCH_APPROVED=1 only after an explicit user request." >&2
+        exit 1
+      fi
+      ;;
+  esac
+done
+
+exit 0

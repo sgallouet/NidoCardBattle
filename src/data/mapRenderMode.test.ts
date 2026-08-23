@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_MAP_RENDER_MODE, resolveMapRenderMode } from './mapRenderMode';
 
 describe('map render mode', () => {
-  it('defaults to authored for the current prototype evaluation', () => {
+  it('defaults to the tiled renderer selected by the latest prototype evaluation', () => {
     expect(resolveMapRenderMode('')).toBe(DEFAULT_MAP_RENDER_MODE);
-    expect(DEFAULT_MAP_RENDER_MODE).toBe('authored');
+    expect(DEFAULT_MAP_RENDER_MODE).toBe('tiled');
   });
 
   it('accepts an explicit tiled renderer override', () => {

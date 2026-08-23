@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MAP_DECORATIONS, MAP_HEIGHT, MAP_WIDTH } from '../data/map';
+import { MAP_HEIGHT, MAP_WIDTH } from '../data/map';
 import type { MapRenderMode } from '../data/mapRenderMode';
 import type { Coord } from '../data/types';
 import { terrainAt } from './engine';
@@ -80,12 +80,6 @@ export class AuthoredMapPresentation {
       }
     }
 
-    // Road presentation belongs to the future authored road patch. Villages and
-    // ruins remain ordinary independent decorations for now.
-    for (const decoration of MAP_DECORATIONS) {
-      if (decoration.type === 'road') this.hideChild(board, cursor);
-      cursor += 1;
-    }
   }
 
   private hideChild(board: Phaser.GameObjects.Container, index: number): void {

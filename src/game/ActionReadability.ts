@@ -27,10 +27,9 @@ export interface ActionReadabilitySceneInternals {
   center: (coord: Coord) => Phaser.Math.Vector2;
 }
 
-const MOVE_COLOR = 0x68e4cf;
+const MOVE_COLOR = 0x4eb9ff;
 const ATTACK_COLOR = 0xff7180;
 const SPENT_COLOR = 0x26332d;
-const LETHAL_COLOR = 0xff304c;
 
 export class ActionReadabilityLayer {
   private layer?: Phaser.GameObjects.Container;
@@ -154,19 +153,6 @@ export class ActionReadabilityLayer {
   private drawLethalMarker(coord: Coord): void {
     const center = this.game.center(coord);
     const graphics = this.scene.add.graphics();
-
-    graphics.lineStyle(5, LETHAL_COLOR, 0.95);
-    graphics.strokeCircle(center.x, center.y, 44);
-    graphics.lineStyle(2, 0xfff1e8, 0.86);
-    for (const angleDegrees of [45, 135, 225, 315]) {
-      const angle = Phaser.Math.DegToRad(angleDegrees);
-      graphics.lineBetween(
-        center.x + Math.cos(angle) * 47,
-        center.y + Math.sin(angle) * 47,
-        center.x + Math.cos(angle) * 55,
-        center.y + Math.sin(angle) * 55,
-      );
-    }
 
     const skullX = center.x + 31;
     const skullY = center.y - 35;

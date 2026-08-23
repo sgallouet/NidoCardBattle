@@ -40,12 +40,11 @@ interface DamagePreview {
 }
 
 const PLAYER_COLORS = { 1: 0x55b9f3, 2: 0xf05b67 } as const;
-const ATTACK_COLOR = 0xff7785;
 const SPLASH_COLOR = 0xf0a45d;
 const ASSIST_COLOR = 0xe9e4d6;
 const FLANK_COLOR = 0xf3c969;
 const CURSE_COLOR = 0xb76cff;
-const PATH_COLOR = 0xc8f5e8;
+const PATH_COLOR = 0x85d3ff;
 const AGILE_PATH_COLOR = 0xf0ce72;
 const CAPTURE_COLOR = 0xf0c56b;
 
@@ -344,10 +343,6 @@ export class TacticalReadabilityLayer {
 
     const preview = this.previewAttack(attacker, defender);
     const targetCenter = this.game.center(defender.coord);
-    const graphics = this.scene.add.graphics();
-    graphics.lineStyle(4, ATTACK_COLOR, 0.86);
-    graphics.strokeCircle(targetCenter.x, targetCenter.y, 42);
-    this.add(graphics);
 
     if (preview.targetDamage > 0) this.addBadge(defender.coord, `−${preview.targetDamage}`, 0xa93d4a, 0, -45, 12);
 

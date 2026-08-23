@@ -491,7 +491,9 @@ export class GameScene extends Phaser.Scene {
       points: Phaser.Geom.Point[];
       kind: TacticalHexFxKind;
       phase: number;
+      path?: Phaser.Math.Vector2[];
     }> = [];
+    const movementPaths = this.movementHighlightPaths();
     const summonKind = this.summonHighlightKind();
     if (this.useGeneratedMapPreview) {
       const generatedMap = this.add.image(
@@ -585,6 +587,7 @@ export class GameScene extends Phaser.Scene {
             points,
             kind: tacticalKind,
             phase: (q * 1.77 + r * 2.31) % (Math.PI * 2),
+            path: tacticalKind === 'move' ? movementPaths.get(key) : undefined,
           });
         }
         if (highlight.selected.has(key) && this.selectionFxMode === 'premium') {
@@ -601,6 +604,7 @@ export class GameScene extends Phaser.Scene {
         highlightSpec.points,
         highlightSpec.kind,
         highlightSpec.phase,
+        highlightSpec.path,
       );
     }
     this.boardLayer.add(this.tacticalHexFx.container);
@@ -649,6 +653,22 @@ export class GameScene extends Phaser.Scene {
     const cardId = this.state.players[this.state.currentPlayer].hand[this.selectedCardIndex];
     const card = cardId ? cardDefinition(cardId as CardDefinitionId) : undefined;
     return card?.type === 'unit' ? 'deploy' : 'spell';
+  }
+
+  private movementHighlightPaths(): Map<string, Phaser.Math.Vector2[]> {
+    const paths = new Map<string, Phaser.Math.Vector2[]>();
+    if (this.mode !== 'unit' || !this.selectedUnitId) return paths;
+    const selected = findUnit(this.state, this.selectedUnitId);
+    if (!selected) return paths;
+
+    for (const key of getReachableCoords(this.state, selected.id).keys()) {
+      const [q, r] = key.split(',').map(Number);
+      const preview = structuredClone(this.state);
+      const result = moveUnit(preview, selected.id, { q, r });
+      if (!result.ok || !result.path) continue;
+      paths.set(key, result.path.map((coord) => this.center(coord)));
+    }
+    return paths;
   }
 
   private createGalaxyBackdrop(): void {

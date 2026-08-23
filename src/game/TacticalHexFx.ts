@@ -16,16 +16,42 @@ interface TacticalHexFxEntry {
   tracer: Phaser.GameObjects.Graphics;
   glyph: Phaser.GameObjects.Graphics;
   points: Phaser.Geom.Point[];
+  path?: Phaser.Math.Vector2[];
   palette: TacticalHexFxPalette;
   phase: number;
   hovered: boolean;
 }
 
 const PALETTES: Record<TacticalHexFxKind, TacticalHexFxPalette> = {
-  move: { fill: 0x1bd8c1, glow: 0x18e0cb, core: 0x79ffe8, hot: 0xe5fffb },
-  attack: { fill: 0xff6a36, glow: 0xff7c24, core: 0xffbd45, hot: 0xfff0ad },
+  move: { fill: 0x168dff, glow: 0x159dff, core: 0x54b9ff, hot: 0xb9e5ff },
+  attack: { fill: 0xff243e, glow: 0xff304d, core: 0xff5a6d, hot: 0xffd7dc },
   deploy: { fill: 0xe9ad32, glow: 0xffb82f, core: 0xffdc72, hot: 0xfff5be },
   spell: { fill: 0x8438ff, glow: 0xa23fff, core: 0xe16dff, hot: 0xffdcff },
+};
+
+const drawHexCorners = (
+  graphics: Phaser.GameObjects.Graphics,
+  points: Phaser.Geom.Point[],
+  length: number,
+): void => {
+  for (let index = 0; index < points.length; index += 1) {
+    const corner = new Phaser.Math.Vector2(points[index].x, points[index].y);
+    const previous = new Phaser.Math.Vector2(
+      points[(index + points.length - 1) % points.length].x,
+      points[(index + points.length - 1) % points.length].y,
+    );
+    const next = new Phaser.Math.Vector2(
+      points[(index + 1) % points.length].x,
+      points[(index + 1) % points.length].y,
+    );
+    const towardPrevious = previous.subtract(corner).normalize().scale(length).add(corner);
+    const towardNext = next.subtract(corner).normalize().scale(length).add(corner);
+    graphics.beginPath();
+    graphics.moveTo(towardPrevious.x, towardPrevious.y);
+    graphics.lineTo(corner.x, corner.y);
+    graphics.lineTo(towardNext.x, towardNext.y);
+    graphics.strokePath();
+  }
 };
 
 const samplePerimeter = (points: Phaser.Geom.Point[], progress: number): Phaser.Math.Vector2 => {
@@ -38,6 +64,14 @@ const samplePerimeter = (points: Phaser.Geom.Point[], progress: number): Phaser.
     Phaser.Math.Linear(points[index].x, points[next].x, amount),
     Phaser.Math.Linear(points[index].y, points[next].y, amount),
   );
+};
+
+const samplePath = (points: Phaser.Math.Vector2[], progress: number): Phaser.Math.Vector2 => {
+  if (points.length < 2) return points[0]?.clone() ?? new Phaser.Math.Vector2();
+  const clamped = Phaser.Math.Clamp(progress, 0, 1);
+  const scaled = clamped * (points.length - 1);
+  const index = Math.min(Math.floor(scaled), points.length - 2);
+  return points[index].clone().lerp(points[index + 1], scaled - index);
 };
 
 /** Presentation-only tactical range lighting. Gameplay owns every highlighted coordinate. */
@@ -61,6 +95,7 @@ export class TacticalHexFxLayer {
     worldPoints: Phaser.Geom.Point[],
     kind: TacticalHexFxKind,
     phase: number,
+    worldPath?: Phaser.Math.Vector2[],
   ): void {
     const palette = PALETTES[kind];
     const points = worldPoints.map((point) => new Phaser.Geom.Point(point.x - center.x, point.y - center.y));
@@ -70,23 +105,39 @@ export class TacticalHexFxLayer {
     const tracer = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
     const glyph = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
 
-    glow.fillStyle(palette.fill, 0.09);
+    glow.fillStyle(palette.fill, kind === 'move' ? 0.025 : 0.09);
     glow.fillPoints(points, true);
-    glow.lineStyle(14, palette.glow, 0.11);
-    glow.strokePoints(points, true);
-    glow.lineStyle(7, palette.glow, 0.18);
-    glow.strokePoints(points, true);
-
-    core.lineStyle(3.2, palette.core, 0.88);
-    core.strokePoints(points, true);
-    core.lineStyle(1.1, palette.hot, 0.95);
-    core.strokePoints(points, true);
-    for (const point of points) {
-      core.fillStyle(palette.hot, 0.9);
-      core.fillCircle(point.x, point.y, 2.1);
+    if (kind === 'move') {
+      glow.lineStyle(8, palette.glow, 0.1);
+      drawHexCorners(glow, points, 7);
+      core.lineStyle(1.5, palette.core, 0.46);
+      drawHexCorners(core, points, 6);
+    } else if (kind === 'attack') {
+      glow.lineStyle(16, palette.glow, 0.15);
+      drawHexCorners(glow, points, 17);
+      glow.lineStyle(8, palette.glow, 0.24);
+      drawHexCorners(glow, points, 17);
+      core.lineStyle(4, palette.core, 0.94);
+      drawHexCorners(core, points, 15);
+      core.lineStyle(1.25, palette.hot, 1);
+      drawHexCorners(core, points, 15);
+    } else {
+      glow.lineStyle(14, palette.glow, 0.11);
+      glow.strokePoints(points, true);
+      glow.lineStyle(7, palette.glow, 0.18);
+      glow.strokePoints(points, true);
+      core.lineStyle(3.2, palette.core, 0.88);
+      core.strokePoints(points, true);
+      core.lineStyle(1.1, palette.hot, 0.95);
+      core.strokePoints(points, true);
+      for (const point of points) {
+        core.fillStyle(palette.hot, 0.9);
+        core.fillCircle(point.x, point.y, 2.1);
+      }
     }
 
-    this.drawGlyph(glyph, kind, palette);
+    const path = worldPath?.map((point) => point.clone().subtract(center));
+    this.drawGlyph(glyph, kind, palette, path);
     effectContainer.add([glow, core, glyph, tracer]);
     effectContainer.setAlpha(0);
     this.container.add(effectContainer);
@@ -97,6 +148,7 @@ export class TacticalHexFxLayer {
       tracer,
       glyph,
       points,
+      path,
       palette,
       phase,
       hovered: false,
@@ -141,6 +193,10 @@ export class TacticalHexFxLayer {
   };
 
   private drawTracer(effect: TacticalHexFxEntry, seconds: number): void {
+    if (effect.path && effect.path.length > 1) {
+      this.drawMovementArrows(effect, seconds);
+      return;
+    }
     const progress = seconds * 0.22 + effect.phase / (Math.PI * 2);
     const tail = samplePerimeter(effect.points, progress - 0.038);
     const head = samplePerimeter(effect.points, progress);
@@ -153,28 +209,57 @@ export class TacticalHexFxLayer {
     effect.tracer.lineBetween(tail.x, tail.y, head.x, head.y);
   }
 
+  private drawMovementArrows(effect: TacticalHexFxEntry, seconds: number): void {
+    const path = effect.path;
+    if (!path) return;
+    effect.tracer.clear();
+    const cycle = (seconds * 0.48 + effect.phase * 0.035) % 1;
+    for (let index = 0; index < 2; index += 1) {
+      const delayed = cycle - index * 0.24;
+      if (delayed < 0 || delayed > 0.82) continue;
+      const progress = 0.14 + delayed / 0.82 * 0.74;
+      const tip = samplePath(path, progress);
+      const behind = samplePath(path, Math.max(0, progress - 0.035));
+      const direction = tip.clone().subtract(behind).normalize();
+      const perpendicular = new Phaser.Math.Vector2(-direction.y, direction.x);
+      const size = effect.hovered ? 7 : 5.5;
+      const tail = tip.clone().subtract(direction.clone().scale(size));
+      const left = tail.clone().add(perpendicular.clone().scale(size * 0.55));
+      const right = tail.clone().subtract(perpendicular.clone().scale(size * 0.55));
+      const alpha = (index === 0 ? 0.9 : 0.48) + (effect.hovered ? 0.08 : 0);
+      effect.tracer.lineStyle(effect.hovered ? 7 : 5, effect.palette.glow, 0.16);
+      effect.tracer.lineBetween(left.x, left.y, tip.x, tip.y);
+      effect.tracer.lineBetween(right.x, right.y, tip.x, tip.y);
+      effect.tracer.lineStyle(effect.hovered ? 3 : 2.2, effect.palette.hot, alpha);
+      effect.tracer.lineBetween(left.x, left.y, tip.x, tip.y);
+      effect.tracer.lineBetween(right.x, right.y, tip.x, tip.y);
+    }
+  }
+
   private drawGlyph(
     graphics: Phaser.GameObjects.Graphics,
     kind: TacticalHexFxKind,
     palette: TacticalHexFxPalette,
+    path?: Phaser.Math.Vector2[],
   ): void {
     if (kind === 'move') {
-      graphics.fillStyle(palette.hot, 0.72);
-      graphics.fillCircle(-8, 5, 1.8);
-      graphics.fillCircle(0, 1, 2.2);
-      graphics.fillCircle(9, -5, 2.7);
+      if (!path) return;
+      graphics.lineStyle(1.2, palette.core, 0.3);
+      for (let index = 1; index < path.length; index += 1) {
+        const from = path[index - 1];
+        const to = path[index];
+        const direction = to.clone().subtract(from).normalize();
+        graphics.lineBetween(
+          from.x + direction.x * 22,
+          from.y + direction.y * 22,
+          to.x - direction.x * 17,
+          to.y - direction.y * 17,
+        );
+      }
       return;
     }
 
     if (kind === 'attack') {
-      graphics.lineStyle(2, palette.hot, 0.78);
-      graphics.strokeCircle(0, 0, 10);
-      graphics.strokeCircle(0, 0, 4);
-      for (const angle of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
-        graphics.lineBetween(Math.cos(angle) * 13, Math.sin(angle) * 13, Math.cos(angle) * 19, Math.sin(angle) * 19);
-      }
-      graphics.fillStyle(0xff4238, 0.88);
-      graphics.fillCircle(0, 0, 2.6);
       return;
     }
 

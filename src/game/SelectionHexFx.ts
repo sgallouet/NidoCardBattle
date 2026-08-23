@@ -33,30 +33,30 @@ export class SelectionHexFx {
     this.container = scene.add.container(center.x, center.y).setDepth(depth);
 
     const wash = scene.add.graphics();
-    wash.fillStyle(0x2ddcff, 0.07);
+    wash.fillStyle(0x168dff, 0.07);
     wash.fillPoints(this.localPoints, true);
 
     this.outerGlow = scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
-    this.stroke(this.outerGlow, 16, 0x1cbcff, 0.1);
-    this.stroke(this.outerGlow, 9, 0x36dcff, 0.17);
+    this.stroke(this.outerGlow, 16, 0x0b72ff, 0.1);
+    this.stroke(this.outerGlow, 9, 0x189dff, 0.17);
 
     this.innerGlow = scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
-    this.stroke(this.innerGlow, 4, 0x4ee8ff, 0.58);
-    this.stroke(this.innerGlow, 2, 0xc5fbff, 0.94);
+    this.stroke(this.innerGlow, 4, 0x27b9ff, 0.58);
+    this.stroke(this.innerGlow, 2, 0xb9eaff, 0.94);
 
     const cornerLights = scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
-    cornerLights.fillStyle(0xbffaff, 0.55);
+    cornerLights.fillStyle(0xb3e4ff, 0.55);
     for (const point of this.localPoints) cornerLights.fillCircle(point.x, point.y, 1.65);
 
     this.orbitLights = [
-      this.createOrbitLight(8.5, 0x36dfff, 0.16, 0, 1),
-      this.createOrbitLight(5.5, 0x74efff, 0.34, 0, 1),
+      this.createOrbitLight(8.5, 0x0a7cff, 0.16, 0, 1),
+      this.createOrbitLight(5.5, 0x2dadff, 0.34, 0, 1),
       this.createOrbitLight(2.5, 0xffffff, 1, 0, 1),
-      this.createOrbitLight(3.2, 0x8ff5ff, 0.52, TRAIL_SPACING, 0.9),
-      this.createOrbitLight(2.8, 0x5beaff, 0.4, TRAIL_SPACING * 2, 0.78),
-      this.createOrbitLight(2.4, 0x43dfff, 0.3, TRAIL_SPACING * 3, 0.66),
-      this.createOrbitLight(2, 0x32d4ff, 0.2, TRAIL_SPACING * 4, 0.54),
-      this.createOrbitLight(1.6, 0x27caff, 0.12, TRAIL_SPACING * 5, 0.42),
+      this.createOrbitLight(3.2, 0x74cfff, 0.52, TRAIL_SPACING, 0.9),
+      this.createOrbitLight(2.8, 0x49baff, 0.4, TRAIL_SPACING * 2, 0.78),
+      this.createOrbitLight(2.4, 0x2aa7ff, 0.3, TRAIL_SPACING * 3, 0.66),
+      this.createOrbitLight(2, 0x168fff, 0.2, TRAIL_SPACING * 4, 0.54),
+      this.createOrbitLight(1.6, 0x0d7eff, 0.12, TRAIL_SPACING * 5, 0.42),
     ];
 
     this.container.add([

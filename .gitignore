@@ -9,3 +9,5 @@ Thumbs.db
 *.log
 reports/battle-logs/
 __pycache__/
+release/itch/*.zip
+release/itch/*.next.zip

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { CardDefinitionId } from '../data/cards';
 import type { ActionResult, Coord, GameState, PlayerId, UnitState } from '../data/types';
 import { ActionFxAnimator } from './ActionFxAnimator';
 import { applyAiAction, type AiAction } from './ai';
@@ -30,6 +31,9 @@ interface AnimatedSceneInternals {
   playCombatAssist: () => void;
   playCombatHit: (ranged: boolean) => void;
   playCombatRetaliation: () => void;
+  playCardPlay: () => void;
+  playTacticSound: (cardId: CardDefinitionId) => void;
+  playUnitDeath: (owner: PlayerId, commander?: boolean) => void;
   playUnitSummon: (owner: PlayerId) => void;
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
 }
@@ -153,6 +157,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
     if (action.kind === 'summon') {
       const result = applyAiAction(game.state, action);
       if (!result.ok) return result;
+      game.playCardPlay();
       game.renderAll();
       document.querySelector<HTMLElement>('#hand')?.replaceChildren();
       const summoned = result.summonedUnitId ? findUnit(game.state, result.summonedUnitId) : undefined;
@@ -167,6 +172,14 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       : findUnit(game.state, action.targetId)?.coord;
     const result = applyAiAction(game.state, action);
     if (result.ok) {
+      if (action.kind === 'tactic') game.playCardPlay();
+      if (action.kind === 'tactic' && (
+        action.cardId === 'graveLock'
+        || action.cardId === 'buildBridge'
+        || action.cardId === 'scorch'
+        || action.cardId === 'raiseFort'
+        || action.cardId === 'profaneWell'
+      )) game.playTacticSound(action.cardId);
       game.renderAll();
       document.querySelector<HTMLElement>('#hand')?.replaceChildren();
       if (targetCoord && fx) await fx.tacticPulse(targetCoord, actorPlayer);
@@ -255,7 +268,10 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
         }
         const sourceCoord = redirected?.unit.id === event.unit.id ? defenderCoord : attackerCoord;
         await motion.hurt(view, event.unit, event.damage, game.center(sourceCoord), event.dead);
-        if (event.dead) await motion.die(view, event.unit);
+        if (event.dead) {
+          game.playUnitDeath(event.unit.owner, event.unit.definitionId === 'commander');
+          await motion.die(view, event.unit);
+        }
       });
 
     await Promise.all([
@@ -290,12 +306,16 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
         ]);
         remainingHp -= actualDamage;
         if (lethal) {
+          game.playUnitDeath(defenderBefore.owner, defenderBefore.definitionId === 'commander');
           await motion.die(defenderView, defenderBefore);
           deathPlayed = true;
           break;
         }
       }
-      if (defenderDamage.dead && !deathPlayed) await motion.die(defenderView, defenderBefore);
+      if (defenderDamage.dead && !deathPlayed) {
+        game.playUnitDeath(defenderBefore.owner, defenderBefore.definitionId === 'commander');
+        await motion.die(defenderView, defenderBefore);
+      }
     }
 
     const newSkeleton = game.state.units.find((unit) =>
@@ -350,7 +370,10 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
           attackerDamage.dead,
         );
       }
-      if (attackerDamage.dead) await motion.die(attackerView, attackerBefore);
+      if (attackerDamage.dead) {
+        game.playUnitDeath(attackerBefore.owner, attackerBefore.definitionId === 'commander');
+        await motion.die(attackerView, attackerBefore);
+      }
     }
 
     game.message = result.message;

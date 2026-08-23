@@ -1,5 +1,5 @@
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
-import type { ActionResult, Coord, GameState } from '../data/types';
+import type { ActionResult, Coord, GameState, PlayerId } from '../data/types';
 import {
   applyAiAction,
   COMMON_AI_OPTIONS,
@@ -47,6 +47,13 @@ interface GameSceneInternals {
   handleHexClick: (coord: Coord) => Promise<void>;
   beginDisplace: () => void;
   animatePlayedCard: (index: number) => void;
+  playCardDraw: () => void;
+  playCardPlay: () => void;
+  playTacticSound: (cardId: CardDefinitionId) => void;
+  playProfaneWellComplete: () => void;
+  playProfaneWellTick: () => void;
+  playTurnEnd: () => void;
+  playUnitDeath: (owner: PlayerId, commander?: boolean) => void;
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
 }
 
@@ -166,6 +173,14 @@ export class AiGameScene extends GameScene {
           : playTacticCardAtCoord(scene.state, cardIndex, coord);
         scene.message = result.message;
         if (result.ok) {
+          scene.playCardPlay();
+          if (
+            card.id === 'graveLock'
+            || card.id === 'buildBridge'
+            || card.id === 'scorch'
+            || card.id === 'raiseFort'
+            || card.id === 'profaneWell'
+          ) scene.playTacticSound(card.id);
           scene.animatePlayedCard(cardIndex);
           scene.clearInteraction();
         }
@@ -289,9 +304,12 @@ export class AiGameScene extends GameScene {
       this.finishAiUi(scene);
       return;
     }
+    const totalNodes = response.plan.diagnostics.strategy.nodes + response.plan.diagnostics.tactical.nodes;
+    const budgetReached = response.plan.diagnostics.strategy.stopReason !== 'complete'
+      || response.plan.diagnostics.tactical.stopReason !== 'complete';
     setDebugStatus(
-      `AI: plan received in ${elapsedSince(this.aiStartedAt)} — ${response.plan.actions.length} actions, ${response.plan.searchedStates} states${response.plan.timedOut ? ', budget reached' : ''}.`,
-      response.plan.timedOut ? 'warning' : 'active',
+      `AI: plan received in ${elapsedSince(this.aiStartedAt)} — ${response.plan.actions.length} actions, ${totalNodes} states${budgetReached ? ', budget reached' : ''}.`,
+      budgetReached ? 'warning' : 'active',
     );
     await this.playAiPlan(scene, response.plan);
   }
@@ -308,9 +326,12 @@ export class AiGameScene extends GameScene {
     this.stopAiHeartbeat();
     const planningStartedAt = performance.now();
     const plan = planSmartAiTurn(scene.state, COMMON_AI_OPTIONS);
+    const totalNodes = plan.diagnostics.strategy.nodes + plan.diagnostics.tactical.nodes;
+    const budgetReached = plan.diagnostics.strategy.stopReason !== 'complete'
+      || plan.diagnostics.tactical.stopReason !== 'complete';
     setDebugStatus(
-      `AI: main-thread plan finished in ${elapsedSince(planningStartedAt)} — ${plan.actions.length} actions, ${plan.searchedStates} states.`,
-      plan.timedOut ? 'warning' : 'active',
+      `AI: main-thread plan finished in ${elapsedSince(planningStartedAt)} — ${plan.actions.length} actions, ${totalNodes} states.`,
+      budgetReached ? 'warning' : 'active',
     );
     void this.playAiPlan(scene, plan).catch((error: unknown) => this.reportAiFailure(error));
   }
@@ -337,7 +358,28 @@ export class AiGameScene extends GameScene {
 
     if (!scene.state.winner && scene.state.currentPlayer === 2) {
       setDebugStatus('AI: actions complete; ending Player 2 turn.', 'active');
+      const endingPlayer = scene.state.currentPlayer;
+      const nextPlayer = 1;
+      const nextHandSize = scene.state.players[nextPlayer].hand.length;
+      const pendingWellsBefore = new Map(scene.state.pendingManaWells.map((well) => [well.id, well.remainingTurns]));
+      const commandersBefore = scene.state.units.filter((unit) => unit.definitionId === 'commander');
       const result = endTurn(scene.state);
+      if (result.ok) {
+        const deadCommander = commandersBefore.find((commander) => !findUnit(scene.state, commander.id));
+        if (deadCommander) scene.playUnitDeath(deadCommander.owner, true);
+        const profaneWellTicked = scene.state.pendingManaWells.some(
+          (well) => well.remainingTurns < (pendingWellsBefore.get(well.id) ?? well.remainingTurns),
+        );
+        const profaneWellCompleted = scene.state.sites.some(
+          (site) => site.type === 'well' && pendingWellsBefore.has(site.id.replace(/^profane-/, '')),
+        );
+        if (profaneWellTicked) scene.playProfaneWellTick();
+        if (profaneWellCompleted) scene.playProfaneWellComplete();
+        if (scene.state.currentPlayer !== endingPlayer) {
+          scene.playTurnEnd();
+          if (scene.state.players[nextPlayer].hand.length > nextHandSize) scene.playCardDraw();
+        }
+      }
       messages.push(result.message);
       scene.message = result.message;
       scene.renderAll();

@@ -2,6 +2,7 @@ import { CARD_DEFINITIONS } from '../data/cards';
 import { MAP_HEIGHT, MAP_WIDTH } from '../data/map';
 import type { ActionResult, Coord, GameState, PlayerId, UnitState } from '../data/types';
 import {
+  GAME_ACTION_KINDS,
   actionTargetId,
   applyGameAction,
   getLegalGameActions,
@@ -16,6 +17,11 @@ import {
   terrainAt,
   unitDefinition,
 } from './engine';
+import {
+  evaluateStrategicPosition,
+  strategicUnitValue,
+  type StrategicEvaluation,
+} from './aiEvaluation';
 
 const UNDEAD_PLAYER: PlayerId = 2;
 const PLANNING_RANDOM = () => 0.5;
@@ -24,10 +30,9 @@ const MAX_ACTIONS_PER_NODE = 72;
 export interface AiTurnResult {
   actions: string[];
   endedTurn: boolean;
-  planScore: number;
-  searchedStates: number;
-  responseStates: number;
-  timedOut: boolean;
+  strategic: StrategicEvaluation;
+  tactical: TacticalAssessment;
+  diagnostics: AiPlanDiagnostics;
 }
 
 /** AI actions are exactly the engine's legal gameplay actions. */
@@ -35,10 +40,58 @@ export type AiAction = GameAction;
 
 export interface AiPlan {
   actions: AiAction[];
+  strategic: StrategicEvaluation;
+  tactical: TacticalAssessment;
+  diagnostics: AiPlanDiagnostics;
+}
+
+export type SearchStopReason = 'complete' | 'node-limit' | 'time-limit';
+export type TacticalTier = 'forced-win' | 'safe' | 'unsafe' | 'forced-loss';
+
+export interface TacticalComponents {
+  commanderSurvival: number;
+  commanderHealth: number;
+  incomingDamage: number;
+  threatenedUnits: number;
+  threatReduction: number;
+  friendlyMaterialPreserved: number;
+  enemyMaterialRemoved: number;
+}
+
+export interface TacticalAssessment {
+  tier: TacticalTier;
   score: number;
-  searchedStates: number;
-  responseStates: number;
-  timedOut: boolean;
+  incomingCommanderDamage: number;
+  threatenedFriendlyUnits: number;
+  visibleThreatsRemoved: number;
+  components: TacticalComponents;
+  worstResponse: AiAction[];
+  worstResponseStrategicOutlook: number;
+}
+
+export interface ActionKindCounts {
+  summon: number;
+  tactic: number;
+  move: number;
+  attack: number;
+  displace: number;
+  rally: number;
+  soulLink: number;
+  curse: number;
+}
+
+export interface SearchPhaseDiagnostics {
+  nodes: number;
+  stopReason: SearchStopReason;
+  legalActions: number;
+  retainedActions: number;
+  legalByKind: ActionKindCounts;
+  retainedByKind: ActionKindCounts;
+}
+
+export interface AiPlanDiagnostics {
+  strategy: SearchPhaseDiagnostics;
+  tactical: SearchPhaseDiagnostics;
 }
 
 export interface AiExecutionObserver {
@@ -58,34 +111,35 @@ export interface AiExecutionObserver {
 export interface AiSearchOptions {
   beamWidth?: number;
   maxDepth?: number;
-  maxNodes?: number;
-  maxPlanningMs?: number;
+  strategyMaxNodes?: number;
+  strategyMaxPlanningMs?: number;
   candidatePlans?: number;
   responseBeamWidth?: number;
   responseDepth?: number;
-  responseMaxNodes?: number;
+  tacticalMaxNodes?: number;
+  tacticalMaxPlanningMs?: number;
 }
 
 /** One common mobile-safe intelligence budget for every live-game device. */
 export const COMMON_AI_OPTIONS: Required<AiSearchOptions> = {
   beamWidth: 9,
   maxDepth: 7,
-  maxNodes: 2_800,
-  maxPlanningMs: 55,
+  strategyMaxNodes: 1_800,
+  strategyMaxPlanningMs: 35,
   candidatePlans: 4,
   responseBeamWidth: 4,
   responseDepth: 4,
-  responseMaxNodes: 650,
+  tacticalMaxNodes: 1_000,
+  tacticalMaxPlanningMs: 20,
 };
 
 /** Same intelligence/node limits for headless simulation; relaxed clock only removes device-speed noise. */
 export const SIMULATION_AI_OPTIONS: Required<AiSearchOptions> = {
   ...COMMON_AI_OPTIONS,
-  maxPlanningMs: 60_000,
+  strategyMaxPlanningMs: 60_000,
+  tacticalMaxPlanningMs: 60_000,
 };
 
-/** Backwards-compatible alias while older callers migrate. */
-export const MOBILE_AI_OPTIONS = COMMON_AI_OPTIONS;
 export const getBrowserAiSearchOptions = (): Required<AiSearchOptions> => COMMON_AI_OPTIONS;
 
 const nowMs = (): number => typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -108,19 +162,6 @@ const opponentOf = (player: PlayerId): PlayerId => player === 1 ? 2 : 1;
 
 const commander = (state: GameState, player: PlayerId): UnitState | undefined =>
   state.units.find((unit) => unit.owner === player && unit.definitionId === 'commander');
-
-const unitValue = (unit: UnitState): number => {
-  const definition = unitDefinition(unit);
-  if (unit.definitionId === 'commander') return 0;
-  const base = (definition.cost + 1) * 110
-    + definition.attack * 45
-    + definition.maxHp * 28
-    + definition.move * 16
-    + definition.range * 20
-    + definition.traits.length * 24
-    + (definition.ability ? 55 : 0);
-  return base * (0.45 + 0.55 * Math.max(0, unit.hp) / definition.maxHp);
-};
 
 const potentialRangeFrom = (unit: UnitState, origin: Coord): number => {
   const definition = unitDefinition(unit);
@@ -171,94 +212,6 @@ const approximateAttackPressure = (state: GameState, attackerPlayer: PlayerId, t
     const optimisticReach = definition.move + definition.range + (definition.range > 1 ? 1 : 0);
     return hexDistance(unit.coord, target) <= optimisticReach;
   }).length;
-
-const countAdjacentBlockers = (state: GameState, target: UnitState): number =>
-  state.units.filter((unit) => unit.owner === target.owner
-    && unit.id !== target.id
-    && unitDefinition(unit).traits.includes('Blocking')
-    && hexDistance(unit.coord, target.coord) === 1).length;
-
-const nearestEnemyDistance = (state: GameState, source: UnitState, enemyPlayer: PlayerId): number => {
-  const distances = state.units
-    .filter((unit) => unit.owner === enemyPlayer)
-    .map((unit) => hexDistance(source.coord, unit.coord));
-  return distances.length > 0 ? Math.min(...distances) : 20;
-};
-
-/** Score from the requested player's point of view. The same weights are used for both factions. */
-export const evaluatePosition = (state: GameState, perspective: PlayerId): number => {
-  const opponent = opponentOf(perspective);
-  if (state.winner === perspective) return 1_000_000;
-  if (state.winner === opponent) return -1_000_000;
-
-  let score = 0;
-  const ownCommander = commander(state, perspective);
-  const enemyCommander = commander(state, opponent);
-
-  if (!ownCommander) score -= 180_000;
-  if (!enemyCommander) score += 150_000;
-
-  for (const unit of state.units) {
-    score += (unit.owner === perspective ? 1 : -1) * unitValue(unit);
-  }
-
-  for (const site of state.sites) {
-    const sign = site.owner === perspective ? 1 : site.owner === opponent ? -1 : 0;
-    if (site.type === 'well') score += sign * 360;
-    if (site.type === 'fort') score += sign * 250;
-  }
-
-  for (const pending of state.pendingManaWells) {
-    const sign = pending.owner === perspective ? 1 : -1;
-    score += sign * Math.max(90, 270 - pending.remainingTurns * 45);
-  }
-
-  if (state.countdown?.player === perspective) score += 32_000 + state.countdown.checkpoints * 18_000;
-  if (state.countdown?.player === opponent) score -= 45_000 + state.countdown.checkpoints * 24_000;
-
-  if (ownCommander) {
-    const pressure = approximateAttackPressure(state, opponent, ownCommander.coord);
-    score -= pressure * 5_500;
-    score += countAdjacentBlockers(state, ownCommander) * 180;
-    score += Math.min(8, nearestEnemyDistance(state, ownCommander, opponent)) * 85;
-  }
-
-  if (enemyCommander) {
-    const pressure = approximateAttackPressure(state, perspective, enemyCommander.coord);
-    score += pressure * 3_700;
-    score -= countAdjacentBlockers(state, enemyCommander) * 120;
-    const ownDistances = state.units
-      .filter((unit) => unit.owner === perspective && unit.definitionId !== 'commander')
-      .map((unit) => hexDistance(unit.coord, enemyCommander.coord));
-    if (ownDistances.length > 0) score += Math.max(0, 9 - Math.min(...ownDistances)) * 105;
-  }
-
-  // The planner may use its own hand/deck, but never scores hidden opponent cards.
-  const own = state.players[perspective];
-  score += own.hand.length * 28;
-  score += own.deck.length * 8;
-  score += own.mana * 18;
-  return score;
-};
-
-/** Legacy Player-2 evaluator retained for live enemy scene/tests. */
-export const evaluateAiPosition = (state: GameState): number => evaluatePosition(state, UNDEAD_PLAYER);
-
-const exactCommanderThreatAdjustment = (state: GameState, perspective: PlayerId): number => {
-  const opponent = opponentOf(perspective);
-  let adjustment = 0;
-  const ownCommander = commander(state, perspective);
-  const enemyCommander = commander(state, opponent);
-  if (ownCommander) {
-    const enemyThreats = buildThreatMap(state, opponent);
-    adjustment -= (enemyThreats.get(coordKey(ownCommander.coord)) ?? 0) * 1_800;
-  }
-  if (enemyCommander) {
-    const ownThreats = buildThreatMap(state, perspective);
-    adjustment += (ownThreats.get(coordKey(enemyCommander.coord)) ?? 0) * 1_200;
-  }
-  return adjustment;
-};
 
 /**
  * Search-cache signature serializes full state-bearing gameplay data so strategically different
@@ -324,7 +277,7 @@ const actionPriority = (state: GameState, action: AiAction, actor: PlayerId): nu
     const lethal = unitDefinition(attacker).attack >= target.hp ? 1 : 0;
     return (target.definitionId === 'commander' ? 100_000 : 0)
       + lethal * 8_000
-      + unitValue(target);
+      + strategicUnitValue(target);
   }
 
   if (action.kind === 'summon') {
@@ -344,25 +297,181 @@ const actionPriority = (state: GameState, action: AiAction, actor: PlayerId): nu
     const enemyCommander = commander(state, opponent);
     const before = enemyCommander ? hexDistance(unit.coord, enemyCommander.coord) : 0;
     const after = enemyCommander ? hexDistance(action.destination, enemyCommander.coord) : 0;
+    const commanderDamage = enemyCommander
+      ? unitDefinition(enemyCommander).maxHp - enemyCommander.hp
+      : 0;
+    const pursuitValue = unit.definitionId === 'commander' ? 220 : 420 + commanderDamage * 70;
     const siteBonus = state.sites.some((site) => site.owner !== actor
       && site.coord.q === action.destination.q
       && site.coord.r === action.destination.r) ? 1_100 : 0;
     const commanderSafety = unit.definitionId === 'commander'
       ? -approximateAttackPressure(state, opponent, action.destination) * 1_400
       : 0;
-    return (before - after) * 260 + siteBonus + commanderSafety;
+    return (before - after) * pursuitValue + siteBonus + commanderSafety;
+  }
+
+  if (action.kind === 'tactic' && 'destination' in action) {
+    const occupant = state.units.find((unit) => unit.coord.q === action.destination.q
+      && unit.coord.r === action.destination.r);
+    const occupantBonus = occupant
+      ? occupant.owner === actor ? 350 : 2_200 + strategicUnitValue(occupant)
+      : 0;
+    const nearestUnitDistance = Math.min(12, ...state.units.map((unit) =>
+      hexDistance(unit.coord, action.destination)));
+    const siteBonus = state.sites.some((site) =>
+      hexDistance(site.coord, action.destination) <= 1) ? 650 : 0;
+    const enemyCommander = commander(state, opponent);
+    const commanderProximity = enemyCommander
+      ? Math.max(0, 8 - hexDistance(action.destination, enemyCommander.coord)) * 90
+      : 0;
+    return occupantBonus + siteBonus + commanderProximity + Math.max(0, 8 - nearestUnitDistance) * 130;
   }
 
   const targetId = actionTargetId(action);
   const target = targetId ? findUnit(state, targetId) : undefined;
   if (target) {
-    const relationBonus = target.owner === actor ? 450 + target.hp * 35 : 950 + unitValue(target);
+    const relationBonus = target.owner === actor ? 450 + target.hp * 35 : 950 + strategicUnitValue(target);
     const commanderBonus = target.definitionId === 'commander' ? 4_000 : 0;
     return 900 + relationBonus + commanderBonus;
   }
 
   // Untargeted active abilities and tile-target tactics stay near the front of exploration.
   return 1_100;
+};
+
+const emptyActionKindCounts = (): ActionKindCounts => ({
+  summon: 0,
+  tactic: 0,
+  move: 0,
+  attack: 0,
+  displace: 0,
+  rally: 0,
+  soulLink: 0,
+  curse: 0,
+});
+
+const abilityKinds = new Set<AiAction['kind']>(['displace', 'rally', 'soulLink', 'curse']);
+type ActionFamily = 'attacks' | 'abilities' | 'summons' | 'tactics' | 'moves';
+const actionFamily = (action: AiAction): ActionFamily => {
+  if (action.kind === 'attack') return 'attacks';
+  if (abilityKinds.has(action.kind)) return 'abilities';
+  if (action.kind === 'summon') return 'summons';
+  if (action.kind === 'tactic') return 'tactics';
+  return 'moves';
+};
+
+const roundRobinBy = (
+  actions: AiAction[],
+  groupKey: (action: AiAction) => string,
+  limit: number,
+  perGroupLimit: number,
+): AiAction[] => {
+  const groups = new Map<string, AiAction[]>();
+  for (const action of actions) {
+    const key = groupKey(action);
+    const group = groups.get(key) ?? [];
+    group.push(action);
+    groups.set(key, group);
+  }
+  const selected: AiAction[] = [];
+  for (let index = 0; index < perGroupLimit && selected.length < limit; index += 1) {
+    for (const group of groups.values()) {
+      const action = group[index];
+      if (action) selected.push(action);
+      if (selected.length >= limit) break;
+    }
+  }
+  return selected;
+};
+
+interface CandidateSelectionStats {
+  legalActions: number;
+  retainedActions: number;
+  legalByKind: ActionKindCounts;
+  retainedByKind: ActionKindCounts;
+}
+
+interface CandidateSelectionAccumulator extends CandidateSelectionStats {}
+
+const emptyCandidateSelectionStats = (): CandidateSelectionAccumulator => ({
+  legalActions: 0,
+  retainedActions: 0,
+  legalByKind: emptyActionKindCounts(),
+  retainedByKind: emptyActionKindCounts(),
+});
+
+const recordCandidateSelection = (
+  accumulator: CandidateSelectionAccumulator,
+  legal: AiAction[],
+  retained: AiAction[],
+): void => {
+  accumulator.legalActions += legal.length;
+  accumulator.retainedActions += retained.length;
+  for (const action of legal) accumulator.legalByKind[action.kind] += 1;
+  for (const action of retained) accumulator.retainedByKind[action.kind] += 1;
+};
+
+/** Keeps every action family represented before bounded search applies its global cap. */
+export const selectCandidateActions = (
+  state: GameState,
+  actor: PlayerId,
+  includeCards: boolean,
+): { actions: AiAction[]; stats: CandidateSelectionStats } => {
+  const legal = generateLegalActionsForPlayer(state, actor, includeCards);
+  const ranked = [...legal].sort((a, b) => actionPriority(state, b, actor) - actionPriority(state, a, actor));
+  const attacks = ranked.filter((action) => action.kind === 'attack').slice(0, 16);
+  const abilities = roundRobinBy(
+    ranked.filter((action) => abilityKinds.has(action.kind)),
+    (action) => 'unitId' in action ? action.unitId : action.kind,
+    8,
+    2,
+  );
+  const summons = roundRobinBy(
+    ranked.filter((action) => action.kind === 'summon'),
+    (action) => action.kind === 'summon' ? action.cardId : action.kind,
+    12,
+    3,
+  );
+  const tactics = roundRobinBy(
+    ranked.filter((action) => action.kind === 'tactic'),
+    (action) => action.kind === 'tactic' ? action.cardId : action.kind,
+    16,
+    4,
+  );
+  const moves = roundRobinBy(
+    ranked.filter((action) => action.kind === 'move'),
+    (action) => action.kind === 'move' ? action.unitId : action.kind,
+    20,
+    4,
+  );
+  const selected = [...attacks, ...abilities, ...summons, ...tactics, ...moves];
+  const selectedKeys = new Set(selected.map((action) => JSON.stringify(action)));
+  const familyCaps: Record<ActionFamily, number> = {
+    attacks: 24,
+    abilities: 12,
+    summons: 18,
+    tactics: 16,
+    moves: 28,
+  };
+  const familyCounts: Record<ActionFamily, number> = {
+    attacks: attacks.length,
+    abilities: abilities.length,
+    summons: summons.length,
+    tactics: tactics.length,
+    moves: moves.length,
+  };
+  for (const action of ranked) {
+    if (selected.length >= MAX_ACTIONS_PER_NODE) break;
+    const key = JSON.stringify(action);
+    const family = actionFamily(action);
+    if (selectedKeys.has(key) || familyCounts[family] >= familyCaps[family]) continue;
+    selected.push(action);
+    selectedKeys.add(key);
+    familyCounts[family] += 1;
+  }
+  const stats = emptyCandidateSelectionStats();
+  recordCandidateSelection(stats, legal, selected);
+  return { actions: selected, stats };
 };
 
 interface SearchNode {
@@ -377,24 +486,83 @@ interface CompletedPlan extends SearchNode {
 
 interface TurnSearchResult {
   plans: CompletedPlan[];
-  searchedStates: number;
-  timedOut: boolean;
+  diagnostics: SearchPhaseDiagnostics;
 }
 
 interface SearchBudget {
   deadline: number;
   maxNodes: number;
-  searchedStates: number;
-  timedOut: boolean;
+  nodes: number;
+  stopReason: SearchStopReason;
+  selection: CandidateSelectionAccumulator;
 }
 
 const budgetExhausted = (budget: SearchBudget): boolean => {
-  if (budget.searchedStates >= budget.maxNodes || nowMs() >= budget.deadline) {
-    budget.timedOut = true;
+  if (budget.nodes >= budget.maxNodes) {
+    if (budget.stopReason === 'complete') budget.stopReason = 'node-limit';
+    return true;
+  }
+  if (nowMs() >= budget.deadline) {
+    budget.stopReason = 'time-limit';
     return true;
   }
   return false;
 };
+
+const createSearchBudget = (maxNodes: number, deadline: number): SearchBudget => ({
+  deadline,
+  maxNodes,
+  nodes: 0,
+  stopReason: 'complete',
+  selection: emptyCandidateSelectionStats(),
+});
+
+const diagnosticsFromBudget = (budget: SearchBudget): SearchPhaseDiagnostics => ({
+  nodes: budget.nodes,
+  stopReason: budget.stopReason,
+  legalActions: budget.selection.legalActions,
+  retainedActions: budget.selection.retainedActions,
+  legalByKind: { ...budget.selection.legalByKind },
+  retainedByKind: { ...budget.selection.retainedByKind },
+});
+
+const mergeCandidateStats = (
+  accumulator: CandidateSelectionAccumulator,
+  stats: CandidateSelectionStats,
+): void => {
+  accumulator.legalActions += stats.legalActions;
+  accumulator.retainedActions += stats.retainedActions;
+  for (const kind of GAME_ACTION_KINDS) {
+    accumulator.legalByKind[kind] += stats.legalByKind[kind];
+    accumulator.retainedByKind[kind] += stats.retainedByKind[kind];
+  }
+};
+
+const mergeDiagnostics = (
+  accumulator: SearchPhaseDiagnostics,
+  diagnostics: SearchPhaseDiagnostics,
+): void => {
+  accumulator.nodes += diagnostics.nodes;
+  accumulator.legalActions += diagnostics.legalActions;
+  accumulator.retainedActions += diagnostics.retainedActions;
+  for (const kind of GAME_ACTION_KINDS) {
+    accumulator.legalByKind[kind] += diagnostics.legalByKind[kind];
+    accumulator.retainedByKind[kind] += diagnostics.retainedByKind[kind];
+  }
+  if (diagnostics.stopReason === 'time-limit') accumulator.stopReason = 'time-limit';
+  else if (diagnostics.stopReason === 'node-limit' && accumulator.stopReason === 'complete') {
+    accumulator.stopReason = 'node-limit';
+  }
+};
+
+const emptyPhaseDiagnostics = (): SearchPhaseDiagnostics => ({
+  nodes: 0,
+  stopReason: 'complete',
+  legalActions: 0,
+  retainedActions: 0,
+  legalByKind: emptyActionKindCounts(),
+  retainedByKind: emptyActionKindCounts(),
+});
 
 const finishTurnForSearch = (state: GameState, playerId: PlayerId): GameState => {
   const ended = cloneState(state);
@@ -414,7 +582,11 @@ const searchTurnPlans = (
   budget: SearchBudget,
 ): TurnSearchResult => {
   const root = cloneState(state);
-  let beam: SearchNode[] = [{ state: root, actions: [], score: evaluatePosition(root, perspective) }];
+  let beam: SearchNode[] = [{
+    state: root,
+    actions: [],
+    score: evaluateStrategicPosition(root, perspective).outlook,
+  }];
   const completed: CompletedPlan[] = [];
   const visited = new Map<string, number>();
   visited.set(stateSignature(root, includeCards), beam[0].score);
@@ -422,8 +594,8 @@ const searchTurnPlans = (
   const addCompleted = (node: SearchNode): void => {
     if (budgetExhausted(budget)) return;
     const endedState = finishTurnForSearch(node.state, actor);
-    budget.searchedStates += 1;
-    const score = evaluatePosition(endedState, perspective);
+    budget.nodes += 1;
+    const score = evaluateStrategicPosition(endedState, perspective).outlook;
     completed.push({ ...node, score, endedState });
   };
 
@@ -433,17 +605,16 @@ const searchTurnPlans = (
       if (budgetExhausted(budget)) break;
       addCompleted(node);
 
-      const candidateActions = generateLegalActionsForPlayer(node.state, actor, includeCards)
-        .sort((a, b) => actionPriority(node.state, b, actor) - actionPriority(node.state, a, actor))
-        .slice(0, MAX_ACTIONS_PER_NODE);
+      const selection = selectCandidateActions(node.state, actor, includeCards);
+      mergeCandidateStats(budget.selection, selection.stats);
 
-      for (const action of candidateActions) {
+      for (const action of selection.actions) {
         if (budgetExhausted(budget)) break;
         const childState = cloneState(node.state);
         const result = applyAiAction(childState, action);
         if (!result.ok) continue;
-        budget.searchedStates += 1;
-        const score = evaluatePosition(childState, perspective);
+        budget.nodes += 1;
+        const score = evaluateStrategicPosition(childState, perspective).outlook;
         const signature = stateSignature(childState, includeCards);
         const previousScore = visited.get(signature);
         const betterThanPrevious = previousScore === undefined
@@ -466,70 +637,187 @@ const searchTurnPlans = (
   completed.sort((a, b) => maximizePerspectiveScore ? b.score - a.score : a.score - b.score);
   return {
     plans: completed.slice(0, completedPlanCount),
-    searchedStates: budget.searchedStates,
-    timedOut: budget.timedOut,
+    diagnostics: diagnosticsFromBudget(budget),
   };
 };
 
-const responseWorstCaseScore = (
-  actorEndedState: GameState,
+const totalMaterial = (state: GameState, player: PlayerId): number =>
+  state.units
+    .filter((unit) => unit.owner === player)
+    .reduce((total, unit) => total + strategicUnitValue(unit), 0);
+
+const visibleCommanderThreats = (
+  state: GameState,
+  attacker: PlayerId,
+  target: UnitState | undefined,
+): UnitState[] => {
+  if (!target) return [];
+  return state.units.filter((unit) => {
+    if (unit.owner !== attacker || unit.exhausted) return false;
+    const definition = unitDefinition(unit);
+    const hillRange = definition.range > 1 && terrainAt(unit.coord) === 'hill' ? 1 : 0;
+    return hexDistance(unit.coord, target.coord) <= definition.move + definition.range + hillRange;
+  });
+};
+
+const incomingCommanderDamage = (
+  state: GameState,
+  attacker: PlayerId,
+  target: UnitState | undefined,
+): number => visibleCommanderThreats(state, attacker, target)
+  .reduce((damage, unit) => damage + unitDefinition(unit).attack, 0);
+
+const clampTacticalComponent = (value: number): number => {
+  const clamped = Math.max(-100, Math.min(100, Math.round(value)));
+  return clamped === 0 ? 0 : clamped;
+};
+
+/** Visible one-response tactical safety. Hidden cards are intentionally excluded from this assessment. */
+export const assessTacticalOutcome = (
+  before: GameState,
+  worstState: GameState,
+  perspective: PlayerId,
+  worstResponse: AiAction[] = [],
+): TacticalAssessment => {
+  const opponent = opponentOf(perspective);
+  const beforeCommander = commander(before, perspective);
+  const afterCommander = commander(worstState, perspective);
+  const beforeThreats = visibleCommanderThreats(before, opponent, beforeCommander).length;
+  const afterThreats = visibleCommanderThreats(worstState, opponent, afterCommander).length;
+  const incoming = incomingCommanderDamage(worstState, opponent, afterCommander);
+  const threatenedFriendlyUnits = worstState.units.filter((unit) =>
+    unit.owner === perspective
+    && unit.definitionId !== 'commander'
+    && visibleCommanderThreats(worstState, opponent, unit).length > 0).length;
+  const ownMaterialDelta = totalMaterial(worstState, perspective) - totalMaterial(before, perspective);
+  const enemyMaterialRemoved = totalMaterial(before, opponent) - totalMaterial(worstState, opponent);
+
+  let tier: TacticalTier;
+  if (worstState.winner === perspective || !commander(worstState, opponent)) tier = 'forced-win';
+  else if (worstState.winner === opponent || !afterCommander) tier = 'forced-loss';
+  else if (incoming >= afterCommander.hp) tier = 'unsafe';
+  else tier = 'safe';
+
+  const components: TacticalComponents = {
+    commanderSurvival: tier === 'forced-loss' ? -100 : tier === 'unsafe' ? -55 : tier === 'forced-win' ? 100 : 55,
+    commanderHealth: clampTacticalComponent(afterCommander
+      ? (afterCommander.hp - (beforeCommander?.hp ?? afterCommander.hp)) * 14
+        + afterCommander.hp * 4
+      : -100),
+    incomingDamage: clampTacticalComponent(-incoming * 18),
+    threatenedUnits: clampTacticalComponent(-threatenedFriendlyUnits * 18),
+    threatReduction: clampTacticalComponent((beforeThreats - afterThreats) * 28 - incoming * 8),
+    friendlyMaterialPreserved: clampTacticalComponent(ownMaterialDelta / 12),
+    enemyMaterialRemoved: clampTacticalComponent(enemyMaterialRemoved / 12),
+  };
+  const rawScore = Object.values(components).reduce((sum, value) => sum + value, 0) / 5;
+  return {
+    tier,
+    score: Math.max(-100, Math.min(100, Math.round(rawScore))),
+    incomingCommanderDamage: incoming,
+    threatenedFriendlyUnits,
+    visibleThreatsRemoved: Math.max(0, beforeThreats - afterThreats),
+    components,
+    worstResponse,
+    worstResponseStrategicOutlook: evaluateStrategicPosition(worstState, perspective).outlook,
+  };
+};
+
+const tacticalTierRank = (tier: TacticalTier): number => {
+  if (tier === 'forced-win') return 3;
+  if (tier === 'safe') return 2;
+  if (tier === 'unsafe') return 1;
+  return 0;
+};
+
+interface AssessedPlan {
+  candidate: CompletedPlan;
+  strategic: StrategicEvaluation;
+  tactical: TacticalAssessment;
+}
+
+const compareAssessedPlans = (left: AssessedPlan, right: AssessedPlan): number => {
+  const tierDifference = tacticalTierRank(right.tactical.tier) - tacticalTierRank(left.tactical.tier);
+  if (tierDifference !== 0) return tierDifference;
+  const responseDifference = right.tactical.worstResponseStrategicOutlook
+    - left.tactical.worstResponseStrategicOutlook;
+  if (responseDifference !== 0) return responseDifference;
+  const tacticalDifference = right.tactical.score - left.tactical.score;
+  if (tacticalDifference !== 0) return tacticalDifference;
+  return right.strategic.outlook - left.strategic.outlook;
+};
+
+const assessCandidateResponses = (
+  initialState: GameState,
+  candidates: CompletedPlan[],
   perspective: PlayerId,
   options: Required<AiSearchOptions>,
-  budget: SearchBudget,
-): { score: number; responseStates: number } => {
+): { assessed: AssessedPlan[]; diagnostics: SearchPhaseDiagnostics } => {
+  const diagnostics = emptyPhaseDiagnostics();
+  const assessed: AssessedPlan[] = [];
+  const tacticalDeadline = nowMs() + options.tacticalMaxPlanningMs;
+  const perCandidateNodes = Math.max(1, Math.floor(options.tacticalMaxNodes / Math.max(1, candidates.length)));
   const responder = opponentOf(perspective);
-  if (actorEndedState.winner || actorEndedState.currentPlayer !== responder || budgetExhausted(budget)) {
-    return { score: evaluatePosition(actorEndedState, perspective), responseStates: 0 };
-  }
 
-  const before = budget.searchedStates;
-  const responseNodeLimit = Math.min(budget.maxNodes, budget.searchedStates + options.responseMaxNodes);
-  const responseBudget: SearchBudget = {
-    deadline: budget.deadline,
-    maxNodes: responseNodeLimit,
-    searchedStates: budget.searchedStates,
-    timedOut: false,
-  };
-  const response = searchTurnPlans(
-    actorEndedState,
-    responder,
-    perspective,
-    false,
-    false,
-    options.responseBeamWidth,
-    options.responseDepth,
-    1,
-    responseBudget,
-  );
-  budget.searchedStates = responseBudget.searchedStates;
-  budget.timedOut ||= responseBudget.timedOut;
-  const worst = response.plans[0];
-  return {
-    score: worst ? worst.score : evaluatePosition(actorEndedState, perspective),
-    responseStates: Math.max(0, budget.searchedStates - before),
-  };
+  for (const candidate of candidates) {
+    let worstState = candidate.endedState;
+    let worstResponse: AiAction[] = [];
+    if (!worstState.winner && worstState.currentPlayer === responder) {
+      const responseBudget = createSearchBudget(perCandidateNodes, tacticalDeadline);
+      const response = searchTurnPlans(
+        worstState,
+        responder,
+        perspective,
+        false,
+        false,
+        options.responseBeamWidth,
+        options.responseDepth,
+        Math.min(3, options.candidatePlans),
+        responseBudget,
+      );
+      mergeDiagnostics(diagnostics, response.diagnostics);
+      if (response.plans.length > 0) {
+        const responses = response.plans.map((plan) => ({
+          plan,
+          tactical: assessTacticalOutcome(initialState, plan.endedState, perspective, plan.actions),
+        }));
+        responses.sort((left, right) => {
+          const tierDifference = tacticalTierRank(left.tactical.tier) - tacticalTierRank(right.tactical.tier);
+          if (tierDifference !== 0) return tierDifference;
+          return left.tactical.worstResponseStrategicOutlook
+            - right.tactical.worstResponseStrategicOutlook;
+        });
+        worstState = responses[0].plan.endedState;
+        worstResponse = responses[0].plan.actions;
+      }
+    }
+    assessed.push({
+      candidate,
+      strategic: evaluateStrategicPosition(candidate.endedState, perspective),
+      tactical: assessTacticalOutcome(initialState, worstState, perspective, worstResponse),
+    });
+  }
+  return { assessed, diagnostics };
 };
 
 /** Plan a complete turn for whichever player is currently active. */
 export const planAiTurn = (state: GameState, overrides: AiSearchOptions = {}): AiPlan => {
   const perspective = state.currentPlayer;
   if (state.winner) {
+    const strategic = evaluateStrategicPosition(state, perspective);
     return {
       actions: [],
-      score: evaluatePosition(state, perspective),
-      searchedStates: 0,
-      responseStates: 0,
-      timedOut: false,
+      strategic,
+      tactical: assessTacticalOutcome(state, state, perspective),
+      diagnostics: { strategy: emptyPhaseDiagnostics(), tactical: emptyPhaseDiagnostics() },
     };
   }
 
   const options: Required<AiSearchOptions> = { ...COMMON_AI_OPTIONS, ...overrides };
-  const budget: SearchBudget = {
-    deadline: nowMs() + options.maxPlanningMs,
-    maxNodes: options.maxNodes,
-    searchedStates: 0,
-    timedOut: false,
-  };
+  const budget = createSearchBudget(
+    options.strategyMaxNodes,
+    nowMs() + options.strategyMaxPlanningMs,
+  );
 
   const initialSearch = searchTurnPlans(
     state,
@@ -542,34 +830,26 @@ export const planAiTurn = (state: GameState, overrides: AiSearchOptions = {}): A
     options.candidatePlans,
     budget,
   );
-  let responseStates = 0;
-  let bestActions: AiAction[] = [];
-  let bestScore = Number.NEGATIVE_INFINITY;
-
-  for (const candidate of initialSearch.plans) {
-    if (budgetExhausted(budget)) break;
-    const exactScore = candidate.score + exactCommanderThreatAdjustment(candidate.endedState, perspective);
-    const response = responseWorstCaseScore(candidate.endedState, perspective, options, budget);
-    responseStates += response.responseStates;
-    const robustScore = Math.min(exactScore, response.score);
-    if (robustScore > bestScore) {
-      bestScore = robustScore;
-      bestActions = candidate.actions;
-    }
-  }
-
-  if (bestScore === Number.NEGATIVE_INFINITY) {
-    const fallback = initialSearch.plans[0];
-    bestActions = fallback?.actions ?? [];
-    bestScore = fallback?.score ?? evaluatePosition(state, perspective);
-  }
+  const candidates = initialSearch.plans.length > 0
+    ? initialSearch.plans
+    : [{
+      state: cloneState(state),
+      actions: [],
+      score: evaluateStrategicPosition(state, perspective).outlook,
+      endedState: finishTurnForSearch(state, perspective),
+    }];
+  const responseAssessment = assessCandidateResponses(state, candidates, perspective, options);
+  responseAssessment.assessed.sort(compareAssessedPlans);
+  const best = responseAssessment.assessed[0];
 
   return {
-    actions: bestActions,
-    score: bestScore,
-    searchedStates: budget.searchedStates,
-    responseStates,
-    timedOut: budget.timedOut || initialSearch.timedOut,
+    actions: best.candidate.actions,
+    strategic: best.strategic,
+    tactical: best.tactical,
+    diagnostics: {
+      strategy: initialSearch.diagnostics,
+      tactical: responseAssessment.diagnostics,
+    },
   };
 };
 
@@ -599,20 +879,18 @@ export const executeAiPlan = (
     return {
       actions: messages,
       endedTurn: result.ok,
-      planScore: plan.score,
-      searchedStates: plan.searchedStates,
-      responseStates: plan.responseStates,
-      timedOut: plan.timedOut,
+      strategic: plan.strategic,
+      tactical: plan.tactical,
+      diagnostics: plan.diagnostics,
     };
   }
 
   return {
     actions: messages,
     endedTurn: false,
-    planScore: plan.score,
-    searchedStates: plan.searchedStates,
-    responseStates: plan.responseStates,
-    timedOut: plan.timedOut,
+    strategic: plan.strategic,
+    tactical: plan.tactical,
+    diagnostics: plan.diagnostics,
   };
 };
 
@@ -626,12 +904,12 @@ export const runAiTurn = (
 /** Player-2 compatibility entry point used by the live Human-vs-Undead scene. */
 export const planSmartAiTurn = (state: GameState, overrides: AiSearchOptions = {}): AiPlan => {
   if (state.currentPlayer !== UNDEAD_PLAYER) {
+    const strategic = evaluateStrategicPosition(state, UNDEAD_PLAYER);
     return {
       actions: [],
-      score: evaluatePosition(state, UNDEAD_PLAYER),
-      searchedStates: 0,
-      responseStates: 0,
-      timedOut: false,
+      strategic,
+      tactical: assessTacticalOutcome(state, state, UNDEAD_PLAYER),
+      diagnostics: { strategy: emptyPhaseDiagnostics(), tactical: emptyPhaseDiagnostics() },
     };
   }
   return planAiTurn(state, overrides);
@@ -643,13 +921,13 @@ export const runSmartAiTurn = (
   options: AiSearchOptions = {},
 ): AiTurnResult => {
   if (state.currentPlayer !== UNDEAD_PLAYER) {
+    const plan = planSmartAiTurn(state, options);
     return {
       actions: [],
       endedTurn: false,
-      planScore: evaluatePosition(state, UNDEAD_PLAYER),
-      searchedStates: 0,
-      responseStates: 0,
-      timedOut: false,
+      strategic: plan.strategic,
+      tactical: plan.tactical,
+      diagnostics: plan.diagnostics,
     };
   }
   return runAiTurn(state, random, options);

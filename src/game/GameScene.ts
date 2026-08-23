@@ -1,9 +1,23 @@
 import Phaser from 'phaser';
+import commanderDeathUrl from '../../assets/game/audio/sfx/commander-death.mp3?url';
 import combatAssistUrl from '../../assets/game/audio/sfx/combat-assist.mp3?url';
 import combatHitMeleeUrl from '../../assets/game/audio/sfx/combat-hit-melee.mp3?url';
 import combatHitRangedUrl from '../../assets/game/audio/sfx/combat-hit-ranged.mp3?url';
 import combatRetaliationUrl from '../../assets/game/audio/sfx/combat-retaliation.mp3?url';
+import unitDeathHumanUrl from '../../assets/game/audio/sfx/unit-death-human.mp3?url';
+import unitDeathUndeadUrl from '../../assets/game/audio/sfx/unit-death-undead.mp3?url';
 import unitSummonHumanUrl from '../../assets/game/audio/sfx/unit-summon-human.mp3?url';
+import unitSummonUndeadUrl from '../../assets/game/audio/sfx/unit-summon-undead.mp3?url';
+import turnEndUrl from '../../assets/game/audio/sfx/turn-end.mp3?url';
+import uiCardDrawUrl from '../../assets/game/audio/sfx/ui-card-draw.mp3?url';
+import uiCardPlayUrl from '../../assets/game/audio/sfx/ui-card-play.mp3?url';
+import tacticBuildBridgeUrl from '../../assets/game/audio/sfx/tactic-build-bridge.mp3?url';
+import tacticGraveLockUrl from '../../assets/game/audio/sfx/tactic-grave-lock.mp3?url';
+import tacticProfaneWellCompleteUrl from '../../assets/game/audio/sfx/tactic-profane-well-complete.mp3?url';
+import tacticProfaneWellSacrificeUrl from '../../assets/game/audio/sfx/tactic-profane-well-sacrifice.mp3?url';
+import tacticProfaneWellTickUrl from '../../assets/game/audio/sfx/tactic-profane-well-tick.mp3?url';
+import tacticRaiseFortUrl from '../../assets/game/audio/sfx/tactic-raise-fort.mp3?url';
+import tacticScorchUrl from '../../assets/game/audio/sfx/tactic-scorch.mp3?url';
 import generatedMapPreviewUrl from '../../assets/game/maps/generated-map-preview.png?url';
 import type { ProjectedShadowArtDefinition } from '../data/artShadow';
 import { CARD_ART } from '../data/cardArt';
@@ -29,6 +43,8 @@ import {
 } from '../data/unitArt';
 import type { UnitDefinitionId } from '../data/units';
 import { setDebugStatus } from './DebugStatus';
+import { SelectionHexFx } from './SelectionHexFx';
+import { TacticalHexFxLayer, type TacticalHexFxKind } from './TacticalHexFx';
 import {
   attackUnit,
   coordKey,
@@ -61,6 +77,8 @@ const ORIGIN_Y = 120;
 const WORLD_WIDTH = 1800;
 const WORLD_HEIGHT = 1100;
 const WORLD_Y_DEPTH_BASE = 1000;
+const TACTICAL_FX_DEPTH = WORLD_Y_DEPTH_BASE - 2;
+const SELECTION_FX_DEPTH = WORLD_Y_DEPTH_BASE - 1;
 const GENERATED_MAP_TEXTURE_KEY = 'debug-generated-map-preview';
 const GENERATED_MAP_HEIGHT = 600;
 const GENERATED_MAP_VIEWPORT_HEIGHT_RATIO = 2;
@@ -72,6 +90,8 @@ const DEFAULT_TILE_ZOOM_STEPS = 3;
 const TOKEN_MOVEMENT_MS_PER_HEX = 190;
 const TOKEN_ATTACK_DURATION_MS = 500;
 const TOKEN_ATTACK_IMPACT_MS = 320;
+const COMMANDER_DEATH_AUDIO_KEY = 'commander-death';
+const COMMANDER_DEATH_VOLUME = 0.86;
 const COMBAT_ASSIST_AUDIO_KEY = 'combat-assist';
 const COMBAT_ASSIST_VOLUME = 0.62;
 const COMBAT_HIT_MELEE_AUDIO_KEY = 'combat-hit-melee';
@@ -80,8 +100,31 @@ const COMBAT_HIT_RANGED_AUDIO_KEY = 'combat-hit-ranged';
 const COMBAT_HIT_RANGED_VOLUME = 0.78;
 const COMBAT_RETALIATION_AUDIO_KEY = 'combat-retaliation';
 const COMBAT_RETALIATION_VOLUME = 0.58;
+const UNIT_DEATH_HUMAN_AUDIO_KEY = 'unit-death-human';
+const UNIT_DEATH_HUMAN_VOLUME = 0.7;
+const UNIT_DEATH_UNDEAD_AUDIO_KEY = 'unit-death-undead';
+const UNIT_DEATH_UNDEAD_VOLUME = 0.74;
 const UNIT_SUMMON_HUMAN_AUDIO_KEY = 'unit-summon-human';
 const UNIT_SUMMON_HUMAN_VOLUME = 0.72;
+const UNIT_SUMMON_UNDEAD_AUDIO_KEY = 'unit-summon-undead';
+const UNIT_SUMMON_UNDEAD_VOLUME = 0.62;
+const TURN_END_AUDIO_KEY = 'turn-end';
+const TURN_END_VOLUME = 0.52;
+const UI_CARD_DRAW_AUDIO_KEY = 'ui-card-draw';
+const UI_CARD_DRAW_VOLUME = 0.58;
+const UI_CARD_PLAY_AUDIO_KEY = 'ui-card-play';
+const UI_CARD_PLAY_VOLUME = 0.62;
+const TACTIC_PROFANE_WELL_COMPLETE_AUDIO_KEY = 'tactic-profane-well-complete';
+const TACTIC_PROFANE_WELL_COMPLETE_VOLUME = 0.72;
+const TACTIC_PROFANE_WELL_TICK_AUDIO_KEY = 'tactic-profane-well-tick';
+const TACTIC_PROFANE_WELL_TICK_VOLUME = 0.46;
+const TACTIC_AUDIO = {
+  graveLock: { key: 'tactic-grave-lock', url: tacticGraveLockUrl, volume: 0.68 },
+  buildBridge: { key: 'tactic-build-bridge', url: tacticBuildBridgeUrl, volume: 0.66 },
+  scorch: { key: 'tactic-scorch', url: tacticScorchUrl, volume: 0.78 },
+  raiseFort: { key: 'tactic-raise-fort', url: tacticRaiseFortUrl, volume: 0.7 },
+  profaneWell: { key: 'tactic-profane-well-sacrifice', url: tacticProfaneWellSacrificeUrl, volume: 0.72 },
+} as const;
 const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x55b9f3, 2: 0xf05b67 };
 const TERRAIN_PALETTES: Record<'cliff', number[]> = {
   cliff: [0x52585a, 0x606465, 0x494f51],
@@ -89,6 +132,7 @@ const TERRAIN_PALETTES: Record<'cliff', number[]> = {
 const cardDefinition = (id: CardDefinitionId) => CARD_DEFINITIONS[id];
 
 type InteractionMode = 'unit' | 'card' | 'displace-target' | 'displace-destination' | 'restore-target' | null;
+type SelectionFxMode = 'current' | 'premium';
 
 interface DragState {
   startX: number;
@@ -103,6 +147,7 @@ interface RenderedUnitView {
   sprite?: Phaser.GameObjects.Sprite;
   art?: UnitArtDefinition;
   hpText: Phaser.GameObjects.Text;
+  applyFacing?: () => void;
 }
 
 export class GameScene extends Phaser.Scene {
@@ -122,8 +167,16 @@ export class GameScene extends Phaser.Scene {
   private lastHandSignature = '';
   private animationInProgress = false;
   private renderedUnits = new Map<string, RenderedUnitView>();
+  private tacticalHexFx?: TacticalHexFxLayer;
+  private selectionHexFx: SelectionHexFx[] = [];
+  private selectionFxMode: SelectionFxMode = 'premium';
   private unitFacings = new Map<string, UnitFacing>();
   private message = 'Player 1 begins. Move a unit or play a card.';
+  private readonly handleSelectionFxToggle = (): void => {
+    this.selectionFxMode = this.selectionFxMode === 'premium' ? 'current' : 'premium';
+    this.updateSelectionFxToggle();
+    this.renderAll();
+  };
   private readonly handleGeneratedMapToggle = (): void => {
     const toggle = document.querySelector<HTMLButtonElement>('#generated-map-toggle');
     this.useGeneratedMapPreview = !this.useGeneratedMapPreview;
@@ -142,11 +195,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload(): void {
+    this.load.audio(COMMANDER_DEATH_AUDIO_KEY, commanderDeathUrl);
     this.load.audio(COMBAT_ASSIST_AUDIO_KEY, combatAssistUrl);
     this.load.audio(COMBAT_HIT_MELEE_AUDIO_KEY, combatHitMeleeUrl);
     this.load.audio(COMBAT_HIT_RANGED_AUDIO_KEY, combatHitRangedUrl);
     this.load.audio(COMBAT_RETALIATION_AUDIO_KEY, combatRetaliationUrl);
+    this.load.audio(UNIT_DEATH_HUMAN_AUDIO_KEY, unitDeathHumanUrl);
+    this.load.audio(UNIT_DEATH_UNDEAD_AUDIO_KEY, unitDeathUndeadUrl);
     this.load.audio(UNIT_SUMMON_HUMAN_AUDIO_KEY, unitSummonHumanUrl);
+    this.load.audio(UNIT_SUMMON_UNDEAD_AUDIO_KEY, unitSummonUndeadUrl);
+    this.load.audio(TURN_END_AUDIO_KEY, turnEndUrl);
+    this.load.audio(UI_CARD_DRAW_AUDIO_KEY, uiCardDrawUrl);
+    this.load.audio(UI_CARD_PLAY_AUDIO_KEY, uiCardPlayUrl);
+    this.load.audio(TACTIC_PROFANE_WELL_COMPLETE_AUDIO_KEY, tacticProfaneWellCompleteUrl);
+    this.load.audio(TACTIC_PROFANE_WELL_TICK_AUDIO_KEY, tacticProfaneWellTickUrl);
+    for (const audio of Object.values(TACTIC_AUDIO)) this.load.audio(audio.key, audio.url);
     this.load.image(GENERATED_MAP_TEXTURE_KEY, generatedMapPreviewUrl);
     this.load.image(GALAXY_BACKGROUND_ART.map.textureKey, GALAXY_BACKGROUND_ART.map.url);
     this.load.image(GALAXY_BACKGROUND_ART.stars.textureKey, GALAXY_BACKGROUND_ART.stars.url);
@@ -182,9 +245,15 @@ export class GameScene extends Phaser.Scene {
     document.querySelector<HTMLButtonElement>('#zoom-out')?.addEventListener('click', () => this.zoomBy(-TILE_ZOOM_STEP));
     document.querySelector<HTMLButtonElement>('#zoom-reset')?.addEventListener('click', () => this.resetCamera());
     const generatedMapToggle = document.querySelector<HTMLButtonElement>('#generated-map-toggle');
+    const selectionFxToggle = document.querySelector<HTMLButtonElement>('#selection-fx-toggle');
     generatedMapToggle?.addEventListener('click', this.handleGeneratedMapToggle);
+    selectionFxToggle?.addEventListener('click', this.handleSelectionFxToggle);
+    this.updateSelectionFxToggle();
     this.events.once('shutdown', () => {
       generatedMapToggle?.removeEventListener('click', this.handleGeneratedMapToggle);
+      selectionFxToggle?.removeEventListener('click', this.handleSelectionFxToggle);
+      this.clearTacticalHexFx();
+      this.clearSelectionHexFx();
       this.clearRiverSurface();
     });
     this.createUnitAnimations();
@@ -275,8 +344,12 @@ export class GameScene extends Phaser.Scene {
         MIN_ZOOM,
         TILE_MAP_MAX_ZOOM,
       );
-    this.cameras.main.setZoom(zoom);
-    this.cameras.main.centerOn(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+    const camera = this.cameras.main;
+    camera.setZoom(zoom);
+    camera.centerOn(
+      WORLD_WIDTH / 2,
+      WORLD_HEIGHT / 2 + this.bottomHudInset() / (zoom * 2),
+    );
     this.constrainCamera();
     this.updateZoomLabel();
   }
@@ -300,30 +373,47 @@ export class GameScene extends Phaser.Scene {
     const camera = this.cameras.main;
     const halfVisibleWidth = this.scale.width / camera.zoom / 2;
     const halfVisibleHeight = this.scale.height / camera.zoom / 2;
-    const currentCenterX = camera.scrollX + camera.width / 2;
-    const currentCenterY = camera.scrollY + camera.height / 2;
+    const bottomHudInset = this.bottomHudInset() / camera.zoom;
+    const currentCenterX = camera.scrollX + halfVisibleWidth;
+    const currentCenterY = camera.scrollY + halfVisibleHeight;
     const centerX = halfVisibleWidth >= WORLD_WIDTH / 2
       ? WORLD_WIDTH / 2
       : Phaser.Math.Clamp(currentCenterX, halfVisibleWidth, WORLD_WIDTH - halfVisibleWidth);
-    let centerY: number;
-    if (this.useGeneratedMapPreview) {
-      const mapTop = (WORLD_HEIGHT - GENERATED_MAP_HEIGHT) / 2;
-      const mapBottom = mapTop + GENERATED_MAP_HEIGHT;
-      centerY = halfVisibleHeight >= GENERATED_MAP_HEIGHT / 2
-        ? WORLD_HEIGHT / 2
-        : Phaser.Math.Clamp(currentCenterY, mapTop + halfVisibleHeight, mapBottom - halfVisibleHeight);
-    } else {
-      centerY = halfVisibleHeight >= WORLD_HEIGHT / 2
-        ? halfVisibleHeight
-        : Phaser.Math.Clamp(currentCenterY, halfVisibleHeight, WORLD_HEIGHT - halfVisibleHeight);
-    }
+    const mapTop = this.useGeneratedMapPreview ? (WORLD_HEIGHT - GENERATED_MAP_HEIGHT) / 2 : 0;
+    const mapBottom = this.useGeneratedMapPreview ? mapTop + GENERATED_MAP_HEIGHT : WORLD_HEIGHT;
+    const minCenterY = mapTop + halfVisibleHeight;
+    const maxCenterY = mapBottom - halfVisibleHeight + bottomHudInset;
+    const centerY = minCenterY <= maxCenterY
+      ? Phaser.Math.Clamp(currentCenterY, minCenterY, maxCenterY)
+      : (mapTop + mapBottom + bottomHudInset) / 2;
 
     camera.centerOn(centerX, centerY);
+  }
+
+  private bottomHudInset(): number {
+    const handDock = document.querySelector<HTMLElement>('.hand-dock');
+    const canvasRect = this.game.canvas.getBoundingClientRect();
+    const handRect = handDock?.getBoundingClientRect();
+    if (!handRect) return 0;
+    return Phaser.Math.Clamp(canvasRect.bottom - handRect.top, 0, canvasRect.height);
   }
 
   private updateZoomLabel(): void {
     const label = document.querySelector<HTMLElement>('#zoom-value');
     if (label) label.textContent = `${Math.round(this.cameras.main.zoom * 100)}%`;
+  }
+
+  private updateSelectionFxToggle(): void {
+    const toggle = document.querySelector<HTMLButtonElement>('#selection-fx-toggle');
+    if (!toggle) return;
+    const premium = this.selectionFxMode === 'premium';
+    toggle.textContent = premium ? 'Selection: Premium' : 'Selection: Current';
+    toggle.setAttribute('aria-pressed', `${premium}`);
+    toggle.setAttribute(
+      'aria-label',
+      premium ? 'Use current tile selection effect' : 'Use premium tile selection effect',
+    );
+    toggle.title = premium ? 'Switch to current selection art' : 'Switch to premium selection art';
   }
 
   private center(coord: Coord): Phaser.Math.Vector2 {
@@ -385,10 +475,24 @@ export class GameScene extends Phaser.Scene {
 
   private renderBoard(): void {
     this.renderedUnits.clear();
+    this.clearTacticalHexFx();
+    this.clearSelectionHexFx();
     this.clearRiverSurface();
     this.boardLayer?.destroy(true);
     this.boardLayer = this.add.container(0, 0);
     const highlight = this.highlights();
+    const premiumSelections: Array<{
+      center: Phaser.Math.Vector2;
+      points: Phaser.Geom.Point[];
+    }> = [];
+    const tacticalHighlights: Array<{
+      key: string;
+      center: Phaser.Math.Vector2;
+      points: Phaser.Geom.Point[];
+      kind: TacticalHexFxKind;
+      phase: number;
+    }> = [];
+    const summonKind = this.summonHighlightKind();
     if (this.useGeneratedMapPreview) {
       const generatedMap = this.add.image(
         WORLD_WIDTH / 2,
@@ -456,25 +560,11 @@ export class GameScene extends Phaser.Scene {
         const hex = this.add.graphics();
         let stroke = 0x263828;
         let strokeWidth = this.useGeneratedMapPreview ? 0 : 2;
-        if (highlight.move.has(key)) {
-          hex.fillStyle(0x50d6c2, 0.34);
-          hex.fillPoints(points, true);
-          stroke = 0x7ff8e3;
-          strokeWidth = 4;
-        }
-        if (highlight.summon.has(key)) {
-          hex.fillStyle(0xe6b758, 0.4);
-          hex.fillPoints(points, true);
-          stroke = 0xffdf87;
-          strokeWidth = 4;
-        }
-        if (highlight.attack.has(key)) {
-          hex.fillStyle(0xd54555, 0.42);
-          hex.fillPoints(points, true);
-          stroke = 0xff7785;
-          strokeWidth = 4;
-        }
-        if (highlight.selected.has(key)) {
+        let tacticalKind: TacticalHexFxKind | undefined;
+        if (highlight.move.has(key)) tacticalKind = 'move';
+        if (highlight.summon.has(key)) tacticalKind = summonKind;
+        if (highlight.attack.has(key)) tacticalKind = 'attack';
+        if (highlight.selected.has(key) && this.selectionFxMode === 'current') {
           stroke = 0xffffff;
           strokeWidth = 5;
         }
@@ -485,8 +575,40 @@ export class GameScene extends Phaser.Scene {
         hex.on('pointerup', () => {
           if (!this.dragState?.moved && performance.now() >= this.suppressBoardClickUntil) this.handleHexClick(coord);
         });
+        hex.on('pointerover', () => this.tacticalHexFx?.setHovered(key, true));
+        hex.on('pointerout', () => this.tacticalHexFx?.setHovered(key, false));
         this.boardLayer.add(hex);
+        if (tacticalKind) {
+          tacticalHighlights.push({
+            key,
+            center,
+            points,
+            kind: tacticalKind,
+            phase: (q * 1.77 + r * 2.31) % (Math.PI * 2),
+          });
+        }
+        if (highlight.selected.has(key) && this.selectionFxMode === 'premium') {
+          premiumSelections.push({ center, points });
+        }
       }
+    }
+
+    this.tacticalHexFx = new TacticalHexFxLayer(this, TACTICAL_FX_DEPTH);
+    for (const highlightSpec of tacticalHighlights) {
+      this.tacticalHexFx.add(
+        highlightSpec.key,
+        highlightSpec.center,
+        highlightSpec.points,
+        highlightSpec.kind,
+        highlightSpec.phase,
+      );
+    }
+    this.boardLayer.add(this.tacticalHexFx.container);
+
+    for (const { center, points } of premiumSelections) {
+      const selectionFx = new SelectionHexFx(this, center, points, SELECTION_FX_DEPTH);
+      this.selectionHexFx.push(selectionFx);
+      this.boardLayer.add(selectionFx.container);
     }
 
     if (!this.useGeneratedMapPreview) {
@@ -510,6 +632,23 @@ export class GameScene extends Phaser.Scene {
       }).setOrigin(0.5);
       this.boardLayer.add([shade, title, copy]);
     }
+  }
+
+  private clearSelectionHexFx(): void {
+    for (const effect of this.selectionHexFx) effect.destroy();
+    this.selectionHexFx = [];
+  }
+
+  private clearTacticalHexFx(): void {
+    this.tacticalHexFx?.destroy();
+    this.tacticalHexFx = undefined;
+  }
+
+  private summonHighlightKind(): TacticalHexFxKind {
+    if (this.mode !== 'card' || this.selectedCardIndex === null) return 'spell';
+    const cardId = this.state.players[this.state.currentPlayer].hand[this.selectedCardIndex];
+    const card = cardId ? cardDefinition(cardId as CardDefinitionId) : undefined;
+    return card?.type === 'unit' ? 'deploy' : 'spell';
   }
 
   private createGalaxyBackdrop(): void {
@@ -832,7 +971,13 @@ export class GameScene extends Phaser.Scene {
       container.add(exhausted);
     }
     this.boardLayer?.add(container);
-    this.renderedUnits.set(unit.id, { container, sprite, art, hpText: hp });
+    this.renderedUnits.set(unit.id, {
+      container,
+      sprite,
+      art,
+      hpText: hp,
+      applyFacing: () => this.applyUnitFacing(unit.id),
+    });
   }
 
   private setAnimationLock(locked: boolean): void {
@@ -870,10 +1015,14 @@ export class GameScene extends Phaser.Scene {
     const previous = this.unitFacings.get(unitId) ?? 'south-east';
     const facing = this.facingToward(from, to, previous);
     this.unitFacings.set(unitId, facing);
+    this.applyUnitFacing(unitId);
+  }
+
+  private applyUnitFacing(unitId: string): void {
     const view = this.renderedUnits.get(unitId);
-    if (view?.sprite && view.art) {
-      view.sprite.setFlipX(view.art.mirroredFacings.includes(facing));
-    }
+    const facing = this.unitFacings.get(unitId);
+    if (!view?.sprite || !view.art || !facing) return;
+    view.sprite.setFlipX(view.art.mirroredFacings.includes(facing));
   }
 
   private facingToward(
@@ -909,6 +1058,7 @@ export class GameScene extends Phaser.Scene {
     const view = this.renderedUnits.get(unitId);
     if (!view?.sprite || !view.art) return;
     view.sprite.play(view.art.animations[state].animationKey, true);
+    view.applyFacing?.();
   }
 
   private playCombatHit(ranged: boolean): void {
@@ -926,15 +1076,55 @@ export class GameScene extends Phaser.Scene {
   }
 
   playUnitSummon(owner: PlayerId): void {
-    if (this.state.players[owner].faction === 'human') {
-      this.sound.play(UNIT_SUMMON_HUMAN_AUDIO_KEY, { volume: UNIT_SUMMON_HUMAN_VOLUME });
+    const human = this.state.players[owner].faction === 'human';
+    const key = human ? UNIT_SUMMON_HUMAN_AUDIO_KEY : UNIT_SUMMON_UNDEAD_AUDIO_KEY;
+    const volume = human ? UNIT_SUMMON_HUMAN_VOLUME : UNIT_SUMMON_UNDEAD_VOLUME;
+    this.sound.play(key, { volume });
+  }
+
+  playUnitDeath(owner: PlayerId, commander = false): void {
+    if (commander) {
+      this.sound.play(COMMANDER_DEATH_AUDIO_KEY, { volume: COMMANDER_DEATH_VOLUME });
+      return;
     }
+    const human = this.state.players[owner].faction === 'human';
+    const key = human ? UNIT_DEATH_HUMAN_AUDIO_KEY : UNIT_DEATH_UNDEAD_AUDIO_KEY;
+    const volume = human ? UNIT_DEATH_HUMAN_VOLUME : UNIT_DEATH_UNDEAD_VOLUME;
+    this.sound.play(key, { volume });
+  }
+
+  playCardDraw(): void {
+    this.sound.play(UI_CARD_DRAW_AUDIO_KEY, { volume: UI_CARD_DRAW_VOLUME });
+  }
+
+  playCardPlay(): void {
+    this.sound.play(UI_CARD_PLAY_AUDIO_KEY, { volume: UI_CARD_PLAY_VOLUME });
+  }
+
+  playTurnEnd(): void {
+    this.sound.play(TURN_END_AUDIO_KEY, { volume: TURN_END_VOLUME });
+  }
+
+  playTacticSound(cardId: CardDefinitionId): void {
+    const audio = TACTIC_AUDIO[cardId as keyof typeof TACTIC_AUDIO];
+    if (!audio) throw new Error(`No accepted tactic audio for ${cardId}.`);
+    this.sound.play(audio.key, { volume: audio.volume });
+  }
+
+  playProfaneWellComplete(): void {
+    this.sound.play(TACTIC_PROFANE_WELL_COMPLETE_AUDIO_KEY, { volume: TACTIC_PROFANE_WELL_COMPLETE_VOLUME });
+  }
+
+  playProfaneWellTick(): void {
+    this.sound.play(TACTIC_PROFANE_WELL_TICK_AUDIO_KEY, { volume: TACTIC_PROFANE_WELL_TICK_VOLUME });
   }
 
   private async animateMovement(unitId: string, path: Coord[]): Promise<void> {
     const view = this.renderedUnits.get(unitId);
     if (!view) throw new Error(`Moving unit ${unitId} has no rendered view.`);
+    if (path.length < 2) return;
     this.boardLayer?.bringToTop(view.container);
+    this.faceUnit(unitId, this.center(path[0]), this.center(path[1]));
     this.playUnitAnimation(unitId, 'walk');
     for (let index = 1; index < path.length; index += 1) {
       const from = this.center(path[index - 1]);
@@ -1022,6 +1212,7 @@ export class GameScene extends Phaser.Scene {
       result = attackUnit(this.state, attackerId, defenderId);
       if (result.ok) {
         this.playCombatHit(unitDefinition(attacker).range > 1);
+        if (!findUnit(this.state, defenderId)) this.playUnitDeath(defender.owner, defender.definitionId === 'commander');
         this.showHitFeedback(defenderId, Math.max(0, defenderHpBefore - defender.hp));
       }
     });
@@ -1031,6 +1222,7 @@ export class GameScene extends Phaser.Scene {
       this.playCombatRetaliation();
       await this.animateAttackMotion(defenderId, attackerCoord, () => {
         this.playCombatHit(unitDefinition(defender).range > 1);
+        if (!findUnit(this.state, attackerId)) this.playUnitDeath(attacker.owner, attacker.definitionId === 'commander');
         this.showHitFeedback(attackerId, retaliationDamage);
       });
     }
@@ -1042,13 +1234,15 @@ export class GameScene extends Phaser.Scene {
     const occupant = unitAt(this.state, coord);
 
     if (this.mode === 'card' && this.selectedCardIndex !== null) {
-      const cardId = this.state.players[this.state.currentPlayer].hand[this.selectedCardIndex];
+      const cardIndex = this.selectedCardIndex;
+      const cardId = this.state.players[this.state.currentPlayer].hand[cardIndex];
       const card = cardId ? cardDefinition(cardId as CardDefinitionId) : undefined;
       if (!card) return this.cancelInteraction('That card is no longer in hand.');
-      const result = playUnitCard(this.state, this.selectedCardIndex, coord);
+      const result = playUnitCard(this.state, cardIndex, coord);
       this.message = result.message;
       if (result.ok) {
-        this.animatePlayedCard(this.selectedCardIndex);
+        this.playCardPlay();
+        const summonPresentation = this.animateSummonedCard(cardIndex, coord);
         const summoned = result.summonedUnitId ? findUnit(this.state, result.summonedUnitId) : undefined;
         if (summoned) this.playUnitSummon(summoned.owner);
         const restoreTargets = result.summonedUnitId
@@ -1064,6 +1258,14 @@ export class GameScene extends Phaser.Scene {
         } else {
           this.clearInteraction();
         }
+        this.setAnimationLock(true);
+        try {
+          await summonPresentation;
+        } finally {
+          this.renderAll();
+          this.setAnimationLock(false);
+        }
+        return;
       }
       return this.renderAll();
     }
@@ -1191,7 +1393,28 @@ export class GameScene extends Phaser.Scene {
       setDebugStatus('Turn blocked: the Light Mage restore target is unresolved.', 'warning');
       return this.renderHud();
     }
+    const endingPlayer = this.state.currentPlayer;
+    const nextPlayer = endingPlayer === 1 ? 2 : 1;
+    const nextHandSize = this.state.players[nextPlayer].hand.length;
+    const pendingWellsBefore = new Map(this.state.pendingManaWells.map((well) => [well.id, well.remainingTurns]));
+    const commandersBefore = this.state.units.filter((unit) => unit.definitionId === 'commander');
     const result = endTurn(this.state);
+    if (result.ok) {
+      const deadCommander = commandersBefore.find((commander) => !findUnit(this.state, commander.id));
+      if (deadCommander) this.playUnitDeath(deadCommander.owner, true);
+      const profaneWellTicked = this.state.pendingManaWells.some(
+        (well) => well.remainingTurns < (pendingWellsBefore.get(well.id) ?? well.remainingTurns),
+      );
+      const profaneWellCompleted = this.state.sites.some(
+        (site) => site.type === 'well' && pendingWellsBefore.has(site.id.replace(/^profane-/, '')),
+      );
+      if (profaneWellTicked) this.playProfaneWellTick();
+      if (profaneWellCompleted) this.playProfaneWellComplete();
+      if (this.state.currentPlayer !== endingPlayer) {
+        this.playTurnEnd();
+        if (this.state.players[nextPlayer].hand.length > nextHandSize) this.playCardDraw();
+      }
+    }
     this.clearInteraction();
     this.message = result.message;
     this.renderAll();
@@ -1354,7 +1577,134 @@ export class GameScene extends Phaser.Scene {
     card.style.setProperty('--holo-y', '50%');
   }
 
-  private animatePlayedCard(index: number): void {
+  private async animateSummonedCard(index: number, destination: Coord): Promise<void> {
+    const source = document.querySelector<HTMLButtonElement>(`.card[data-hand-index="${index}"]`);
+    if (!source) throw new Error(`Played unit card ${index} has no rendered card surface.`);
+
+    const sourceRect = source.getBoundingClientRect();
+    const target = this.coordToViewport(destination);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const duration = reducedMotion ? 320 : 1_500;
+    const travelX = target.x - (sourceRect.left + sourceRect.width / 2);
+    const travelY = target.y + 9 - sourceRect.bottom;
+
+    const ritual = document.createElement('div');
+    ritual.className = 'summon-card-ritual';
+    ritual.setAttribute('aria-hidden', 'true');
+    ritual.style.left = `${target.x}px`;
+    ritual.style.top = `${target.y}px`;
+    ritual.innerHTML = `
+      <span class="summon-ritual-smoke"></span>
+      <svg class="summon-ritual-platform" viewBox="0 0 160 100" aria-hidden="true">
+        <polygon class="summon-platform-bloom" points="80,5 148,27 148,73 80,95 12,73 12,27"></polygon>
+        <polygon class="summon-platform-outer" points="80,8 144,29 144,71 80,92 16,71 16,29"></polygon>
+        <polygon class="summon-platform-inner" points="80,18 130,34 130,66 80,82 30,66 30,34"></polygon>
+      </svg>`;
+    for (let particleIndex = 0; particleIndex < 9; particleIndex += 1) {
+      const particle = document.createElement('span');
+      particle.className = 'summon-ritual-particle';
+      particle.style.setProperty('--particle-angle', `${particleIndex * 40}deg`);
+      particle.style.setProperty('--particle-delay', `${particleIndex * -90}ms`);
+      ritual.append(particle);
+    }
+
+    const ghost = source.cloneNode(true) as HTMLButtonElement;
+    ghost.disabled = false;
+    ghost.classList.remove('selected', 'deal-in');
+    ghost.classList.add('card-play-ghost', 'summon-card-ghost');
+    ghost.style.left = `${sourceRect.left}px`;
+    ghost.style.top = `${sourceRect.top}px`;
+    ghost.style.width = `${sourceRect.width}px`;
+    ghost.style.height = `${sourceRect.height}px`;
+
+    document.body.append(ritual, ghost);
+
+    const cardFrames: Keyframe[] = reducedMotion ? [
+      { transform: 'perspective(900px) translate3d(0, 0, 0) scale(1)', opacity: 1 },
+      {
+        transform: `perspective(900px) translate3d(${travelX}px, ${travelY}px, 0) scale(.38)`,
+        opacity: 0,
+        filter: 'brightness(2.2)',
+      },
+    ] : [
+      {
+        transform: 'perspective(900px) translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)',
+        opacity: 1,
+        filter: 'brightness(1) saturate(1)',
+      },
+      {
+        offset: 0.16,
+        transform: `perspective(900px) translate3d(${travelX * 0.56}px, ${travelY * 0.48 - 82}px, 70px) rotateX(-12deg) rotateY(-20deg) rotateZ(-5deg) scale(.86)`,
+        opacity: 1,
+        filter: 'brightness(1.35) saturate(1.3)',
+      },
+      {
+        offset: 0.32,
+        transform: `perspective(900px) translate3d(${travelX}px, ${travelY - 42}px, 100px) rotateX(-7deg) rotateY(18deg) rotateZ(2deg) scale(.72)`,
+        opacity: 1,
+        filter: 'brightness(1.18) saturate(1.28)',
+      },
+      {
+        offset: 0.5,
+        transform: `perspective(900px) translate3d(${travelX}px, ${travelY - 54}px, 120px) rotateX(6deg) rotateY(-14deg) rotateZ(-1deg) scale(.76)`,
+        opacity: 1,
+        filter: 'brightness(1.3) saturate(1.38)',
+      },
+      {
+        offset: 0.68,
+        transform: `perspective(900px) translate3d(${travelX}px, ${travelY - 46}px, 115px) rotateX(-3deg) rotateY(10deg) rotateZ(1deg) scale(.74)`,
+        opacity: 1,
+        filter: 'brightness(1.22) saturate(1.34)',
+      },
+      {
+        offset: 0.88,
+        transform: `perspective(900px) translate3d(${travelX}px, ${travelY - 34}px, 80px) rotateX(2deg) rotateY(0deg) rotateZ(0deg) scale(.78)`,
+        opacity: 1,
+        filter: 'brightness(1.55) saturate(1.42)',
+      },
+      {
+        transform: `perspective(900px) translate3d(${travelX}px, ${travelY + 18}px, 0) rotateX(68deg) rotateY(0deg) rotateZ(0deg) scale(.3)`,
+        opacity: 0,
+        filter: 'brightness(3) saturate(1.4) blur(1px)',
+      },
+    ];
+
+    const cardAnimation = ghost.animate(cardFrames, {
+      duration,
+      easing: 'cubic-bezier(.18,.82,.2,1)',
+      fill: 'forwards',
+    });
+    const ritualAnimation = ritual.animate([
+      { opacity: 0, transform: 'translate(-50%, -50%) scale(.35)' },
+      { offset: reducedMotion ? 0.12 : 0.1, opacity: 0, transform: 'translate(-50%, -50%) scale(.55)' },
+      { offset: reducedMotion ? 0.34 : 0.22, opacity: 1, transform: 'translate(-50%, -50%) scale(1.08)' },
+      { offset: 0.88, opacity: 1, transform: 'translate(-50%, -50%) scale(1)' },
+      { opacity: 0, transform: 'translate(-50%, -50%) scale(1.45)' },
+    ], {
+      duration,
+      easing: 'cubic-bezier(.16,.75,.2,1)',
+      fill: 'forwards',
+    });
+
+    try {
+      await Promise.all([cardAnimation.finished, ritualAnimation.finished]);
+    } finally {
+      ghost.remove();
+      ritual.remove();
+    }
+  }
+
+  private coordToViewport(coord: Coord): Phaser.Math.Vector2 {
+    const world = this.center(coord);
+    const camera = this.cameras.main;
+    const canvasRect = this.game.canvas.getBoundingClientRect();
+    return new Phaser.Math.Vector2(
+      canvasRect.left + camera.x + (world.x - camera.worldView.x) * camera.zoom,
+      canvasRect.top + camera.y + (world.y - camera.worldView.y) * camera.zoom,
+    );
+  }
+
+  animatePlayedCard(index: number): void {
     const source = document.querySelector<HTMLButtonElement>(`.card[data-hand-index="${index}"]`);
     if (!source) return;
     const rect = source.getBoundingClientRect();

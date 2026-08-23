@@ -41,7 +41,16 @@ const compactSummary = {
   matches: report.analysis.matches,
   wins: report.analysis.wins,
   terminations: report.analysis.terminations,
+  decisiveMatchRate: report.analysis.decisiveMatchRate,
   averageRounds: report.analysis.averageRounds,
+  factions: Object.fromEntries(Object.entries(report.analysis.factions).map(([faction, metrics]) => [faction, {
+    turnsWithoutAction: metrics.turnsWithoutAction,
+    commanderHpLost: metrics.commanderHpLost,
+    strategyStops: metrics.strategyStopReasons,
+    tacticalStops: metrics.tacticalStopReasons,
+    strategyRetainedByKind: metrics.strategyCandidates.retainedByKind,
+    tacticalTiers: metrics.tacticalTiers,
+  }])),
   findings: report.analysis.findings,
 };
 console.log(`BATTLE_LOG_REPORT ${JSON.stringify(compactSummary)}`);

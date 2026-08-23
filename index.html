@@ -7,7 +7,7 @@
     <title>NidoCardBattle Prototype</title>
   </head>
   <body>
-    <main id="app">
+    <main id="app" class="show-card-hitboxes">
       <div id="game-container" aria-label="NidoCardBattle draggable hex battlefield"></div>
       <div id="status" class="sr-only" role="status" aria-live="polite">Player 1 begins.</div>
 
@@ -43,6 +43,14 @@
 
       <button id="generated-map-toggle" class="debug-map-toggle" type="button" aria-label="Use generated map" aria-pressed="false" title="Toggle generated map view">
         Map: tiles
+      </button>
+
+      <button id="selection-fx-toggle" class="selection-fx-toggle" type="button" aria-label="Use current tile selection effect" aria-pressed="true" title="Switch to current selection art">
+        Selection: Premium
+      </button>
+
+      <button id="card-hitbox-toggle" class="card-hitbox-toggle" type="button" aria-label="Hide card clickable areas" aria-pressed="true" title="Hide card clickable areas">
+        Hit Areas: On
       </button>
 
       <button id="fullscreen-button" class="fullscreen-button" type="button" aria-label="Enter fullscreen" aria-pressed="false" title="Enter fullscreen">

@@ -11,6 +11,7 @@ export interface AnimatedUnitView {
   sprite?: Phaser.GameObjects.Sprite;
   art?: UnitArtDefinition;
   hpText?: Phaser.GameObjects.Text;
+  applyFacing?: () => void;
 }
 
 interface TweenValues {
@@ -53,6 +54,7 @@ export class UnitMotionAnimator {
   ): Promise<void> {
     if (path.length < 2) return;
     const style = this.styleFor(unit);
+    face(center(path[0]), center(path[1]));
     this.playClip(view, 'walk');
     this.board()?.bringToTop(view.container);
 
@@ -630,6 +632,7 @@ export class UnitMotionAnimator {
   private playClip(view: AnimatedUnitView, state: 'idle' | 'walk' | 'attack'): void {
     if (!view.sprite || !view.art) return;
     view.sprite.play(view.art.animations[state].animationKey, true);
+    view.applyFacing?.();
   }
 
   private tween<T extends Phaser.GameObjects.GameObject>(

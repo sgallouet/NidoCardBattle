@@ -10,6 +10,7 @@ import {
   curseUnit,
   effectiveMove,
   endTurn,
+  getAttackTargets,
   getReachableCoords,
   getRestoreTargets,
   getSoulLinkTargets,
@@ -193,6 +194,26 @@ describe('Blocking, Flying and Phase', () => {
     expect(getReachableCoords(state, flyer.id).has(coordKey({ q: 8, r: 3 }))).toBe(true);
     flyer.coord = { q: 4, r: 5 };
     expect(getReachableCoords(state, flyer.id).has(coordKey({ q: 5, r: 5 }))).toBe(false);
+  });
+});
+
+describe('UNA1-UNA2 activation order', () => {
+  it.each([
+    ['longbowRanger', 1, 2],
+    ['boneArcher', 2, 1],
+  ] as const)('keeps %s attack available after movement', (definitionId, owner, enemyOwner) => {
+    const state = freshState();
+    state.currentPlayer = owner;
+    const archer = makeUnit('archer', definitionId, owner, { q: 3, r: 10 });
+    const target = makeUnit('target', 'skeletalInfantry', enemyOwner, { q: 5, r: 8 });
+    state.units = [archer, target];
+
+    expect(moveUnit(state, archer.id, { q: 4, r: 9 }).ok).toBe(true);
+    expect(archer.moved).toBe(true);
+    expect(archer.attacked).toBe(false);
+    expect(getAttackTargets(state, archer.id).map((unit) => unit.id)).toContain(target.id);
+    expect(attackUnit(state, archer.id, target.id).ok).toBe(true);
+    expect(archer.attacked).toBe(true);
   });
 });
 

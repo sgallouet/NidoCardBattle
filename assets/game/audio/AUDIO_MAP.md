@@ -12,11 +12,25 @@ This file is the runtime audio contract and acceptance registry. Generated candi
 
 | ID | File | Trigger | Kind | Volume | Cooldown / Pool | Notes |
 | --- | --- | --- | --- | ---: | --- | --- |
+| `commander-death` | `sfx/commander-death.mp3` | A Commander is removed under `GRV2` or `GRV3`, including end-turn Curse damage. | sting | 0.86 | Action-serialized / pool 1 | Composite of approved WorldXplore runtime `heavy-stomp.wav` and `tree-fall.wav`; replaces the ordinary faction death cue for Commanders; user approved 2026-08-23. |
 | `combat-assist` | `sfx/combat-assist.mp3` | An Assist unit's supporting strike reaches its target and contributes damage. | impact | 0.62 | Animation-serialized / pool 1 | Derived from approved `crit-crack.mp3`; user approved 2026-08-23. |
 | `combat-hit-melee` | `sfx/combat-hit-melee.mp3` | A close-range attack or retaliation reaches its visual impact after successfully dealing damage. | impact | 0.85 | Animation-serialized / pool 1 | Adapted from WorldXplore `crit-crack.mp3`; user approved 2026-08-23. |
 | `combat-hit-ranged` | `sfx/combat-hit-ranged.mp3` | A ranged attack or retaliation reaches its visual impact after successfully dealing damage. | impact | 0.78 | Animation-serialized / pool 1 | Stable Audio candidate A; user approved 2026-08-23. |
 | `combat-retaliation` | `sfx/combat-retaliation.mp3` | A defender begins a valid retaliation after the initiating attack successfully deals damage. | impact | 0.58 | Animation-serialized / pool 1 | Adapted from WorldXplore `sword-draw.mp3`; user approved 2026-08-23. |
+| `unit-death-human` | `sfx/unit-death-human.mp3` | A Human unit's zero-HP removal reaches its death animation. | impact | 0.70 | Animation-serialized / pool 1 | De-clipped and converted from WorldXplore runtime `heavy-stomp.wav`; user approved 2026-08-23. |
+| `unit-death-undead` | `sfx/unit-death-undead.mp3` | An Undead unit's zero-HP removal reaches its death animation. | impact | 0.74 | Animation-serialized / pool 1 | Converted from WorldXplore runtime `bone-break.wav`; user approved 2026-08-23. |
 | `unit-summon-human` | `sfx/unit-summon-human.mp3` | A Human unit is successfully created from a unit card. | sting | 0.72 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-confirm.mp3`; user approved 2026-08-23. |
+| `unit-summon-undead` | `sfx/unit-summon-undead.mp3` | An Undead unit is successfully created from a unit card. | sting | 0.62 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-fail.mp3`; user approved 2026-08-23. |
+| `turn-end` | `sfx/turn-end.mp3` | End Turn succeeds and control is handed to the other player. | ui | 0.52 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-select.mp3`; user approved 2026-08-23. |
+| `ui-card-draw` | `sfx/ui-card-draw.mp3` | A card is successfully added to the newly active player's hand. | ui | 0.58 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `ui-paper-slide.wav`; user approved 2026-08-23. |
+| `ui-card-play` | `sfx/ui-card-play.mp3` | A successful card play removes its card from the active player's hand. | ui | 0.62 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-paper-full.mp3`; user approved 2026-08-23. |
+| `tactic-build-bridge` | `sfx/tactic-build-bridge.mp3` | Build Bridge successfully adds a built bridge. | sting | 0.66 | Action-serialized / pool 1 | Converted from WorldXplore runtime `tree-fall.wav`; user approved 2026-08-23. |
+| `tactic-grave-lock` | `sfx/tactic-grave-lock.mp3` | Grave Lock successfully creates its tile effect. | ui | 0.68 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-click-sharp-full.mp3`; user approved 2026-08-23. |
+| `tactic-profane-well-complete` | `sfx/tactic-profane-well-complete.mp3` | A pending Profane Well becomes an actual Mana Well under `CRC8`. | sting | 0.72 | Turn-serialized / pool 1 | Stable Audio candidate B; user approved 2026-08-23. |
+| `tactic-profane-well-sacrifice` | `sfx/tactic-profane-well-sacrifice.mp3` | Profane Well successfully consumes its unit target and creates a pending well. | impact | 0.72 | Action-serialized / pool 1 | Converted from WorldXplore runtime `melee-hit.mp3`; user approved 2026-08-23. |
+| `tactic-profane-well-tick` | `sfx/tactic-profane-well-tick.mp3` | One or more pending Profane Wells remain pending after their `CRC8` remaining-turn count decreases. | ui | 0.46 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `heartbeat.mp3`; one pulse per resolution group; user approved 2026-08-23. |
+| `tactic-raise-fort` | `sfx/tactic-raise-fort.mp3` | Raise Fort successfully creates the Fort site. | sting | 0.70 | Action-serialized / pool 1 | Converted from WorldXplore runtime `wood-deposit.mp3`; user approved 2026-08-23. |
+| `tactic-scorch` | `sfx/tactic-scorch.mp3` | Scorch successfully marks a Forest hex as scorched. | impact | 0.78 | Action-serialized / pool 1 | Excerpted from WorldXplore runtime `campfire-crackle.mp3`; user approved 2026-08-23. |
 
 ## Planned event contracts
 
@@ -26,15 +40,8 @@ These are generation/integration targets, not accepted files. Do not add runtime
 
 | Event ID | Exact trigger | Sound direction | Generation notes |
 | --- | --- | --- | --- |
-| `ui-card-draw` | A card is successfully added to the active player's hand. | Short paper/card flick with restrained magical sheen. | 2+ candidates; very short. |
-| `ui-card-play` | A card play succeeds and its card leaves the hand. | Crisp card cast/release accent. | Generic layer; tactic-specific events may layer after it. |
-| `unit-summon-undead` | An Undead unit is successfully created from a unit card. | Bone/grave-air magical arrival. | Readable, not horror-heavy. |
 | `unit-move-step` | A rendered unit reaches a movement path hex after leaving its source hex. | Soft compact terrain-neutral movement tick. | Low volume; cooldown/pool required. |
-| `unit-death-human` | A Human unit is removed because its HP reached zero. | Short armor/body fall accent. | No long vocal by default. |
-| `unit-death-undead` | An Undead unit is removed because its HP reached zero. | Bone/spectral collapse accent. | Compact. |
 | `site-capture` | A site owner actually changes during capture resolution. | Positive tactical claim chime. | Same sound for either faction initially. |
-| `turn-end` | End Turn succeeds and control is handed to the other player. | Subtle turn handoff pulse. | Very short, low fatigue. |
-| `commander-death` | A Commander is removed and the victory countdown begins/changes accordingly. | Heavy decisive impact/sting. | High priority; should cut through other SFX. |
 | `victory-countdown` | A surviving Commander's victory checkpoint count advances. | Rising short tension pulse. | One sound can be pitch/volume varied in code later. |
 | `match-victory` | `winner` changes from null to a player ID. | Short triumphant end-match sting. | Music-length celebration comes later. |
 
@@ -42,13 +49,6 @@ These are generation/integration targets, not accepted files. Do not add runtime
 
 | Event ID | Exact trigger | Sound direction | Generation notes |
 | --- | --- | --- | --- |
-| `tactic-grave-lock` | Grave Lock successfully creates its tile effect. | Spectral rune seal + restrained chain snap. | Distinct positional event. |
-| `tactic-build-bridge` | Build Bridge successfully adds a built bridge. | Fast wood construction/clack with light magical accent. | Avoid realistic long construction sequence. |
-| `tactic-scorch` | Scorch successfully marks a Forest hex as scorched. | Brief magical ignition, ember burst, vegetation collapse. | Short; no sustained fire loop. |
-| `tactic-raise-fort` | Raise Fort successfully creates the Fort site. | Stone/metal assembly impact with heroic magic accent. | One compact construction burst. |
-| `tactic-profane-well-sacrifice` | Profane Well successfully consumes its unit target and creates a pending well. | Dark sacrifice pulse + grave-earth suction. | Important confirmation event. |
-| `tactic-profane-well-tick` | A pending Profane Well decreases its remaining-turn count. | Quiet ritual pulse. | Low volume; avoid fatigue. |
-| `tactic-profane-well-complete` | A pending Profane Well becomes an actual Mana Well. | Dark magical bloom/completion sting. | Stronger than tick. |
 
 ### P1 — unit abilities and traits
 
@@ -75,12 +75,10 @@ These are generation/integration targets, not accepted files. Do not add runtime
 
 ## Generation order
 
-1. Unit lifecycle: summons and deaths.
-2. Card/UI: draw, play, turn handoff.
-3. Tactics: Grave Lock, Build Bridge, Scorch, Raise Fort, Profane Well events.
-4. Objectives: site capture, Commander death, countdown, victory.
-5. Abilities/traits.
-6. Ambience and music only after the SFX language feels coherent.
+1. Tactics: Grave Lock, Build Bridge, Scorch, Raise Fort, Profane Well events.
+2. Objectives: site capture, Commander death, countdown, victory.
+3. Abilities/traits.
+4. Ambience and music only after the SFX language feels coherent.
 
 ## Integration rules
 

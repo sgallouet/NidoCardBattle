@@ -7,6 +7,7 @@ import {
   planAiTurn,
   type AiPlan,
   type AiSearchOptions,
+  type SearchStopReason,
 } from './ai';
 import { coordKey, createGameState, STARTING_MANA } from './engine';
 
@@ -34,9 +35,10 @@ export interface SimulationMatchResult {
   objectiveControlTurns: Record<PlayerId, SimulationObjectiveTurns>;
   finalObjectiveControl: Record<PlayerId, SimulationObjectiveTurns>;
   peakUnits: Record<PlayerId, number>;
-  totalSearchStates: number;
-  totalResponseStates: number;
-  timedOutTurns: number;
+  strategyNodes: number;
+  tacticalNodes: number;
+  strategyStopReasons: Record<SearchStopReason, number>;
+  tacticalStopReasons: Record<SearchStopReason, number>;
   planReplayFailures: number;
 }
 
@@ -52,9 +54,12 @@ export interface SimulationBatchResult {
   firstPlayerWinRate: number;
   averageRounds: number;
   averageHalfTurns: number;
-  averageSearchStatesPerTurn: number;
-  averageResponseStatesPerTurn: number;
-  timedOutTurnRate: number;
+  averageStrategyNodesPerTurn: number;
+  averageTacticalNodesPerTurn: number;
+  strategyNodeLimitRate: number;
+  strategyTimeLimitRate: number;
+  tacticalNodeLimitRate: number;
+  tacticalTimeLimitRate: number;
   replayFailureRate: number;
   commanderDeathGamesByFaction: Record<Faction, number>;
   objectiveControlShareByFaction: Record<Faction, { well: number; fort: number }>;
@@ -106,6 +111,11 @@ export interface SimulationObserver {
 const emptyActionCounts = (): SimulationActionCounts =>
   Object.fromEntries(GAME_ACTION_KINDS.map((kind) => [kind, 0])) as SimulationActionCounts;
 const emptyObjectives = (): SimulationObjectiveTurns => ({ well: 0, fort: 0 });
+const emptyStopReasons = (): Record<SearchStopReason, number> => ({
+  complete: 0,
+  'node-limit': 0,
+  'time-limit': 0,
+});
 
 /** Small deterministic PRNG so simulation runs are reproducible from a seed. */
 export const seededRandom = (seed: number): (() => number) => {
@@ -272,9 +282,10 @@ export const simulateAiMatch = (
   const summonsByCard: Partial<Record<CardDefinitionId, number>> = {};
   const seenStates = new Map<string, number>();
   let halfTurns = 0;
-  let totalSearchStates = 0;
-  let totalResponseStates = 0;
-  let timedOutTurns = 0;
+  let strategyNodes = 0;
+  let tacticalNodes = 0;
+  const strategyStopReasons = emptyStopReasons();
+  const tacticalStopReasons = emptyStopReasons();
   let planReplayFailures = 0;
   let termination: SimulationTermination = 'turn-limit';
 
@@ -292,9 +303,10 @@ export const simulateAiMatch = (
     const halfTurn = halfTurns + 1;
     observer?.onTurnPlanned?.({ halfTurn, actor, plan, state });
     recordActions(actor, plan.actions, actionCounts, summonsByCard);
-    totalSearchStates += plan.searchedStates;
-    totalResponseStates += plan.responseStates;
-    if (plan.timedOut) timedOutTurns += 1;
+    strategyNodes += plan.diagnostics.strategy.nodes;
+    tacticalNodes += plan.diagnostics.tactical.nodes;
+    strategyStopReasons[plan.diagnostics.strategy.stopReason] += 1;
+    tacticalStopReasons[plan.diagnostics.tactical.stopReason] += 1;
 
     const turn = executeAiPlan(state, plan, random, {
       onActionResolved: ({ action, result, state: currentState }) => {
@@ -335,9 +347,10 @@ export const simulateAiMatch = (
     objectiveControlTurns,
     finalObjectiveControl,
     peakUnits,
-    totalSearchStates,
-    totalResponseStates,
-    timedOutTurns,
+    strategyNodes,
+    tacticalNodes,
+    strategyStopReasons,
+    tacticalStopReasons,
     planReplayFailures,
   };
   observer?.onMatchCompleted?.({ state, result });
@@ -355,7 +368,8 @@ export const simulateAiBatch = (options: SimulationBatchOptions = {}): Simulatio
     const firstPlayerFaction: Faction = alternateFirstPlayer
       ? index % 2 === 0 ? 'human' : 'undead'
       : fixedFirstFaction;
-    return simulateAiMatch(seed + index * 0x9e3779b1, {
+    const seedIndex = alternateFirstPlayer ? Math.floor(index / 2) : index;
+    return simulateAiMatch(seed + seedIndex * 0x9e3779b1, {
       maxHalfTurns: options.maxHalfTurns,
       repetitionLimit: options.repetitionLimit,
       aiOptions: options.aiOptions,
@@ -368,9 +382,16 @@ export const simulateAiBatch = (options: SimulationBatchOptions = {}): Simulatio
   const stalemates = matches - humanWins - undeadWins;
   const firstPlayerWins = details.filter((match) => match.winner === 1).length;
   const totalHalfTurns = details.reduce((sum, match) => sum + match.halfTurns, 0);
-  const totalSearchStates = details.reduce((sum, match) => sum + match.totalSearchStates, 0);
-  const totalResponseStates = details.reduce((sum, match) => sum + match.totalResponseStates, 0);
-  const totalTimedOutTurns = details.reduce((sum, match) => sum + match.timedOutTurns, 0);
+  const totalStrategyNodes = details.reduce((sum, match) => sum + match.strategyNodes, 0);
+  const totalTacticalNodes = details.reduce((sum, match) => sum + match.tacticalNodes, 0);
+  const strategyNodeLimitedTurns = details.reduce((sum, match) =>
+    sum + match.strategyStopReasons['node-limit'], 0);
+  const strategyTimeLimitedTurns = details.reduce((sum, match) =>
+    sum + match.strategyStopReasons['time-limit'], 0);
+  const tacticalNodeLimitedTurns = details.reduce((sum, match) =>
+    sum + match.tacticalStopReasons['node-limit'], 0);
+  const tacticalTimeLimitedTurns = details.reduce((sum, match) =>
+    sum + match.tacticalStopReasons['time-limit'], 0);
   const totalReplayFailures = details.reduce((sum, match) => sum + match.planReplayFailures, 0);
   const commanderDeathGamesByFaction: Record<Faction, number> = { human: 0, undead: 0 };
   const actionCountsByFaction: Record<Faction, SimulationActionCounts> = {
@@ -420,9 +441,12 @@ export const simulateAiBatch = (options: SimulationBatchOptions = {}): Simulatio
     firstPlayerWinRate: ratio(firstPlayerWins, matches - stalemates),
     averageRounds: ratio(totalHalfTurns, matches * 2),
     averageHalfTurns: ratio(totalHalfTurns, matches),
-    averageSearchStatesPerTurn: ratio(totalSearchStates, totalHalfTurns),
-    averageResponseStatesPerTurn: ratio(totalResponseStates, totalHalfTurns),
-    timedOutTurnRate: ratio(totalTimedOutTurns, totalHalfTurns),
+    averageStrategyNodesPerTurn: ratio(totalStrategyNodes, totalHalfTurns),
+    averageTacticalNodesPerTurn: ratio(totalTacticalNodes, totalHalfTurns),
+    strategyNodeLimitRate: ratio(strategyNodeLimitedTurns, totalHalfTurns),
+    strategyTimeLimitRate: ratio(strategyTimeLimitedTurns, totalHalfTurns),
+    tacticalNodeLimitRate: ratio(tacticalNodeLimitedTurns, totalHalfTurns),
+    tacticalTimeLimitRate: ratio(tacticalTimeLimitedTurns, totalHalfTurns),
     replayFailureRate: ratio(totalReplayFailures, totalHalfTurns),
     commanderDeathGamesByFaction,
     objectiveControlShareByFaction: {

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { MAP_HEIGHT, MAP_WIDTH } from '../data/map';
 import type { MapRenderMode } from '../data/mapRenderMode';
+import { BRIDGE_TERRAIN_ART } from '../data/terrainArt';
 import type { Coord } from '../data/types';
 import { terrainAt } from './engine';
 
@@ -130,18 +131,8 @@ export class AuthoredMapPresentation {
         const coord = { q, r };
         if (terrainAt(coord) !== 'bridge') continue;
         const center = game.center(coord);
-        const bridge = this.scene.add.graphics();
-        bridge.fillStyle(0x332218, 0.92);
-        bridge.fillRect(center.x - 48, center.y - 20, 96, 40);
-        bridge.fillStyle(0xa77a45, 1);
-        bridge.fillRect(center.x - 46, center.y - 16, 92, 32);
-        bridge.lineStyle(2, 0x51341d, 0.9);
-        for (let x = -40; x <= 40; x += 12) {
-          bridge.lineBetween(center.x + x, center.y - 16, center.x + x, center.y + 16);
-        }
-        bridge.lineStyle(3, 0xd1a568, 0.72);
-        bridge.lineBetween(center.x - 46, center.y - 18, center.x + 46, center.y - 18);
-        bridge.lineBetween(center.x - 46, center.y + 18, center.x + 46, center.y + 18);
+        const bridge = this.scene.add.image(center.x, center.y, BRIDGE_TERRAIN_ART.textureKey)
+          .setDisplaySize(BRIDGE_TERRAIN_ART.displayWidth, BRIDGE_TERRAIN_ART.displayHeight);
         layer.add(bridge);
       }
     }

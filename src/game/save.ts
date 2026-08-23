@@ -1,7 +1,7 @@
 import type { GameState, PlayerId } from '../data/types';
 
 const SAVE_KEY = 'nidocardbattle.match';
-const SAVE_VERSION = 1 as const;
+const SAVE_VERSION = 2 as const;
 
 interface SaveEnvelope {
   version: typeof SAVE_VERSION;

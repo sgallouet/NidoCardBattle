@@ -8,12 +8,13 @@ const FAST_LOG_OPTIONS = {
   aiOptions: {
     beamWidth: 2,
     maxDepth: 2,
-    maxNodes: 120,
-    maxPlanningMs: 5_000,
+    strategyMaxNodes: 120,
+    strategyMaxPlanningMs: 5_000,
     candidatePlans: 2,
     responseBeamWidth: 1,
     responseDepth: 1,
-    responseMaxNodes: 24,
+    tacticalMaxNodes: 24,
+    tacticalMaxPlanningMs: 5_000,
   },
 } as const;
 
@@ -23,10 +24,13 @@ describe('battle log generator', () => {
     const second = generateBattleLog(98123, FAST_LOG_OPTIONS);
 
     expect(first).toEqual(second);
-    expect(first.schemaVersion).toBe(1);
+    expect(first.schemaVersion).toBe(2);
     expect(first.turns).toHaveLength(first.result.halfTurns);
     expect(first.turns.every((turn) => turn.steps.at(-1)?.action.kind === 'endTurn')).toBe(true);
     expect(first.turns.every((turn) => turn.end !== undefined)).toBe(true);
+    expect(first.turns.every((turn) => Number.isFinite(turn.plan.strategic.outlook))).toBe(true);
+    expect(first.turns.every((turn) => turn.plan.tactical.worstResponse !== undefined)).toBe(true);
+    expect(first.turns.every((turn) => turn.plan.diagnostics.strategy.stopReason !== undefined)).toBe(true);
     expect(JSON.parse(JSON.stringify(first))).toEqual(first);
 
     for (const player of [1, 2] as const) {

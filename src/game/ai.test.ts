@@ -8,8 +8,10 @@ import {
   getBrowserAiSearchOptions,
   planSmartAiTurn,
   runSmartAiTurn,
+  selectCandidateActions,
 } from './ai';
-import { coordKey, createGameState, endTurn } from './engine';
+import { evaluateStrategicPosition } from './aiEvaluation';
+import { coordKey, createGameState, endTurn, hexDistance } from './engine';
 
 const fixedRandom = () => 0.25;
 
@@ -49,12 +51,13 @@ const minimalAiTurnState = (): GameState => {
 const deterministicSearch = {
   beamWidth: 4,
   maxDepth: 3,
-  maxNodes: 700,
-  maxPlanningMs: 5_000,
+  strategyMaxNodes: 700,
+  strategyMaxPlanningMs: 5_000,
   candidatePlans: 2,
   responseBeamWidth: 2,
   responseDepth: 2,
-  responseMaxNodes: 120,
+  tacticalMaxNodes: 120,
+  tacticalMaxPlanningMs: 5_000,
 } as const;
 
 describe('smart enemy AI', () => {
@@ -67,7 +70,7 @@ describe('smart enemy AI', () => {
     expect(state.currentPlayer).toBe(1);
     expect(state.winner).toBe(null);
     expect(result.actions.length).toBeGreaterThan(0);
-    expect(result.searchedStates).toBeGreaterThan(0);
+    expect(result.diagnostics.strategy.nodes).toBeGreaterThan(0);
   });
 
   it('prioritizes and kills an adjacent Human Commander', () => {
@@ -120,7 +123,26 @@ describe('smart enemy AI', () => {
 
     expect(plan.actions.some((action) => action.kind === 'move' && action.unitId === 'undead-attacker')).toBe(true);
     expect(plan.actions.some((action) => action.kind === 'attack' && action.targetId === 'human-commander')).toBe(true);
-    expect(plan.searchedStates).toBeGreaterThan(1);
+    expect(plan.diagnostics.strategy.nodes).toBeGreaterThan(1);
+  });
+
+  it('pursues a wounded Commander when it cannot attack this turn', () => {
+    const state = minimalAiTurnState();
+    state.units = [
+      makeUnit('human-commander', 'commander', 1, { q: 9, r: 4 }, { hp: 3 }),
+      makeUnit('undead-pursuer', 'graveKnight', 2, { q: 3, r: 4 }),
+      makeUnit('undead-commander', 'commander', 2, { q: 12, r: 8 }),
+    ];
+
+    const plan = planSmartAiTurn(state, { ...deterministicSearch, beamWidth: 10, maxDepth: 3 });
+    const pursuit = plan.actions.find((action) =>
+      action.kind === 'move' && action.unitId === 'undead-pursuer');
+
+    expect(pursuit?.kind).toBe('move');
+    if (pursuit?.kind !== 'move') throw new Error('Expected a pursuit move.');
+    expect(hexDistance(pursuit.destination, { q: 9, r: 4 })).toBeLessThan(
+      hexDistance({ q: 3, r: 4 }, { q: 9, r: 4 }),
+    );
   });
 
   it('advances units instead of spending its whole opening turn on summons', () => {
@@ -154,8 +176,9 @@ describe('smart enemy AI', () => {
 
     const plan = planSmartAiTurn(state, deterministicSearch);
 
-    expect(plan.responseStates).toBeGreaterThan(0);
-    expect(Number.isFinite(plan.score)).toBe(true);
+    expect(plan.diagnostics.tactical.nodes).toBeGreaterThan(0);
+    expect(Number.isFinite(plan.strategic.outlook)).toBe(true);
+    expect(['forced-win', 'safe', 'unsafe', 'forced-loss']).toContain(plan.tactical.tier);
   });
 
   it('does not change its plan when only the hidden Human hand changes', () => {
@@ -168,27 +191,125 @@ describe('smart enemy AI', () => {
     const secondPlan = planSmartAiTurn(second, deterministicSearch);
 
     expect(secondPlan.actions).toEqual(firstPlan.actions);
-    expect(secondPlan.score).toBe(firstPlan.score);
+    expect(secondPlan.strategic).toEqual(firstPlan.strategic);
   });
 
   it('respects a tiny node budget and still completes the enemy turn', () => {
     const state = minimalAiTurnState();
     const result = runSmartAiTurn(state, fixedRandom, {
       ...COMMON_AI_OPTIONS,
-      maxNodes: 20,
-      maxPlanningMs: 5_000,
+      strategyMaxNodes: 20,
+      strategyMaxPlanningMs: 5_000,
+      tacticalMaxNodes: 10,
+      tacticalMaxPlanningMs: 5_000,
     });
 
-    expect(result.searchedStates).toBeLessThanOrEqual(20);
-    expect(result.timedOut).toBe(true);
+    expect(result.diagnostics.strategy.nodes).toBeLessThanOrEqual(20);
+    expect(result.diagnostics.strategy.stopReason).toBe('node-limit');
+    expect(result.diagnostics.tactical.nodes).toBeLessThanOrEqual(10);
+    expect(result.diagnostics.tactical.stopReason).toBe('node-limit');
     expect(result.endedTurn).toBe(true);
     expect(state.currentPlayer).toBe(1);
   });
 
   it('uses one common mobile-safe profile on every browser', () => {
     expect(getBrowserAiSearchOptions()).toBe(COMMON_AI_OPTIONS);
-    expect(COMMON_AI_OPTIONS.maxPlanningMs).toBeLessThanOrEqual(60);
-    expect(COMMON_AI_OPTIONS.maxNodes).toBeLessThanOrEqual(3_000);
-    expect(COMMON_AI_OPTIONS.responseMaxNodes).toBeLessThanOrEqual(700);
+    expect(COMMON_AI_OPTIONS.strategyMaxPlanningMs).toBe(35);
+    expect(COMMON_AI_OPTIONS.strategyMaxNodes).toBe(1_800);
+    expect(COMMON_AI_OPTIONS.tacticalMaxPlanningMs).toBe(20);
+    expect(COMMON_AI_OPTIONS.tacticalMaxNodes).toBe(1_000);
+  });
+
+  it('preserves action-family diversity when one tactic exposes over 200 tile targets', () => {
+    const state = createGameState(fixedRandom);
+    endTurn(state, fixedRandom);
+    state.players[2].mana = 20;
+    state.players[2].hand = ['graveLock', 'buildBridge', 'skeletalInfantry'];
+    state.units.push(
+      makeUnit('human-target', 'royalGuard', 1, { q: 14, r: 3 }),
+      makeUnit('undead-banshee', 'banshee', 2, { q: 13, r: 3 }),
+    );
+
+    const selection = selectCandidateActions(state, 2, true);
+
+    expect(selection.stats.legalByKind.tactic).toBeGreaterThan(200);
+    expect(selection.stats.retainedByKind.tactic).toBeLessThanOrEqual(16);
+    expect(selection.stats.retainedByKind.move).toBeGreaterThan(0);
+    expect(selection.stats.retainedByKind.attack).toBeGreaterThan(0);
+    expect(selection.stats.retainedByKind.displace).toBeGreaterThan(0);
+    expect(selection.stats.retainedByKind.summon).toBeGreaterThan(0);
+    expect(selection.actions.length).toBeLessThanOrEqual(72);
+
+    const plan = planSmartAiTurn(state, {
+      ...deterministicSearch,
+      strategyMaxNodes: 80,
+      tacticalMaxNodes: 20,
+    });
+    expect(plan.diagnostics.strategy.legalByKind.tactic).toBeGreaterThan(200);
+    expect(plan.diagnostics.strategy.retainedByKind.move).toBeGreaterThan(0);
+    expect(plan.diagnostics.strategy.retainedByKind.attack).toBeGreaterThan(0);
+    expect(plan.diagnostics.strategy.retainedByKind.displace).toBeGreaterThan(0);
+    expect(plan.diagnostics.strategy.retainedByKind.summon).toBeGreaterThan(0);
+  });
+
+  it('gates strategic gains behind avoiding a visible Commander kill', () => {
+    const state = minimalAiTurnState();
+    state.units = [
+      makeUnit('human-commander', 'commander', 1, { q: 14, r: 9 }),
+      makeUnit('human-threat', 'skeletalInfantry', 1, { q: 5, r: 5 }),
+      makeUnit('undead-commander', 'commander', 2, { q: 6, r: 5 }, { hp: 2 }),
+      makeUnit('undead-defender', 'graveKnight', 2, { q: 5, r: 6 }),
+    ];
+
+    const plan = planSmartAiTurn(state, { ...deterministicSearch, beamWidth: 10, maxDepth: 3 });
+    expect(plan.tactical.tier).toBe('safe');
+    expect(plan.actions.some((action) =>
+      action.kind === 'attack' && action.targetId === 'human-threat')).toBe(true);
+    expect(plan.strategic.outlook).toBeGreaterThanOrEqual(-100);
+    expect(plan.strategic.outlook).toBeLessThanOrEqual(100);
+    expect(Object.keys(plan.strategic.components)).toEqual([
+      'economy', 'army', 'objectives', 'position', 'commander', 'victory',
+    ]);
+  });
+
+  it('prefers damaging a Commander over expanding an already active army', () => {
+    const state = minimalAiTurnState();
+    state.players[2].mana = 20;
+    state.players[2].hand = ['graveKnight', 'vampire'];
+    state.sites = [{
+      id: 'undead-fort',
+      type: 'fort',
+      coord: { q: 12, r: 8 },
+      owner: 2,
+      initialOwner: 2,
+    }];
+    state.units = [
+      makeUnit('human-commander', 'commander', 1, { q: 5, r: 4 }),
+      makeUnit('undead-attacker', 'skeletalInfantry', 2, { q: 4, r: 4 }),
+      makeUnit('undead-commander', 'commander', 2, { q: 12, r: 8 }),
+    ];
+
+    const plan = planSmartAiTurn(state, { ...deterministicSearch, beamWidth: 10, maxDepth: 3 });
+    expect(plan.actions.some((action) =>
+      action.kind === 'attack' && action.targetId === 'human-commander')).toBe(true);
+  });
+
+  it('scores Commander damage as meaningful strategic progress', () => {
+    const healthy = minimalAiTurnState();
+    healthy.units = [
+      makeUnit('human-commander', 'commander', 1, { q: 7, r: 4 }),
+      makeUnit('undead-attacker', 'graveKnight', 2, { q: 5, r: 4 }),
+      makeUnit('undead-commander', 'commander', 2, { q: 12, r: 8 }),
+    ];
+    const damaged = structuredClone(healthy);
+    const target = damaged.units.find((unit) => unit.id === 'human-commander');
+    if (!target) throw new Error('Commander fixture is missing.');
+    target.hp -= 3;
+
+    const healthyScore = evaluateStrategicPosition(healthy, 2);
+    const damagedScore = evaluateStrategicPosition(damaged, 2);
+
+    expect(damagedScore.components.commander).toBeGreaterThan(healthyScore.components.commander);
+    expect(damagedScore.outlook - healthyScore.outlook).toBeGreaterThan(5);
   });
 });

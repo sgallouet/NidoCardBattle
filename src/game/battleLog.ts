@@ -1,6 +1,6 @@
 import type { Faction, GameState, PlayerId, UnitState } from '../data/types';
 import { GAME_ACTION_KINDS, getLegalGameActions, type GameAction } from './actions';
-import type { AiPlan } from './ai';
+import type { AiPlan, SearchStopReason } from './ai';
 import {
   simulateAiMatch,
   type SimulationActionCounts,
@@ -9,7 +9,7 @@ import {
   type SimulationTermination,
 } from './simulation';
 
-export const BATTLE_LOG_SCHEMA_VERSION = 1 as const;
+export const BATTLE_LOG_SCHEMA_VERSION = 2 as const;
 
 type CoordTuple = [q: number, r: number];
 
@@ -122,7 +122,7 @@ export interface BattleLogTurn {
   round: number;
   actor: PlayerId;
   faction: Faction;
-  plan: Pick<AiPlan, 'score' | 'searchedStates' | 'responseStates' | 'timedOut'> & {
+  plan: Pick<AiPlan, 'strategic' | 'tactical' | 'diagnostics'> & {
     actionsPlanned: number;
     legalActions: number;
     legalActionsByKind: SimulationActionCounts;
@@ -157,9 +157,20 @@ export interface FactionBattleMetrics {
   commanderHpLost: number;
   objectivesCaptured: number;
   manaSpent: number;
-  timedOutTurns: number;
-  searchedStates: number;
-  responseStates: number;
+  strategyNodes: number;
+  tacticalNodes: number;
+  strategyStopReasons: Record<SearchStopReason, number>;
+  tacticalStopReasons: Record<SearchStopReason, number>;
+  strategyCandidates: CandidateDiversityMetrics;
+  tacticalCandidates: CandidateDiversityMetrics;
+  tacticalTiers: Record<AiPlan['tactical']['tier'], number>;
+}
+
+export interface CandidateDiversityMetrics {
+  legal: number;
+  retained: number;
+  legalByKind: SimulationActionCounts;
+  retainedByKind: SimulationActionCounts;
 }
 
 export interface BattleLogFinding {
@@ -175,6 +186,7 @@ export interface BattleLogAnalysis {
   wins: Record<Faction, number>;
   firstPlayerWins: number;
   terminations: Record<SimulationTermination, number>;
+  decisiveMatchRate: number;
   averageRounds: number;
   factions: Record<Faction, FactionBattleMetrics>;
   findings: BattleLogFinding[];
@@ -366,10 +378,9 @@ export const generateBattleLog = (seed: number, options: SimulationBatchOptions 
         actor,
         faction: state.players[actor].faction,
         plan: {
-          score: plan.score,
-          searchedStates: plan.searchedStates,
-          responseStates: plan.responseStates,
-          timedOut: plan.timedOut,
+          strategic: plan.strategic,
+          tactical: plan.tactical,
+          diagnostics: plan.diagnostics,
           actionsPlanned: plan.actions.length,
           legalActions: legalActions.length,
           legalActionsByKind,
@@ -410,6 +421,17 @@ export const generateBattleLog = (seed: number, options: SimulationBatchOptions 
 
 const emptyActionCounts = (): SimulationActionCounts =>
   Object.fromEntries(GAME_ACTION_KINDS.map((kind) => [kind, 0])) as SimulationActionCounts;
+const emptyStopReasons = (): Record<SearchStopReason, number> => ({
+  complete: 0,
+  'node-limit': 0,
+  'time-limit': 0,
+});
+const emptyCandidateDiversity = (): CandidateDiversityMetrics => ({
+  legal: 0,
+  retained: 0,
+  legalByKind: emptyActionCounts(),
+  retainedByKind: emptyActionCounts(),
+});
 
 const emptyFactionMetrics = (): FactionBattleMetrics => ({
   turns: 0,
@@ -426,10 +448,26 @@ const emptyFactionMetrics = (): FactionBattleMetrics => ({
   commanderHpLost: 0,
   objectivesCaptured: 0,
   manaSpent: 0,
-  timedOutTurns: 0,
-  searchedStates: 0,
-  responseStates: 0,
+  strategyNodes: 0,
+  tacticalNodes: 0,
+  strategyStopReasons: emptyStopReasons(),
+  tacticalStopReasons: emptyStopReasons(),
+  strategyCandidates: emptyCandidateDiversity(),
+  tacticalCandidates: emptyCandidateDiversity(),
+  tacticalTiers: { 'forced-win': 0, safe: 0, unsafe: 0, 'forced-loss': 0 },
 });
+
+const addCandidateDiagnostics = (
+  metrics: CandidateDiversityMetrics,
+  diagnostics: AiPlan['diagnostics']['strategy'],
+): void => {
+  metrics.legal += diagnostics.legalActions;
+  metrics.retained += diagnostics.retainedActions;
+  for (const kind of GAME_ACTION_KINDS) {
+    metrics.legalByKind[kind] += diagnostics.legalByKind[kind];
+    metrics.retainedByKind[kind] += diagnostics.retainedByKind[kind];
+  }
+};
 
 const ratio = (numerator: number, denominator: number): number => denominator === 0 ? 0 : numerator / denominator;
 
@@ -456,13 +494,17 @@ export const analyzeBattleLogs = (logs: BattleLog[]): BattleLogAnalysis => {
     for (const turn of log.turns) {
       const actorMetrics = factions[turn.faction];
       actorMetrics.turns += 1;
-      actorMetrics.searchedStates += turn.plan.searchedStates;
-      actorMetrics.responseStates += turn.plan.responseStates;
+      actorMetrics.strategyNodes += turn.plan.diagnostics.strategy.nodes;
+      actorMetrics.tacticalNodes += turn.plan.diagnostics.tactical.nodes;
+      actorMetrics.strategyStopReasons[turn.plan.diagnostics.strategy.stopReason] += 1;
+      actorMetrics.tacticalStopReasons[turn.plan.diagnostics.tactical.stopReason] += 1;
+      addCandidateDiagnostics(actorMetrics.strategyCandidates, turn.plan.diagnostics.strategy);
+      addCandidateDiagnostics(actorMetrics.tacticalCandidates, turn.plan.diagnostics.tactical);
+      actorMetrics.tacticalTiers[turn.plan.tactical.tier] += 1;
       actorMetrics.legalActionsOffered += turn.plan.legalActions;
       for (const kind of GAME_ACTION_KINDS) {
         actorMetrics.legalActionCounts[kind] += turn.plan.legalActionsByKind[kind];
       }
-      if (turn.plan.timedOut) actorMetrics.timedOutTurns += 1;
       const gameplaySteps = turn.steps.filter((step) => step.action.kind !== 'endTurn');
       if (gameplaySteps.length === 0) {
         actorMetrics.turnsWithoutAction += 1;
@@ -511,7 +553,14 @@ export const analyzeBattleLogs = (logs: BattleLog[]): BattleLogAnalysis => {
   const findings: BattleLogFinding[] = [];
   const totalTurns = factions.human.turns + factions.undead.turns;
   const totalFailures = factions.human.failedActions + factions.undead.failedActions;
-  const totalTimeouts = factions.human.timedOutTurns + factions.undead.timedOutTurns;
+  const strategyNodeLimits = factions.human.strategyStopReasons['node-limit']
+    + factions.undead.strategyStopReasons['node-limit'];
+  const strategyTimeLimits = factions.human.strategyStopReasons['time-limit']
+    + factions.undead.strategyStopReasons['time-limit'];
+  const tacticalNodeLimits = factions.human.tacticalStopReasons['node-limit']
+    + factions.undead.tacticalStopReasons['node-limit'];
+  const tacticalTimeLimits = factions.human.tacticalStopReasons['time-limit']
+    + factions.undead.tacticalStopReasons['time-limit'];
   const nonVictories = terminations.repetition + terminations['turn-limit'];
 
   if (totalFailures > 0) findings.push({
@@ -521,12 +570,19 @@ export const analyzeBattleLogs = (logs: BattleLog[]): BattleLogAnalysis => {
     evidence: `${totalFailures} planned actions failed during replay.`,
     nextStep: 'Fix action-plan replay correctness before using these matches for balance decisions.',
   });
-  if (totalTimeouts > 0) findings.push({
-    code: 'SEARCH_BUDGET_EXHAUSTED',
+  if (strategyTimeLimits + tacticalTimeLimits > 0) findings.push({
+    code: 'SEARCH_TIME_LIMIT_REACHED',
     severity: 'warning',
     area: 'ai',
-    evidence: `${totalTimeouts} of ${totalTurns} turns exhausted the configured search budget.`,
-    nextStep: 'Separate node-limit saturation from wall-clock expiry, then improve pruning or action ordering before increasing the budget.',
+    evidence: `${strategyTimeLimits} strategic and ${tacticalTimeLimits} tactical phases hit their wall-clock limit across ${totalTurns} turns.`,
+    nextStep: 'Profile the relevant phase and improve pruning or ordering before increasing its time budget.',
+  });
+  if (strategyNodeLimits + tacticalNodeLimits > 0) findings.push({
+    code: 'SEARCH_NODE_LIMIT_REACHED',
+    severity: 'info',
+    area: 'ai',
+    evidence: `${strategyNodeLimits} strategic and ${tacticalNodeLimits} tactical phases hit their node limit across ${totalTurns} turns.`,
+    nextStep: 'Inspect retained candidate diversity and plan quality before changing either phase budget.',
   });
   if (nonVictories > 0) findings.push({
     code: 'MATCHES_WITHOUT_VICTORY',
@@ -600,6 +656,7 @@ export const analyzeBattleLogs = (logs: BattleLog[]): BattleLogAnalysis => {
     wins,
     firstPlayerWins,
     terminations,
+    decisiveMatchRate: ratio(wins.human + wins.undead, logs.length),
     averageRounds,
     factions,
     findings,
@@ -613,7 +670,8 @@ export const generateBattleLogReport = (options: SimulationBatchOptions = {}): B
     const firstPlayerFaction: Faction = options.alternateFirstPlayer === false
       ? options.firstPlayerFaction ?? 'human'
       : index % 2 === 0 ? 'human' : 'undead';
-    return generateBattleLog(seed + index * 0x9e3779b1, { ...options, firstPlayerFaction });
+    const seedIndex = options.alternateFirstPlayer === false ? index : Math.floor(index / 2);
+    return generateBattleLog(seed + seedIndex * 0x9e3779b1, { ...options, firstPlayerFaction });
   });
   return {
     schemaVersion: BATTLE_LOG_SCHEMA_VERSION,

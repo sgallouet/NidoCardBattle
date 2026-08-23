@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { MAP_RENDER_MODE } from '../data/mapRenderMode';
+import { BRIDGE_TERRAIN_ART } from '../data/terrainArt';
 import type { Coord, GameState, PlayerId } from '../data/types';
 import {
   ActionReadabilityLayer,
@@ -129,26 +130,10 @@ export class PrototypeGameScene extends PersistentAiGameScene {
     }
   }
 
-  private drawBuiltBridge(scene: PrototypeSceneInternals, coord: Coord): Phaser.GameObjects.Graphics {
+  private drawBuiltBridge(scene: PrototypeSceneInternals, coord: Coord): Phaser.GameObjects.Image {
     const center = scene.center(coord);
-    const graphics = this.add.graphics();
-
-    graphics.fillStyle(0x24170f, 0.95);
-    graphics.fillRect(center.x - 50, center.y - 22, 100, 44);
-    graphics.fillStyle(0xa8733f, 1);
-    graphics.fillRect(center.x - 48, center.y - 18, 96, 36);
-
-    graphics.lineStyle(2, 0x4b2f19, 0.95);
-    for (let x = -42; x <= 42; x += 12) {
-      graphics.lineBetween(center.x + x, center.y - 18, center.x + x, center.y + 18);
-    }
-
-    graphics.lineStyle(4, 0xd0a568, 0.9);
-    graphics.lineBetween(center.x - 49, center.y - 20, center.x + 49, center.y - 20);
-    graphics.lineBetween(center.x - 49, center.y + 20, center.x + 49, center.y + 20);
-    graphics.lineStyle(2, 0x5d3b20, 1);
-    graphics.lineBetween(center.x - 49, center.y, center.x + 49, center.y);
-    return graphics;
+    return this.add.image(center.x, center.y, BRIDGE_TERRAIN_ART.textureKey)
+      .setDisplaySize(BRIDGE_TERRAIN_ART.displayWidth, BRIDGE_TERRAIN_ART.displayHeight);
   }
 
   private drawScorchedForest(scene: PrototypeSceneInternals, coord: Coord): Phaser.GameObjects.Graphics {

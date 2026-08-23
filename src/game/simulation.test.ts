@@ -6,12 +6,13 @@ import { seededRandom, simulateAiBatch, simulateAiMatch } from './simulation';
 const FAST_SIM_OPTIONS = {
   beamWidth: 2,
   maxDepth: 2,
-  maxNodes: 120,
-  maxPlanningMs: 5_000,
+  strategyMaxNodes: 120,
+  strategyMaxPlanningMs: 5_000,
   candidatePlans: 2,
   responseBeamWidth: 1,
   responseDepth: 1,
-  responseMaxNodes: 24,
+  tacticalMaxNodes: 24,
+  tacticalMaxPlanningMs: 5_000,
 } as const;
 
 describe('faction-agnostic AI planner', () => {
@@ -21,8 +22,8 @@ describe('faction-agnostic AI planner', () => {
     expect(state.currentPlayer).toBe(1);
 
     const plan = planAiTurn(state, FAST_SIM_OPTIONS);
-    expect(plan.searchedStates).toBeGreaterThan(0);
-    expect(Number.isFinite(plan.score)).toBe(true);
+    expect(plan.diagnostics.strategy.nodes).toBeGreaterThan(0);
+    expect(Number.isFinite(plan.strategic.outlook)).toBe(true);
 
     const result = runAiTurn(state, random, FAST_SIM_OPTIONS);
     expect(result.endedTurn).toBe(true);
@@ -78,10 +79,14 @@ describe('AI-vs-AI simulation', () => {
     expect(result.matchesDetail.map((match) => match.firstPlayerFaction)).toEqual([
       'human', 'undead', 'human', 'undead',
     ]);
+    expect(result.matchesDetail.map((match) => match.seed)).toEqual([
+      77, 77, 77 + 0x9e3779b1, 77 + 0x9e3779b1,
+    ]);
     expect(result.humanWins + result.undeadWins + result.stalemates).toBe(4);
     expect(result.terminations.victory + result.terminations.repetition + result.terminations['turn-limit']).toBe(4);
     expect(result.averageHalfTurns).toBeGreaterThan(0);
-    expect(result.averageSearchStatesPerTurn).toBeGreaterThan(0);
+    expect(result.averageStrategyNodesPerTurn).toBeGreaterThan(0);
+    expect(result.averageTacticalNodesPerTurn).toBeGreaterThan(0);
     expect(result.replayFailureRate).toBe(0);
     expect(result.firstPlayerWinRate).toBeGreaterThanOrEqual(0);
     expect(result.firstPlayerWinRate).toBeLessThanOrEqual(1);

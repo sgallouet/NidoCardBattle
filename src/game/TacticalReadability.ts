@@ -103,7 +103,7 @@ export class TacticalReadabilityLayer {
 
   private readonly handleUpdate = (): void => {
     if (this.captureMarkers.length === 0) return;
-    const alpha = 0.5 + Math.sin(this.scene.time.now / 330) * 0.28;
+    const alpha = 0.74 + Math.sin(this.scene.time.now / 360) * 0.18;
     for (const marker of this.captureMarkers) {
       if (marker.active) marker.setAlpha(alpha);
     }
@@ -208,16 +208,32 @@ export class TacticalReadabilityLayer {
       if (!occupant || occupant.owner !== this.game.state.currentPlayer || site.owner === occupant.owner) continue;
       const center = this.game.center(site.coord);
       const graphics = this.scene.add.graphics();
-      graphics.lineStyle(4, CAPTURE_COLOR, 0.9);
-      graphics.strokeCircle(center.x, center.y, 55);
-      graphics.lineStyle(2, 0xffefb0, 0.65);
-      for (const angleDegrees of [0, 90, 180, 270]) {
-        const angle = Phaser.Math.DegToRad(angleDegrees);
-        const x1 = center.x + Math.cos(angle) * 58;
-        const y1 = center.y + Math.sin(angle) * 58;
-        const x2 = center.x + Math.cos(angle) * 65;
-        const y2 = center.y + Math.sin(angle) * 65;
-        graphics.lineBetween(x1, y1, x2, y2);
+      const outer = this.game.hexPoints(center, -8);
+      const edge = this.game.hexPoints(center, -3);
+      graphics.fillStyle(0xffb52f, 0.07);
+      graphics.fillPoints(edge, true);
+      graphics.lineStyle(14, 0xff9f1c, 0.11);
+      graphics.strokePoints(edge, true);
+      graphics.lineStyle(7, CAPTURE_COLOR, 0.3);
+      graphics.strokePoints(edge, true);
+      graphics.lineStyle(3.2, 0xffd464, 0.92);
+      graphics.strokePoints(edge, true);
+      graphics.lineStyle(1.1, 0xffffcf, 0.98);
+      graphics.strokePoints(edge, true);
+      for (const point of edge) {
+        graphics.fillStyle(0xffffcf, 0.9);
+        graphics.fillCircle(point.x, point.y, 2.6);
+      }
+      graphics.lineStyle(2, 0xffe79a, 0.74);
+      for (let index = 0; index < outer.length; index += 2) {
+        const point = outer[index];
+        const direction = new Phaser.Math.Vector2(point.x - center.x, point.y - center.y).normalize();
+        graphics.lineBetween(
+          point.x + direction.x * 2,
+          point.y + direction.y * 2,
+          point.x + direction.x * 10,
+          point.y + direction.y * 10,
+        );
       }
       this.add(graphics);
       this.captureMarkers.push(graphics);

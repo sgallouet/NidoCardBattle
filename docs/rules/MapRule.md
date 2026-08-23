@@ -23,7 +23,7 @@ This file owns map geometry, capture, and terrain rules.
 - **MPT2** - A unit on a Tree/Forest hex takes **30% less damage from ranged attacks**.
 - **MPT3** - Movement through Tree/Forest is **30% slower**; entering one costs about **1.43 movement points** (`1 / 0.70`).
 - **MPT4** - A ranged unit on a Hill gains **+1 Range**.
-- **MPT5** - Water and Cliff hexes are impassable.
+- **MPT5** - Water and Cliff hexes are impassable except to units governed by `UNT5`; Mountain hexes block all movement, including Flying.
 - **MPT6** - Bridge hexes are passable and cost 1 movement point to enter.
 
 ## Map Design

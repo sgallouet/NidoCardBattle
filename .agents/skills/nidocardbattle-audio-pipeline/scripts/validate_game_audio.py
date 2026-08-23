@@ -89,6 +89,11 @@ def inspect(path: Path, kind: str) -> tuple[dict, list[str], list[str]]:
         failures.append(f"found {clipped} full-scale clipped sample(s)")
     if crest < 1.3:
         failures.append(f"crest factor {crest:.2f} suggests flattened audio")
+    if kind not in {"ambient", "music"} and high_band_db > -20.0 and crest < 8.0:
+        failures.append(
+            f"broadband energy {high_band_db:.1f} dB above 16 kHz with crest {crest:.2f} "
+            "suggests noisy or collapsed SFX generation"
+        )
     if kind == "music" and high_band_db > -45 and crest < 5.0:
         failures.append(
             f"broadband energy {high_band_db:.1f} dB above 16 kHz with crest {crest:.2f} "

@@ -2,12 +2,11 @@ export type PlayerId = 1 | 2;
 export type Faction = 'human' | 'undead';
 export type CardFaction = Faction | 'shared';
 export type UnitFaction = Faction | 'shared';
-export type Terrain = 'plain' | 'forest' | 'hill' | 'water' | 'cliff' | 'bridge';
+export type Terrain = 'plain' | 'forest' | 'hill' | 'water' | 'cliff' | 'mountain' | 'bridge';
 export type SiteType = 'keep' | 'fort' | 'well';
 export type Trait =
   | 'Blocking'
   | 'Retaliates'
-  | 'Invoker'
   | 'Ranged'
   | 'Flying'
   | 'AgileAssault'

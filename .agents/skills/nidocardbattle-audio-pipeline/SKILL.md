@@ -33,7 +33,7 @@ Do not add sound only because a feature exists. Add it when audio improves reada
 
 1. Define the audio contract before generation: event meaning, exact playback trigger, source/material/faction identity, expected duration, overlap behavior, cooldown, in-game volume intent, and exclusions.
 2. Write a precise Stable Audio prompt using the patterns in `references/audio-contract.md`.
-3. Generate at least two deterministic candidates with different seeds.
+3. Generate one event set at a time with `scripts/generate_sfx_candidates.py`. This required wrapper produces two deterministic candidates through unclamped latent decoding and keeps WAV masters outside the repository.
 4. Validate each candidate:
 
    ```powershell

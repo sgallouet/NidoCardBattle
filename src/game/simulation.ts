@@ -7,7 +7,7 @@ import {
   planAiTurn,
   type AiSearchOptions,
 } from './ai';
-import { coordKey, createGameState, DEBUG_START_MANA } from './engine';
+import { coordKey, createGameState, STARTING_MANA } from './engine';
 
 export type SimulationTermination = 'victory' | 'repetition' | 'turn-limit';
 
@@ -103,7 +103,7 @@ const configureFirstPlayer = (state: GameState, firstFaction: Faction): void => 
 
   const humanOpeningDraw = state.players[1].hand.pop();
   if (humanOpeningDraw) state.players[1].deck.push(humanOpeningDraw);
-  state.players[1].mana = 0;
+  state.players[1].mana = STARTING_MANA;
 
   const oldPlayer1 = state.players[1];
   const oldPlayer2 = state.players[2];
@@ -127,7 +127,7 @@ const configureFirstPlayer = (state: GameState, firstFaction: Faction): void => 
     unit.postAttackMoved = false;
     unit.moveBonus = 0;
   }
-  state.players[1].mana = DEBUG_START_MANA;
+  state.players[1].mana = STARTING_MANA;
   const drawn = state.players[1].deck.pop();
   if (drawn) {
     if (state.players[1].hand.length >= 6) state.players[1].discard.push(drawn);

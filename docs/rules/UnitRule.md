@@ -26,9 +26,8 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 ## Traits
 - **UNT1** - **Blocking:** when an enemy enters a hex adjacent to this unit, that enemy's movement ends immediately. Most close-range units should have this trait.
 - **UNT2** - **Retaliates:** after surviving an attack, this unit immediately deals its Attack damage back if the attacker is within its Range.
-- **UNT3** - **Invoker:** this trait makes the unit a valid spawn source under `CRU3`.
 - **UNT4** - **Ranged:** this label identifies a unit with base Range 3; its attacks use ranged terrain rules.
-- **UNT5** - **Flying:** terrain does not restrict this unit's movement; every terrain hex costs 1 movement point to enter.
+- **UNT5** - **Flying:** terrain does not restrict this unit's movement except for Mountain under `MPT5`; every terrain hex it can enter costs 1 movement point.
 - **UNT6** - **Agile Assault:** this unit may split its Move around its attack, moving before and again after attacking; total movement spent across both movement phases cannot exceed its Move stat. Retaliation damage received by this unit is reduced by 50%, rounded up.
 - **UNT7** - **Dark Reflection:** when an enemy directly damages this unit, that attacker immediately takes 30% of the damage actually dealt, rounded to the nearest whole HP. Redirected damage does not trigger Dark Reflection.
 - **UNT8** - **Necromancy:** when this unit personally kills an enemy with its attack, summon an Exhausted Skeletal Infantry on the defeated unit's hex if that hex is free after death resolution.
@@ -57,7 +56,7 @@ Human identity: formation, mobility, ranged support, and controlled repositionin
 | **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist | — | ✅ Implemented. |
 | **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
 | **HUR5** | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore | ✅ Implemented. |
-| **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | Invoker | — | ✅ Implemented with placeholder visuals. |
+| **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | — | — | ✅ Implemented with placeholder visuals. |
 | **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | ✅ Implemented with placeholder visuals. |
 
 ## Undead Army
@@ -69,7 +68,7 @@ Undead identity: summoning, disruption, attrition, damage redirection, and punis
 | **UDR1** | Undead Commander | — | 10 | 3 | 2 | 1 | Blocking, Dark Reflection | Soul Link | ✅ Implemented. |
 | **UDR2** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking, Assist | — | ✅ Implemented. |
 | **UDR3** | Bone Archer | 3 | 1 | 1 | 2 | 3 | Ranged, Assist | — | ✅ Implemented with placeholder visuals. |
-| **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Invoker, Ranged, Necromancy | Curse | ✅ Implemented. |
+| **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Ranged, Necromancy | Curse | ✅ Implemented. |
 | **UDR5** | Banshee | 4 | 3 | 2 | 3 | 1 | — | Displace | ✅ Implemented. |
 | **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | Flying | Blood Drain | ✅ Implemented with placeholder visuals. |
 | **UDR7** | Wraith | 4 | 3 | 2 | 4 | 1 | Phase | — | ✅ Implemented with placeholder visuals. |

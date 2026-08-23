@@ -3,6 +3,8 @@
 This file owns mana rules.
 
 ## Mana
-- **ECM1** - At `GRT1`, gain **3 base mana + 1 mana for each controlled Mana Well**.
-- **ECM2** - Normal mana income is capped at **7 mana per turn**.
-- **ECM3** - Unspent mana is lost when the turn ends.
+- **ECM1** - Each player starts the match with **3 mana**.
+- **ECM2** - At `GRT1` on a player's second and later turns, each controlled Home Keep provides **+1 mana**.
+- **ECM3** - At `GRT1` on every third turn belonging to that player (turns 3, 6, 9, and so on), each controlled Mana Well provides **+2 mana**.
+- **ECM4** - A player can store at most **10 mana**; income above that limit is lost.
+- **ECM5** - Unspent mana carries over between turns.

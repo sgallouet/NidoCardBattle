@@ -12,9 +12,8 @@ import type {
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
 
 const HAND_LIMIT = 6;
-
-// Temporary debugging override. Restore to 3 when debugging is complete.
-export const DEBUG_START_MANA = 20;
+export const STARTING_MANA = 3;
+export const MAX_MANA = 10;
 
 export const coordKey = ({ q, r }: Coord): string => `${q},${r}`;
 
@@ -27,7 +26,7 @@ export const terrainAt = (coord: Coord): Terrain => TERRAIN[coord.r][coord.q];
 export const isPassable = (coord: Coord): boolean => {
   if (!isInsideMap(coord)) return false;
   const terrain = terrainAt(coord);
-  return terrain !== 'water' && terrain !== 'cliff';
+  return terrain !== 'water' && terrain !== 'cliff' && terrain !== 'mountain';
 };
 
 export const isBuiltBridge = (state: GameState, coord: Coord): boolean =>
@@ -45,7 +44,7 @@ export const effectiveTerrainAt = (state: GameState, coord: Coord): Terrain => {
 export const isPassableInState = (state: GameState, coord: Coord): boolean => {
   if (!isInsideMap(coord)) return false;
   const terrain = effectiveTerrainAt(state, coord);
-  return terrain !== 'water' && terrain !== 'cliff';
+  return terrain !== 'water' && terrain !== 'cliff' && terrain !== 'mountain';
 };
 
 export const isGraveLocked = (state: GameState, coord: Coord): boolean =>
@@ -153,7 +152,16 @@ const beginTurn = (state: GameState, random: () => number): void => {
     unit.postAttackMoved = false;
     unit.moveBonus = 0;
   }
-  state.players[playerId].mana = DEBUG_START_MANA;
+  const playerTurn = Math.ceil(state.turnNumber / 2);
+  if (playerTurn > 1) {
+    const controlledKeeps = state.sites.filter((site) => site.type === 'keep' && site.owner === playerId).length;
+    const controlledWells = state.sites.filter((site) => site.type === 'well' && site.owner === playerId).length;
+    const wellIncome = playerTurn % 3 === 0 ? controlledWells * 2 : 0;
+    state.players[playerId].mana = Math.min(
+      MAX_MANA,
+      state.players[playerId].mana + controlledKeeps + wellIncome,
+    );
+  }
   drawCard(state, playerId, random);
 };
 
@@ -162,8 +170,8 @@ export const createGameState = (random: () => number = Math.random): GameState =
     currentPlayer: 1,
     turnNumber: 1,
     players: {
-      1: { id: 1, faction: 'human', mana: 0, deck: shuffle(FACTION_DECKS.human, random), hand: [], discard: [] },
-      2: { id: 2, faction: 'undead', mana: 0, deck: shuffle(FACTION_DECKS.undead, random), hand: [], discard: [] },
+      1: { id: 1, faction: 'human', mana: STARTING_MANA, deck: shuffle(FACTION_DECKS.human, random), hand: [], discard: [] },
+      2: { id: 2, faction: 'undead', mana: STARTING_MANA, deck: shuffle(FACTION_DECKS.undead, random), hand: [], discard: [] },
     },
     units: [],
     sites: MAP_SITES.map((site) => ({ ...site, coord: { ...site.coord }, owner: site.initialOwner })),
@@ -191,8 +199,11 @@ export const createGameState = (random: () => number = Math.random): GameState =
 const movementCost = (state: GameState, unit: UnitState, coord: Coord): number =>
   unitDefinition(unit).traits.includes('Flying') || effectiveTerrainAt(state, coord) !== 'forest' ? 1 : 1 / 0.7;
 
-const canTraverse = (state: GameState, unit: UnitState, coord: Coord): boolean =>
-  unitDefinition(unit).traits.includes('Flying') ? isInsideMap(coord) : isPassableInState(state, coord);
+const canTraverse = (state: GameState, unit: UnitState, coord: Coord): boolean => {
+  if (!isInsideMap(coord)) return false;
+  if (effectiveTerrainAt(state, coord) === 'mountain') return false;
+  return unitDefinition(unit).traits.includes('Flying') || isPassableInState(state, coord);
+};
 
 export const effectiveMove = (unit: UnitState): number => unitDefinition(unit).move + (unit.moveBonus ?? 0);
 
@@ -593,26 +604,13 @@ export const curseUnit = (state: GameState, actorId: string, targetId: string): 
   return { ok: true, message: `${unitDefinition(actor).name} cursed ${unitDefinition(target).name} for 3 turns.` };
 };
 
-const spawnSourceCoords = (state: GameState, playerId: PlayerId): Coord[] => {
-  const locations = state.sites
-    .filter((site) => site.owner === playerId && (site.type === 'keep' || site.type === 'fort'))
-    .map((site) => site.coord);
-  const invokers = state.units
-    .filter((unit) => unit.owner === playerId && unitDefinition(unit).traits.includes('Invoker'))
-    .map((unit) => unit.coord);
-  return [...locations, ...invokers];
-};
-
 export const getValidSummonCoords = (state: GameState, playerId: PlayerId = state.currentPlayer): Coord[] => {
-  const valid = new Map<string, Coord>();
-  for (const source of spawnSourceCoords(state, playerId)) {
-    for (const coord of neighbors(source)) {
-      if (isPassableInState(state, coord) && !isGraveLocked(state, coord) && !unitAt(state, coord)) {
-        valid.set(coordKey(coord), coord);
-      }
-    }
-  }
-  return [...valid.values()];
+  return state.sites
+    .filter((site) => site.owner === playerId
+      && (site.type === 'keep' || site.type === 'fort')
+      && !isGraveLocked(state, site.coord)
+      && !unitAt(state, site.coord))
+    .map((site) => ({ ...site.coord }));
 };
 
 const hasSiteAt = (state: GameState, coord: Coord): boolean =>
@@ -694,7 +692,7 @@ export const playUnitCard = (state: GameState, handIndex: number, destination: C
   if ('ok' in validation) return validation;
   if (validation.type !== 'unit') return { ok: false, message: 'That card does not summon a unit.' };
   if (!getValidSummonCoords(state).some((coord) => sameCoord(coord, destination))) {
-    return { ok: false, message: 'Choose a free hex beside a friendly spawn source.' };
+    return { ok: false, message: 'Choose an empty controlled Keep or Fort.' };
   }
   const playerId = state.currentPlayer;
   state.players[playerId].mana -= validation.cost;
@@ -835,8 +833,6 @@ export const endTurn = (state: GameState, random: () => number = Math.random): A
   resolveCaptures(state, endingPlayer);
   resolveCurses(state, endingPlayer);
   resolvePendingManaWells(state, endingPlayer);
-  state.players[endingPlayer].mana = 0;
-
   if (state.countdown?.player === endingPlayer && commanderAlive(state, endingPlayer)) {
     state.countdown.checkpoints += 1;
     if (state.countdown.checkpoints >= 3) {

@@ -1,6 +1,6 @@
 export type MapRenderMode = 'tiled' | 'authored';
 
-export const DEFAULT_MAP_RENDER_MODE: MapRenderMode = 'authored';
+export const DEFAULT_MAP_RENDER_MODE: MapRenderMode = 'tiled';
 
 export const resolveMapRenderMode = (search: string): MapRenderMode => {
   const requested = new URLSearchParams(search).get('map');

@@ -18,12 +18,29 @@ interface StableInputInternals {
   constrainCamera: () => void;
 }
 
+interface CameraPanKeys {
+  upW: Phaser.Input.Keyboard.Key;
+  downS: Phaser.Input.Keyboard.Key;
+  leftA: Phaser.Input.Keyboard.Key;
+  rightD: Phaser.Input.Keyboard.Key;
+  upArrow: Phaser.Input.Keyboard.Key;
+  downArrow: Phaser.Input.Keyboard.Key;
+  leftArrow: Phaser.Input.Keyboard.Key;
+  rightArrow: Phaser.Input.Keyboard.Key;
+}
+
+const CAMERA_KEYBOARD_SPEED = 620;
+const PAN_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
+
 /**
  * Keeps pointer behavior intentionally simple and deterministic:
  * - map pan = pointer-down anchor + total pointer displacement
+ * - keyboard pan = WASD or arrow keys
  * - card input = the transformed visible card surface itself
  */
 export class StableInputGameScene extends AnimatedPrototypeGameScene {
+  private cameraPanKeys?: CameraPanKeys;
+
   create(): void {
     const internals = this as unknown as StableInputInternals;
     const originalSetupCameraControls = internals.setupCameraControls.bind(this);
@@ -85,6 +102,54 @@ export class StableInputGameScene extends AnimatedPrototypeGameScene {
     };
 
     super.create();
+
+    const keyboard = this.input.keyboard;
+    if (keyboard) {
+      this.cameraPanKeys = keyboard.addKeys({
+        upW: Phaser.Input.Keyboard.KeyCodes.W,
+        downS: Phaser.Input.Keyboard.KeyCodes.S,
+        leftA: Phaser.Input.Keyboard.KeyCodes.A,
+        rightD: Phaser.Input.Keyboard.KeyCodes.D,
+        upArrow: Phaser.Input.Keyboard.KeyCodes.UP,
+        downArrow: Phaser.Input.Keyboard.KeyCodes.DOWN,
+        leftArrow: Phaser.Input.Keyboard.KeyCodes.LEFT,
+        rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+      }) as unknown as CameraPanKeys;
+    }
+
+    const preventBrowserPan = (event: KeyboardEvent): void => {
+      const target = event.target;
+      if (target instanceof HTMLElement
+        && (target.isContentEditable || target.matches('input, textarea, select'))) return;
+      if (PAN_KEYS.has(event.key.toLowerCase())) event.preventDefault();
+    };
+    window.addEventListener('keydown', preventBrowserPan, { passive: false });
+    this.events.once('shutdown', () => {
+      window.removeEventListener('keydown', preventBrowserPan);
+      this.cameraPanKeys = undefined;
+    });
+  }
+
+  update(): void {
+    super.update();
+    const keys = this.cameraPanKeys;
+    if (!keys) return;
+
+    const horizontal = (keys.leftA.isDown || keys.leftArrow.isDown ? -1 : 0)
+      + (keys.rightD.isDown || keys.rightArrow.isDown ? 1 : 0);
+    const vertical = (keys.upW.isDown || keys.upArrow.isDown ? -1 : 0)
+      + (keys.downS.isDown || keys.downArrow.isDown ? 1 : 0);
+    if (horizontal === 0 && vertical === 0) return;
+
+    const length = Math.hypot(horizontal, vertical) || 1;
+    const camera = this.cameras.main;
+    const frameSeconds = Math.min(this.game.loop.delta, 50) / 1000;
+    const distance = CAMERA_KEYBOARD_SPEED * frameSeconds / camera.zoom;
+    camera.setScroll(
+      camera.scrollX + horizontal / length * distance,
+      camera.scrollY + vertical / length * distance,
+    );
+    (this as unknown as StableInputInternals).constrainCamera();
   }
 
   private bindVisibleCardSurfaces(internals: StableInputInternals): void {

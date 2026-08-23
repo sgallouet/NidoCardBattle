@@ -1,0 +1,142 @@
+name: Fix input regressions
+
+on:
+  push:
+    paths:
+      - .github/workflows/fix-input-regressions.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Simplify map drag and card pointer input
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          scene_path = Path('src/game/GameScene.ts')
+          text = scene_path.read_text()
+
+          # Restore the intentionally simple drag model: anchor pointer + anchor camera.
+          drag_state_pattern = re.compile(
+              r"interface DragState \{\n"
+              r"\s*startX: number;\n"
+              r"\s*startY: number;\n"
+              r"\s*lastX: number;\n"
+              r"\s*lastY: number;\n"
+              r"\s*moved: boolean;\n"
+              r"\}"
+          )
+          replacement_state = """interface DragState {
+            startX: number;
+            startY: number;
+            scrollX: number;
+            scrollY: number;
+            moved: boolean;
+          }"""
+          text, count = drag_state_pattern.subn(replacement_state, text, count=1)
+          if count != 1:
+              raise SystemExit(f'DragState replacement count={count}')
+
+          drag_handlers_pattern = re.compile(
+              r"\s*this\.input\.on\('pointerdown', \(pointer: Phaser\.Input\.Pointer\) => \{.*?"
+              r"\n\s*this\.input\.on\('pointerup', \(\) => \{",
+              re.S,
+          )
+          replacement_handlers = """
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.isDown) return;
+      this.dragState = {
+        startX: pointer.x,
+        startY: pointer.y,
+        scrollX: camera.scrollX,
+        scrollY: camera.scrollY,
+        moved: false,
+      };
+    });
+
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.isDown || !this.dragState) return;
+      const dx = pointer.x - this.dragState.startX;
+      const dy = pointer.y - this.dragState.startY;
+      if (Math.hypot(dx, dy) < 2) return;
+
+      this.dragState.moved = true;
+      this.game.canvas.classList.add('dragging');
+      camera.setScroll(
+        this.dragState.scrollX - dx / camera.zoom,
+        this.dragState.scrollY - dy / camera.zoom,
+      );
+      this.constrainCamera();
+    });
+
+    this.input.on('pointerup', () => {"""
+          text, count = drag_handlers_pattern.subn(replacement_handlers, text, count=1)
+          if count != 1:
+              raise SystemExit(f'drag handler replacement count={count}')
+
+          # Stop relying on a document-level geometric guess for overlapping cards.
+          # The transformed card surface itself owns pointer input.
+          old_card_events = re.compile(
+              r"\s*button\.addEventListener\('pointermove', \(event\) => this\.tiltCard\(button, event\)\);\n"
+              r"\s*button\.addEventListener\('pointerleave', \(\) => this\.resetCardTilt\(button\)\);\n"
+              r"\s*button\.addEventListener\('click', \(\) => this\.selectCard\(index\)\);"
+          )
+          new_card_events = """
+      button.addEventListener('pointermove', (event) => this.tiltCard(button, event));
+      button.addEventListener('pointerleave', () => this.resetCardTilt(button));
+      const surface = button.querySelector<HTMLElement>('.card-surface');
+      surface?.addEventListener('pointerdown', (event) => {
+        if (!event.isPrimary || event.button !== 0 || button.disabled) return;
+        event.preventDefault();
+        event.stopPropagation();
+        this.selectCard(index);
+      });
+      button.addEventListener('click', (event) => {
+        // Pointer selection is handled by the transformed visible surface above.
+        // Preserve native keyboard activation (Enter/Space).
+        if (event.detail === 0) this.selectCard(index);
+      });"""
+          text, count = old_card_events.subn(new_card_events, text, count=1)
+          if count != 1:
+              raise SystemExit(f'card event replacement count={count}')
+
+          scene_path.write_text(text)
+
+          main_path = Path('src/main.ts')
+          main = main_path.read_text()
+          main = main.replace(
+              "import { CardPointerGameScene } from './game/CardPointerGameScene';",
+              "import { AnimatedPrototypeGameScene } from './game/AnimatedPrototypeGameScene';",
+          )
+          main = main.replace('scene: [CardPointerGameScene],', 'scene: [AnimatedPrototypeGameScene],')
+          if 'CardPointerGameScene' in main:
+              raise SystemExit('CardPointerGameScene still referenced in main.ts')
+          main_path.write_text(main)
+
+          wrapper = Path('src/game/CardPointerGameScene.ts')
+          if wrapper.exists():
+              wrapper.unlink()
+          PY
+
+      - name: Typecheck and build
+        run: npm ci && npm run build
+
+      - name: Commit verified input fixes
+        shell: bash
+        run: |
+          rm .github/workflows/fix-input-regressions.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/game/GameScene.ts src/main.ts src/game/CardPointerGameScene.ts .github/workflows/fix-input-regressions.yml
+          git commit -m "Fix map drag and card targeting input"
+          git push origin HEAD:main

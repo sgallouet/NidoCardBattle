@@ -1,0 +1,795 @@
+name: Add faction and start controls
+
+on:
+  push:
+    paths:
+      - .github/workflows/add-faction-start-controls.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Implement keyboard pan and configurable new game
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path, old, new, label):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 occurrence, got {count}')
+              p.write_text(text.replace(old, new, 1))
+
+          # --- Rules: keep one source of truth. ---
+          replace_once(
+              'docs/rules/CardRule.md',
+              '- **CRD4** - The current prototype assigns Player 1 the **Human** faction and Player 2 the **Undead** faction; each player draws from that faction\'s prebuilt deck, which may also contain Shared Tactic Cards under `CRD6`.',
+              '- **CRD4** - At New Game, the local player chooses the **Human** or **Undead** faction and the AI uses the other faction; each player draws from that faction\'s prebuilt deck, which may also contain Shared Tactic Cards under `CRD6`.',
+              'CRD4',
+          )
+          replace_once(
+              'docs/rules/MapRule.md',
+              '- **MPL5** - Each neutral Fort has 3 adjacent Garrisons that provide the additional spawn sources defined by `CRU3`.',
+              '- **MPL5** - Each neutral Fort has 3 adjacent Garrisons that provide the additional spawn sources defined by `CRU3`.\n- **MPL6** - At New Game, the local player\'s starting army and Home Keep are randomly assigned to either the bottom-left or upper-right start; the AI receives the opposite start, independent of faction.',
+              'MPL6 insertion',
+          )
+
+          # --- Shared types. ---
+          replace_once(
+              'src/data/types.ts',
+              "export type Faction = 'human' | 'undead';\n",
+              "export type Faction = 'human' | 'undead';\nexport type StartSide = 'bottomLeft' | 'upperRight';\n\nexport interface NewGameSetup {\n  faction: Faction;\n  side: StartSide;\n}\n",
+              'new game types',
+          )
+          replace_once(
+              'src/data/types.ts',
+              '  owner: PlayerId;\n  hp: number;\n',
+              '  owner: PlayerId;\n  commanderFaction?: Faction;\n  hp: number;\n',
+              'commander faction state',
+          )
+
+          # --- Map start slots are faction-neutral. ---
+          map_path = Path('src/data/map.ts')
+          map_text = map_path.read_text()
+          map_text = map_text.replace(
+              "import type { Coord, MapSite, Terrain } from './types';",
+              "import type { Coord, MapSite, StartSide, Terrain } from './types';",
+              1,
+          )
+          start_pattern = re.compile(r"export const STARTING_UNITS = \[.*?\];\s*$", re.S)
+          start_replacement = """export interface StartingSideSlots {
+            keepId: string;
+            commander: Coord;
+            frontline: Coord;
+            support: Coord;
+          }
+
+          export const STARTING_SIDES: Record<StartSide, StartingSideSlots> = {
+            bottomLeft: {
+              keepId: 'keep-1',
+              commander: { q: 2, r: 8 },
+              frontline: { q: 3, r: 8 },
+              support: { q: 3, r: 10 },
+            },
+            upperRight: {
+              keepId: 'keep-2',
+              commander: { q: 15, r: 4 },
+              frontline: { q: 14, r: 4 },
+              support: { q: 14, r: 2 },
+            },
+          };
+          """
+          map_text, count = start_pattern.subn(start_replacement, map_text, count=1)
+          if count != 1:
+              raise SystemExit(f'STARTING_UNITS replacement count={count}')
+          map_path.write_text(map_text)
+
+          # --- Pure new-game helpers. ---
+          Path('src/game/newGameSetup.ts').write_text("""import type { Faction, NewGameSetup, StartSide } from '../data/types';
+
+          export const oppositeFaction = (faction: Faction): Faction =>
+            faction === 'human' ? 'undead' : 'human';
+
+          export const oppositeStartSide = (side: StartSide): StartSide =>
+            side === 'bottomLeft' ? 'upperRight' : 'bottomLeft';
+
+          export const randomStartSide = (random: () => number = Math.random): StartSide =>
+            random() < 0.5 ? 'bottomLeft' : 'upperRight';
+
+          export const makeNewGameSetup = (
+            faction: Faction,
+            random: () => number = Math.random,
+          ): NewGameSetup => ({ faction, side: randomStartSide(random) });
+
+          export const startSideLabel = (side: StartSide): string =>
+            side === 'bottomLeft' ? 'bottom-left' : 'upper-right';
+          """)
+
+          # --- Engine: configurable factions/sides + commander faction identity. ---
+          engine_path = Path('src/game/engine.ts')
+          engine = engine_path.read_text()
+          old_map_import = "import { MAP_GARRISONS, MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';"
+          if old_map_import not in engine:
+              raise SystemExit('engine map import not found')
+          engine = engine.replace(
+              old_map_import,
+              "import { MAP_GARRISONS, MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_SIDES, TERRAIN } from '../data/map';",
+              1,
+          )
+          engine = engine.replace(
+              '  Coord,\n  GameState,\n  PlayerId,',
+              '  Coord,\n  Faction,\n  GameState,\n  NewGameSetup,\n  PlayerId,',
+              1,
+          )
+          units_import = "import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';"
+          if units_import not in engine:
+              raise SystemExit('engine units import not found')
+          engine = engine.replace(
+              units_import,
+              units_import + "\nimport { oppositeFaction, oppositeStartSide } from './newGameSetup';",
+              1,
+          )
+
+          definition_pattern = re.compile(
+              r"const definitionFor = \(definitionId: string, owner: PlayerId\) => \{.*?"
+              r"export const unitDefinition = \(unit: UnitState\) => definitionFor\(unit\.definitionId, unit\.owner\);",
+              re.S,
+          )
+          definition_replacement = """const definitionFor = (
+            definitionId: string,
+            owner: PlayerId,
+            commanderFaction?: Faction,
+          ) => {
+            if (definitionId === 'commander') {
+              const faction = commanderFaction ?? (owner === 1 ? 'human' : 'undead');
+              return faction === 'human' ? UNIT_DEFINITIONS.humanCommander : UNIT_DEFINITIONS.undeadCommander;
+            }
+            return UNIT_DEFINITIONS[definitionId as UnitDefinitionId];
+          };
+
+          export const unitDefinition = (unit: UnitState) =>
+            definitionFor(unit.definitionId, unit.owner, unit.commanderFaction);"""
+          engine, count = definition_pattern.subn(definition_replacement, engine, count=1)
+          if count != 1:
+              raise SystemExit(f'definitionFor replacement count={count}')
+
+          engine = engine.replace(
+              "state: Pick<GameState, 'nextUnitId'>,",
+              "state: Pick<GameState, 'nextUnitId' | 'players'>,",
+              1,
+          )
+          old_definition_line = '  const definition = definitionFor(definitionId, owner);\n'
+          if old_definition_line not in engine:
+              raise SystemExit('createUnit definition line not found')
+          engine = engine.replace(
+              old_definition_line,
+              "  const commanderFaction = definitionId === 'commander' ? state.players[owner].faction : undefined;\n"
+              "  const definition = definitionFor(definitionId, owner, commanderFaction);\n",
+              1,
+          )
+          old_owner = '    owner,\n    hp: definition.maxHp,\n'
+          if old_owner not in engine:
+              raise SystemExit('createUnit owner block not found')
+          engine = engine.replace(
+              old_owner,
+              '    owner,\n    commanderFaction,\n    hp: definition.maxHp,\n',
+              1,
+          )
+
+          create_pattern = re.compile(
+              r"export const createGameState = \(random: \(\) => number = Math\.random\): GameState => \{.*?\n\};\n\nconst movementCost",
+              re.S,
+          )
+          create_replacement = """const DEFAULT_NEW_GAME_SETUP: NewGameSetup = { faction: 'human', side: 'bottomLeft' };
+
+          export const createGameState = (
+            random: () => number = Math.random,
+            setup: NewGameSetup = DEFAULT_NEW_GAME_SETUP,
+          ): GameState => {
+            const player1Faction = setup.faction;
+            const player2Faction = oppositeFaction(player1Faction);
+            const player1Side = STARTING_SIDES[setup.side];
+            const player2Side = STARTING_SIDES[oppositeStartSide(setup.side)];
+            const state: GameState = {
+              currentPlayer: 1,
+              turnNumber: 1,
+              players: {
+                1: {
+                  id: 1,
+                  faction: player1Faction,
+                  mana: STARTING_MANA,
+                  deck: shuffle(FACTION_DECKS[player1Faction], random),
+                  hand: [],
+                  discard: [],
+                },
+                2: {
+                  id: 2,
+                  faction: player2Faction,
+                  mana: STARTING_MANA,
+                  deck: shuffle(FACTION_DECKS[player2Faction], random),
+                  hand: [],
+                  discard: [],
+                },
+              },
+              units: [],
+              sites: MAP_SITES.map((site) => ({
+                ...site,
+                coord: { ...site.coord },
+                owner: site.id === player1Side.keepId
+                  ? 1
+                  : site.id === player2Side.keepId
+                    ? 2
+                    : site.initialOwner,
+              })),
+              builtBridges: [],
+              scorchedForests: [],
+              pendingManaWells: [],
+              tileEffects: [],
+              countdown: null,
+              winner: null,
+              nextUnitId: 1,
+              nextSiteId: 1,
+            };
+
+            const addStartingArmy = (
+              owner: PlayerId,
+              faction: Faction,
+              side: typeof player1Side,
+            ): void => {
+              const frontline = faction === 'human' ? 'royalGuard' : 'skeletalInfantry';
+              const support = faction === 'human' ? 'longbowRanger' : 'necromancer';
+              state.units.push(createUnit(state, 'commander', owner, side.commander, false));
+              state.units.push(createUnit(state, frontline, owner, side.frontline, false));
+              state.units.push(createUnit(state, support, owner, side.support, false));
+            };
+
+            addStartingArmy(1, player1Faction, player1Side);
+            addStartingArmy(2, player2Faction, player2Side);
+
+            for (let draw = 0; draw < 4; draw += 1) {
+              drawCard(state, 1, random);
+              drawCard(state, 2, random);
+            }
+            beginTurn(state, random);
+            return state;
+          };
+
+          const movementCost"""
+          engine, count = create_pattern.subn(create_replacement, engine, count=1)
+          if count != 1:
+              raise SystemExit(f'createGameState replacement count={count}')
+          engine_path.write_text(engine)
+
+          # Commander art follows faction, not player number.
+          game_scene = Path('src/game/GameScene.ts')
+          gs = game_scene.read_text()
+          old_art = """    const artId: UnitDefinitionId = unit.definitionId === 'commander'
+              ? unit.owner === 1 ? 'humanCommander' : 'undeadCommander'
+              : unit.definitionId as UnitDefinitionId;"""
+          new_art = """    const artId: UnitDefinitionId = unit.definitionId === 'commander'
+              ? unitDefinition(unit).faction === 'human' ? 'humanCommander' : 'undeadCommander'
+              : unit.definitionId as UnitDefinitionId;"""
+          if old_art not in gs:
+              raise SystemExit('commander art selection not found')
+          game_scene.write_text(gs.replace(old_art, new_art, 1))
+
+          # --- Save a one-shot new-game setup across the reload. ---
+          save_path = Path('src/game/save.ts')
+          save_text = save_path.read_text()
+          save_text = save_text.replace(
+              "import type { GameState, PlayerId } from '../data/types';",
+              "import type { Faction, GameState, NewGameSetup, PlayerId, StartSide } from '../data/types';",
+              1,
+          )
+          save_text = save_text.replace(
+              "const SAVE_KEY = 'nidocardbattle.match';\n",
+              "const SAVE_KEY = 'nidocardbattle.match';\nconst NEW_GAME_SETUP_KEY = 'nidocardbattle.newGameSetup';\n",
+              1,
+          )
+          validator_marker = "const isPlayerId = (value: unknown): value is PlayerId => value === 1 || value === 2;\n"
+          if validator_marker not in save_text:
+              raise SystemExit('save validator marker not found')
+          save_text = save_text.replace(
+              validator_marker,
+              validator_marker
+              + "const isFaction = (value: unknown): value is Faction => value === 'human' || value === 'undead';\n"
+              + "const isStartSide = (value: unknown): value is StartSide => value === 'bottomLeft' || value === 'upperRight';\n",
+              1,
+          )
+          save_text += """
+
+          export const savePendingNewGameSetup = (setup: NewGameSetup): boolean => {
+            if (typeof localStorage === 'undefined') return false;
+            try {
+              localStorage.setItem(NEW_GAME_SETUP_KEY, JSON.stringify(setup));
+              return true;
+            } catch {
+              return false;
+            }
+          };
+
+          export const consumePendingNewGameSetup = (): NewGameSetup | null => {
+            if (typeof localStorage === 'undefined') return null;
+            try {
+              const raw = localStorage.getItem(NEW_GAME_SETUP_KEY);
+              if (!raw) return null;
+              localStorage.removeItem(NEW_GAME_SETUP_KEY);
+              const parsed: unknown = JSON.parse(raw);
+              if (!isRecord(parsed) || !isFaction(parsed.faction) || !isStartSide(parsed.side)) return null;
+              return { faction: parsed.faction, side: parsed.side };
+            } catch {
+              return null;
+            }
+          };
+          """
+          save_path.write_text(save_text)
+
+          # --- New Game faction picker. ---
+          Path('src/game/NewGameSetupDialog.css').write_text(""".new-game-setup-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 6000;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: rgba(2, 6, 18, 0.72);
+            backdrop-filter: blur(10px);
+          }
+
+          .new-game-setup-dialog {
+            width: min(560px, calc(100vw - 36px));
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 22px;
+            background: rgba(12, 18, 31, 0.96);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+            color: #f4f7ff;
+            font-family: Inter, system-ui, sans-serif;
+          }
+
+          .new-game-setup-dialog h2 {
+            margin: 0 0 8px;
+            font-size: 25px;
+          }
+
+          .new-game-setup-dialog p {
+            margin: 0 0 18px;
+            color: rgba(235, 241, 255, 0.72);
+            line-height: 1.45;
+          }
+
+          .new-game-factions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+          }
+
+          .new-game-faction {
+            min-height: 112px;
+            padding: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.055);
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+          }
+
+          .new-game-faction:hover,
+          .new-game-faction:focus-visible {
+            background: rgba(255, 255, 255, 0.11);
+            border-color: rgba(255, 255, 255, 0.34);
+            outline: none;
+          }
+
+          .new-game-faction strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 20px;
+          }
+
+          .new-game-faction span {
+            color: rgba(235, 241, 255, 0.68);
+            line-height: 1.35;
+          }
+
+          .new-game-setup-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 16px;
+          }
+
+          .new-game-setup-cancel {
+            border: 0;
+            background: transparent;
+            color: rgba(235, 241, 255, 0.7);
+            cursor: pointer;
+            padding: 8px 10px;
+          }
+
+          @media (max-width: 560px) {
+            .new-game-factions { grid-template-columns: 1fr; }
+            .new-game-setup-dialog { padding: 18px; }
+          }
+          """)
+
+          Path('src/game/NewGameSetupDialog.ts').write_text("""import type { Faction, NewGameSetup } from '../data/types';
+          import { makeNewGameSetup } from './newGameSetup';
+          import './NewGameSetupDialog.css';
+
+          let activeDialog: Promise<NewGameSetup | null> | null = null;
+
+          export const chooseNewGameSetup = (): Promise<NewGameSetup | null> => {
+            if (activeDialog) return activeDialog;
+
+            activeDialog = new Promise((resolve) => {
+              const overlay = document.createElement('div');
+              overlay.className = 'new-game-setup-overlay';
+              overlay.innerHTML = `
+                <div class="new-game-setup-dialog" role="dialog" aria-modal="true" aria-labelledby="new-game-title">
+                  <h2 id="new-game-title">Choose your faction</h2>
+                  <p>Your starting corner is randomized between bottom-left and upper-right each match.</p>
+                  <div class="new-game-factions">
+                    <button class="new-game-faction" type="button" data-faction="human">
+                      <strong>Human</strong>
+                      <span>Formation, ranged support and controlled repositioning.</span>
+                    </button>
+                    <button class="new-game-faction" type="button" data-faction="undead">
+                      <strong>Undead</strong>
+                      <span>Attrition, disruption, necromancy and dangerous pressure.</span>
+                    </button>
+                  </div>
+                  <div class="new-game-setup-actions">
+                    <button class="new-game-setup-cancel" type="button">Cancel</button>
+                  </div>
+                </div>`;
+
+              const finish = (setup: NewGameSetup | null): void => {
+                window.removeEventListener('keydown', handleKeyDown);
+                overlay.remove();
+                activeDialog = null;
+                resolve(setup);
+              };
+              const handleKeyDown = (event: KeyboardEvent): void => {
+                if (event.key === 'Escape') finish(null);
+              };
+
+              overlay.querySelectorAll<HTMLButtonElement>('[data-faction]').forEach((button) => {
+                button.addEventListener('click', () => {
+                  const faction = button.dataset.faction as Faction | undefined;
+                  if (faction === 'human' || faction === 'undead') finish(makeNewGameSetup(faction));
+                });
+              });
+              overlay.querySelector<HTMLButtonElement>('.new-game-setup-cancel')?.addEventListener(
+                'click',
+                () => finish(null),
+              );
+              window.addEventListener('keydown', handleKeyDown);
+              document.body.append(overlay);
+              overlay.querySelector<HTMLButtonElement>('[data-faction="human"]')?.focus();
+            });
+
+            return activeDialog;
+          };
+          """)
+
+          # --- Persistence: consume setup after reload and use picker for New Game. ---
+          persistent = Path('src/game/PersistentAiGameScene.ts')
+          persistent.write_text("""import type { GameState } from '../data/types';
+          import { AiGameScene } from './AiGameScene';
+          import { createGameState, MAX_MANA } from './engine';
+          import { chooseNewGameSetup } from './NewGameSetupDialog';
+          import { startSideLabel } from './newGameSetup';
+          import {
+            clearSavedGameState,
+            consumePendingNewGameSetup,
+            loadSavedGameState,
+            saveGameState,
+            savePendingNewGameSetup,
+          } from './save';
+
+          interface PersistentSceneInternals {
+            state: GameState;
+            message: string;
+            renderAll: () => void;
+          }
+
+          export class PersistentAiGameScene extends AiGameScene {
+            create(): void {
+              const scene = this as unknown as PersistentSceneInternals;
+              const saved = loadSavedGameState();
+              const pendingSetup = saved ? null : consumePendingNewGameSetup();
+              if (saved) {
+                for (const playerId of [1, 2] as const) {
+                  saved.players[playerId].mana = Math.min(MAX_MANA, Math.max(0, saved.players[playerId].mana));
+                }
+                scene.state = saved;
+                scene.message = `Saved match resumed on turn ${saved.turnNumber}.`;
+              } else if (pendingSetup) {
+                scene.state = createGameState(Math.random, pendingSetup);
+                const factionName = pendingSetup.faction === 'human' ? 'Human' : 'Undead';
+                scene.message = `${factionName} deployed at the ${startSideLabel(pendingSetup.side)} start.`;
+              }
+
+              super.create();
+
+              const originalRenderAll = scene.renderAll.bind(this);
+              let persistenceEnabled = true;
+              const persist = (): void => {
+                if (!persistenceEnabled) return;
+                if (scene.state.winner) clearSavedGameState();
+                else saveGameState(scene.state);
+              };
+
+              scene.renderAll = () => {
+                originalRenderAll();
+                persist();
+              };
+
+              persist();
+              const flush = (): void => persist();
+              window.addEventListener('pagehide', flush);
+
+              const newGameButton = document.querySelector<HTMLButtonElement>('#new-game-button');
+              const startNewGame = (): void => {
+                void chooseNewGameSetup().then((setup) => {
+                  if (!setup) return;
+                  if (!savePendingNewGameSetup(setup)) {
+                    window.alert('Unable to start a new game because browser storage is unavailable.');
+                    return;
+                  }
+                  persistenceEnabled = false;
+                  clearSavedGameState();
+                  window.location.reload();
+                });
+              };
+              newGameButton?.addEventListener('click', startNewGame);
+
+              this.events.once('shutdown', () => {
+                window.removeEventListener('pagehide', flush);
+                newGameButton?.removeEventListener('click', startNewGame);
+              });
+            }
+          }
+          """)
+
+          # --- Stable pointer scene + WASD / arrows. ---
+          Path('src/game/StableInputGameScene.ts').write_text("""import Phaser from 'phaser';
+          import { AnimatedPrototypeGameScene } from './AnimatedPrototypeGameScene';
+
+          interface StableDragState {
+            startX: number;
+            startY: number;
+            scrollX: number;
+            scrollY: number;
+            moved: boolean;
+          }
+
+          interface StableInputInternals {
+            setupCameraControls: () => void;
+            renderHand: () => void;
+            selectCard: (index: number) => void;
+            dragState: StableDragState | null;
+            suppressBoardClickUntil: number;
+            constrainCamera: () => void;
+          }
+
+          interface CameraPanKeys {
+            upW: Phaser.Input.Keyboard.Key;
+            downS: Phaser.Input.Keyboard.Key;
+            leftA: Phaser.Input.Keyboard.Key;
+            rightD: Phaser.Input.Keyboard.Key;
+            upArrow: Phaser.Input.Keyboard.Key;
+            downArrow: Phaser.Input.Keyboard.Key;
+            leftArrow: Phaser.Input.Keyboard.Key;
+            rightArrow: Phaser.Input.Keyboard.Key;
+          }
+
+          const CAMERA_KEYBOARD_SPEED = 620;
+          const PAN_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
+
+          /**
+           * Keeps pointer behavior intentionally simple and deterministic:
+           * - map pan = pointer-down anchor + total pointer displacement
+           * - keyboard pan = WASD or arrows
+           * - card input = the transformed visible card surface itself
+           */
+          export class StableInputGameScene extends AnimatedPrototypeGameScene {
+            private cameraPanKeys?: CameraPanKeys;
+
+            create(): void {
+              const internals = this as unknown as StableInputInternals;
+              const originalSetupCameraControls = internals.setupCameraControls.bind(this);
+              const originalRenderHand = internals.renderHand.bind(this);
+
+              internals.setupCameraControls = () => {
+                // Keep wheel zoom + resize behavior, but own the pointer pan handlers here.
+                originalSetupCameraControls();
+                this.input.off('pointerdown');
+                this.input.off('pointermove');
+                this.input.off('pointerup');
+
+                const camera = this.cameras.main;
+
+                this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+                  if (!pointer.isDown) return;
+                  internals.dragState = {
+                    startX: pointer.x,
+                    startY: pointer.y,
+                    scrollX: camera.scrollX,
+                    scrollY: camera.scrollY,
+                    moved: false,
+                  };
+                });
+
+                this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+                  const drag = internals.dragState;
+                  if (!pointer.isDown || !drag) return;
+
+                  const dx = pointer.x - drag.startX;
+                  const dy = pointer.y - drag.startY;
+                  if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+
+                  drag.moved = true;
+                  this.game.canvas.classList.add('dragging');
+                  camera.setScroll(
+                    drag.scrollX - dx / camera.zoom,
+                    drag.scrollY - dy / camera.zoom,
+                  );
+                  internals.constrainCamera();
+                });
+
+                this.input.on('pointerup', () => {
+                  if (internals.dragState?.moved) {
+                    internals.suppressBoardClickUntil = performance.now() + 150;
+                  }
+                  internals.dragState = null;
+                  this.game.canvas.classList.remove('dragging');
+                });
+              };
+
+              internals.renderHand = () => {
+                originalRenderHand();
+                this.bindVisibleCardSurfaces(internals);
+              };
+
+              super.create();
+
+              const keyboard = this.input.keyboard;
+              if (keyboard) {
+                this.cameraPanKeys = keyboard.addKeys({
+                  upW: Phaser.Input.Keyboard.KeyCodes.W,
+                  downS: Phaser.Input.Keyboard.KeyCodes.S,
+                  leftA: Phaser.Input.Keyboard.KeyCodes.A,
+                  rightD: Phaser.Input.Keyboard.KeyCodes.D,
+                  upArrow: Phaser.Input.Keyboard.KeyCodes.UP,
+                  downArrow: Phaser.Input.Keyboard.KeyCodes.DOWN,
+                  leftArrow: Phaser.Input.Keyboard.KeyCodes.LEFT,
+                  rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+                }) as unknown as CameraPanKeys;
+              }
+
+              const preventBrowserPan = (event: KeyboardEvent): void => {
+                const target = event.target;
+                if (target instanceof HTMLElement
+                  && (target.isContentEditable || target.matches('input, textarea, select'))) return;
+                if (PAN_KEYS.has(event.key.toLowerCase())) event.preventDefault();
+              };
+              window.addEventListener('keydown', preventBrowserPan, { passive: false });
+              this.events.once('shutdown', () => {
+                window.removeEventListener('keydown', preventBrowserPan);
+                this.cameraPanKeys = undefined;
+              });
+            }
+
+            update(): void {
+              super.update();
+              const keys = this.cameraPanKeys;
+              if (!keys) return;
+
+              const horizontal = (keys.leftA.isDown || keys.leftArrow.isDown ? -1 : 0)
+                + (keys.rightD.isDown || keys.rightArrow.isDown ? 1 : 0);
+              const vertical = (keys.upW.isDown || keys.upArrow.isDown ? -1 : 0)
+                + (keys.downS.isDown || keys.downArrow.isDown ? 1 : 0);
+              if (horizontal === 0 && vertical === 0) return;
+
+              const length = Math.hypot(horizontal, vertical) || 1;
+              const camera = this.cameras.main;
+              const frameSeconds = Math.min(this.game.loop.delta, 50) / 1000;
+              const distance = CAMERA_KEYBOARD_SPEED * frameSeconds / camera.zoom;
+              camera.setScroll(
+                camera.scrollX + horizontal / length * distance,
+                camera.scrollY + vertical / length * distance,
+              );
+              (this as unknown as StableInputInternals).constrainCamera();
+            }
+
+            private bindVisibleCardSurfaces(internals: StableInputInternals): void {
+              const cards = document.querySelectorAll<HTMLButtonElement>('#hand button.card');
+              for (const button of cards) {
+                const surface = button.querySelector<HTMLElement>('.card-surface');
+                if (!surface || surface.dataset.pointerBound === 'true') continue;
+                surface.dataset.pointerBound = 'true';
+
+                surface.addEventListener('pointerdown', (event) => {
+                  if (!event.isPrimary || event.button !== 0 || button.disabled) return;
+                  const index = Number(button.dataset.handIndex);
+                  if (!Number.isInteger(index)) return;
+
+                  event.preventDefault();
+                  event.stopPropagation();
+                  internals.selectCard(index);
+                });
+
+                button.addEventListener('click', (event) => {
+                  if (event.detail === 0) return;
+                  event.preventDefault();
+                  event.stopImmediatePropagation();
+                }, true);
+              }
+            }
+          }
+          """)
+
+          # --- Regression tests for faction + side assignment. ---
+          Path('src/game/newGameSetup.test.ts').write_text("""import { describe, expect, it } from 'vitest';
+          import { createGameState, getValidSummonCoords, unitDefinition } from './engine';
+          import { makeNewGameSetup, oppositeStartSide } from './newGameSetup';
+
+          describe('new game setup', () => {
+            it('lets the local player use Undead from the upper-right start', () => {
+              const state = createGameState(() => 0.5, { faction: 'undead', side: 'upperRight' });
+
+              expect(state.players[1].faction).toBe('undead');
+              expect(state.players[2].faction).toBe('human');
+              expect(state.sites.find((site) => site.id === 'keep-2')?.owner).toBe(1);
+              expect(state.sites.find((site) => site.id === 'keep-1')?.owner).toBe(2);
+
+              const commander = state.units.find((unit) => unit.owner === 1 && unit.definitionId === 'commander');
+              expect(commander?.coord).toEqual({ q: 15, r: 4 });
+              expect(commander && unitDefinition(commander).name).toBe('Undead Commander');
+              expect(state.units.some((unit) => unit.owner === 1 && unit.definitionId === 'skeletalInfantry')).toBe(true);
+              expect(state.units.some((unit) => unit.owner === 1 && unit.definitionId === 'necromancer')).toBe(true);
+              expect(getValidSummonCoords(state, 1)).toContainEqual({ q: 15, r: 3 });
+            });
+
+            it('keeps faction independent from starting corner', () => {
+              const state = createGameState(() => 0.5, { faction: 'human', side: 'upperRight' });
+              const commander = state.units.find((unit) => unit.owner === 1 && unit.definitionId === 'commander');
+              expect(commander && unitDefinition(commander).name).toBe('Human Commander');
+              expect(state.units.some((unit) => unit.owner === 1 && unit.definitionId === 'royalGuard')).toBe(true);
+              expect(state.units.some((unit) => unit.owner === 2 && unit.definitionId === 'skeletalInfantry')).toBe(true);
+            });
+
+            it('randomizes between the two opposite starts', () => {
+              expect(makeNewGameSetup('human', () => 0).side).toBe('bottomLeft');
+              expect(makeNewGameSetup('human', () => 0.999).side).toBe('upperRight');
+              expect(oppositeStartSide('bottomLeft')).toBe('upperRight');
+            });
+          });
+          """)
+          PY
+
+      - name: Test and build
+        run: npm ci && npm test && npm run build
+
+      - name: Commit verified feature
+        shell: bash
+        run: |
+          rm .github/workflows/add-faction-start-controls.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add keyboard pan and configurable faction starts"
+          git push origin HEAD:main

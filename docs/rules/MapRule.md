@@ -13,6 +13,7 @@ This file owns map geometry, capture, and terrain rules.
 - **MPL3** - The map contains 4 Mana Wells.
 - **MPL4** - Layout should be deliberately asymmetric while giving both players comparable access to objectives and flanking routes.
 - **MPL5** - Each neutral Fort has 3 adjacent Garrisons that provide the additional spawn sources defined by `CRU3`.
+- **MPL6** - At New Game, the local player's starting army and Home Keep are randomly assigned to either the bottom-left or upper-right start; the AI receives the opposite start, independent of faction.
 
 ## Capture
 - **MPC1** - Captures resolve only at the end of the active player's full turn.

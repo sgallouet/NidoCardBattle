@@ -1,0 +1,126 @@
+name: Patch card pointer hit testing
+
+on:
+  push:
+    paths:
+      - .github/workflows/patch-card-pointer-hit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Fix card pointer selection
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/game/GameScene.ts')
+          text = path.read_text()
+
+          setup_marker = """    this.createUnitAnimations();
+              this.setupCameraControls();
+              this.createGalaxyBackdrop();
+          """
+          if setup_marker not in text:
+              raise SystemExit('create setup marker not found')
+          text = text.replace(
+              setup_marker,
+              """    this.createUnitAnimations();
+              this.setupCameraControls();
+              this.setupCardPointerControls();
+              this.createGalaxyBackdrop();
+          """,
+              1,
+          )
+
+          method_marker = """  private createUnitAnimations(): void {
+          """
+          if method_marker not in text:
+              raise SystemExit('method insertion marker not found')
+
+          method = r'''  private setupCardPointerControls(): void {
+            const pickVisibleCard = (event: PointerEvent): HTMLButtonElement | null => {
+              const cards = Array.from(
+                document.querySelectorAll<HTMLButtonElement>('#hand button.card:not(:disabled)'),
+              );
+              const candidates = cards.flatMap((button) => {
+                const surface = button.querySelector<HTMLElement>('.card-surface');
+                const rect = (surface ?? button).getBoundingClientRect();
+                if (
+                  event.clientX < rect.left
+                  || event.clientX > rect.right
+                  || event.clientY < rect.top
+                  || event.clientY > rect.bottom
+                ) return [];
+
+                const halfWidth = Math.max(1, rect.width / 2);
+                const halfHeight = Math.max(1, rect.height / 2);
+                const normalizedDistance = Math.hypot(
+                  (event.clientX - (rect.left + rect.width / 2)) / halfWidth,
+                  (event.clientY - (rect.top + rect.height / 2)) / halfHeight,
+                );
+                return [{ button, normalizedDistance }];
+              });
+
+              candidates.sort((a, b) => a.normalizedDistance - b.normalizedDistance);
+              return candidates[0]?.button ?? null;
+            };
+
+            const handlePointerDown = (event: PointerEvent): void => {
+              if (!event.isPrimary || event.button !== 0) return;
+              const button = pickVisibleCard(event);
+              if (!button) return;
+              const index = Number(button.dataset.handIndex);
+              if (!Number.isInteger(index)) return;
+
+              // Resolve from the visible transformed card geometry before an overlapping
+              // sibling button or the Phaser canvas can steal the pointer gesture.
+              event.preventDefault();
+              event.stopPropagation();
+              this.selectCard(index);
+            };
+
+            document.addEventListener('pointerdown', handlePointerDown, true);
+            this.events.once('shutdown', () => {
+              document.removeEventListener('pointerdown', handlePointerDown, true);
+            });
+          }
+
+'''
+          text = text.replace(method_marker, method + method_marker, 1)
+
+          old_click = """      button.addEventListener('click', () => this.selectCard(index));
+          """
+          if old_click not in text:
+              raise SystemExit('card click listener not found')
+          new_click = """      button.addEventListener('click', (event) => {
+                // Pointer input is resolved from transformed card geometry in
+                // setupCardPointerControls. Keep native click only for keyboard activation.
+                if (event.detail === 0) this.selectCard(index);
+              });
+          """
+          text = text.replace(old_click, new_click, 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Typecheck and build
+        run: npm ci && npm run build
+
+      - name: Commit fix and remove workflow
+        shell: bash
+        run: |
+          rm .github/workflows/patch-card-pointer-hit.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/game/GameScene.ts .github/workflows/patch-card-pointer-hit.yml
+          git commit -m "Fix card clicks across visible surface"
+          git push origin HEAD:main

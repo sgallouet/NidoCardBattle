@@ -7,7 +7,7 @@
     <title>NidoCardBattle Prototype</title>
   </head>
   <body>
-    <main id="app" class="show-card-hitboxes">
+    <main id="app">
       <div id="game-container" aria-label="NidoCardBattle draggable hex battlefield"></div>
       <div id="status" class="sr-only" role="status" aria-live="polite">Player 1 begins.</div>
 
@@ -56,8 +56,8 @@
         Selection: Premium
       </button>
 
-      <button id="card-hitbox-toggle" class="card-hitbox-toggle" type="button" aria-label="Hide card clickable areas" aria-pressed="true" title="Hide card clickable areas">
-        Hit Areas: On
+      <button id="card-hitbox-toggle" class="card-hitbox-toggle" type="button" aria-label="Show card clickable areas" aria-pressed="false" title="Show card clickable areas">
+        Hit Areas: Off
       </button>
 
       <button id="fullscreen-button" class="fullscreen-button" type="button" aria-label="Enter fullscreen" aria-pressed="false" title="Enter fullscreen">

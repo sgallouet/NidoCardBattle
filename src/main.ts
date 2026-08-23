@@ -17,7 +17,6 @@ const app = document.querySelector<HTMLElement>('#app');
 const fullscreenButton = document.querySelector<HTMLButtonElement>('#fullscreen-button');
 const mapRenderButton = document.querySelector<HTMLButtonElement>('#map-render-button');
 const tileBorderButton = document.querySelector<HTMLButtonElement>('#tile-border-button');
-const cardHitboxButton = document.querySelector<HTMLButtonElement>('#card-hitbox-toggle');
 const TILE_BORDER_STORAGE_KEY = 'nido.tileBorderMode';
 const LEGACY_TILE_BORDER_STORAGE_KEY = 'nido.tileBordersVisible';
 
@@ -84,15 +83,6 @@ const updateTileBorderButton = (): void => {
   tileBorderButton.disabled = MAP_RENDER_MODE === 'authored';
 };
 
-const updateCardHitboxButton = (): void => {
-  if (!app || !cardHitboxButton) return;
-  const visible = app.classList.contains('show-card-hitboxes');
-  cardHitboxButton.textContent = `Hit Areas: ${visible ? 'On' : 'Off'}`;
-  cardHitboxButton.setAttribute('aria-pressed', `${visible}`);
-  cardHitboxButton.setAttribute('aria-label', `${visible ? 'Hide' : 'Show'} card clickable areas`);
-  cardHitboxButton.title = `${visible ? 'Hide' : 'Show'} card clickable areas`;
-};
-
 fullscreenButton?.addEventListener('click', async () => {
   if (document.fullscreenElement) {
     await document.exitFullscreen();
@@ -102,12 +92,6 @@ fullscreenButton?.addEventListener('click', async () => {
 });
 document.addEventListener('fullscreenchange', updateFullscreenButton);
 updateFullscreenButton();
-
-cardHitboxButton?.addEventListener('click', () => {
-  app?.classList.toggle('show-card-hitboxes');
-  updateCardHitboxButton();
-});
-updateCardHitboxButton();
 
 mapRenderButton?.addEventListener('click', () => {
   const nextMode = MAP_RENDER_MODE === 'authored' ? 'tiled' : 'authored';

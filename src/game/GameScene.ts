@@ -425,6 +425,10 @@ export class GameScene extends Phaser.Scene {
           }
         }
 
+        if (!this.useGeneratedMapPreview && terrain !== 'plain' && terrain !== 'forest' && terrain !== 'water') {
+          this.addTerrainDetail(coord, center);
+        }
+
         const hex = this.add.graphics();
         let stroke = 0x263828;
         let strokeWidth = this.useGeneratedMapPreview ? 0 : 2;
@@ -463,9 +467,6 @@ export class GameScene extends Phaser.Scene {
           if (!this.dragState?.moved && performance.now() >= this.suppressBoardClickUntil) this.handleHexClick(coord);
         });
         this.boardLayer.add(hex);
-        if (!this.useGeneratedMapPreview && terrain !== 'plain' && terrain !== 'forest' && terrain !== 'water') {
-          this.addTerrainDetail(coord, center);
-        }
       }
     }
 

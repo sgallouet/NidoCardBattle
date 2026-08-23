@@ -21,93 +21,96 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path('src/game/GameScene.ts')
           text = path.read_text()
 
-          setup_marker = """    this.createUnitAnimations();
-              this.setupCameraControls();
-              this.createGalaxyBackdrop();
-          """
-          if setup_marker not in text:
-              raise SystemExit('create setup marker not found')
-          text = text.replace(
-              setup_marker,
-              """    this.createUnitAnimations();
-              this.setupCameraControls();
-              this.setupCardPointerControls();
-              this.createGalaxyBackdrop();
-          """,
-              1,
+          setup_pattern = re.compile(
+              r"(?m)^\s*this\.createUnitAnimations\(\);\s*$\n"
+              r"^\s*this\.setupCameraControls\(\);\s*$\n"
+              r"^\s*this\.createGalaxyBackdrop\(\);\s*$"
           )
+          text, count = setup_pattern.subn(
+              "    this.createUnitAnimations();\n"
+              "    this.setupCameraControls();\n"
+              "    this.setupCardPointerControls();\n"
+              "    this.createGalaxyBackdrop();",
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit(f'create setup marker count={count}')
 
-          method_marker = """  private createUnitAnimations(): void {
-          """
+          method_marker = '  private createUnitAnimations(): void {'
           if method_marker not in text:
               raise SystemExit('method insertion marker not found')
 
           method = r'''  private setupCardPointerControls(): void {
-            const pickVisibleCard = (event: PointerEvent): HTMLButtonElement | null => {
-              const cards = Array.from(
-                document.querySelectorAll<HTMLButtonElement>('#hand button.card:not(:disabled)'),
-              );
-              const candidates = cards.flatMap((button) => {
-                const surface = button.querySelector<HTMLElement>('.card-surface');
-                const rect = (surface ?? button).getBoundingClientRect();
-                if (
-                  event.clientX < rect.left
-                  || event.clientX > rect.right
-                  || event.clientY < rect.top
-                  || event.clientY > rect.bottom
-                ) return [];
+    const pickVisibleCard = (event: PointerEvent): HTMLButtonElement | null => {
+      const cards = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('#hand button.card:not(:disabled)'),
+      );
+      const candidates = cards.flatMap((button) => {
+        const surface = button.querySelector<HTMLElement>('.card-surface');
+        const rect = (surface ?? button).getBoundingClientRect();
+        if (
+          event.clientX < rect.left
+          || event.clientX > rect.right
+          || event.clientY < rect.top
+          || event.clientY > rect.bottom
+        ) return [];
 
-                const halfWidth = Math.max(1, rect.width / 2);
-                const halfHeight = Math.max(1, rect.height / 2);
-                const normalizedDistance = Math.hypot(
-                  (event.clientX - (rect.left + rect.width / 2)) / halfWidth,
-                  (event.clientY - (rect.top + rect.height / 2)) / halfHeight,
-                );
-                return [{ button, normalizedDistance }];
-              });
+        const halfWidth = Math.max(1, rect.width / 2);
+        const halfHeight = Math.max(1, rect.height / 2);
+        const normalizedDistance = Math.hypot(
+          (event.clientX - (rect.left + rect.width / 2)) / halfWidth,
+          (event.clientY - (rect.top + rect.height / 2)) / halfHeight,
+        );
+        return [{ button, normalizedDistance }];
+      });
 
-              candidates.sort((a, b) => a.normalizedDistance - b.normalizedDistance);
-              return candidates[0]?.button ?? null;
-            };
+      candidates.sort((a, b) => a.normalizedDistance - b.normalizedDistance);
+      return candidates[0]?.button ?? null;
+    };
 
-            const handlePointerDown = (event: PointerEvent): void => {
-              if (!event.isPrimary || event.button !== 0) return;
-              const button = pickVisibleCard(event);
-              if (!button) return;
-              const index = Number(button.dataset.handIndex);
-              if (!Number.isInteger(index)) return;
+    const handlePointerDown = (event: PointerEvent): void => {
+      if (!event.isPrimary || event.button !== 0) return;
+      const button = pickVisibleCard(event);
+      if (!button) return;
+      const index = Number(button.dataset.handIndex);
+      if (!Number.isInteger(index)) return;
 
-              // Resolve from the visible transformed card geometry before an overlapping
-              // sibling button or the Phaser canvas can steal the pointer gesture.
-              event.preventDefault();
-              event.stopPropagation();
-              this.selectCard(index);
-            };
+      // Resolve from visible transformed card geometry before an overlapping sibling
+      // button or the Phaser canvas can steal the pointer gesture.
+      event.preventDefault();
+      event.stopPropagation();
+      this.selectCard(index);
+    };
 
-            document.addEventListener('pointerdown', handlePointerDown, true);
-            this.events.once('shutdown', () => {
-              document.removeEventListener('pointerdown', handlePointerDown, true);
-            });
-          }
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    this.events.once('shutdown', () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+    });
+  }
 
 '''
           text = text.replace(method_marker, method + method_marker, 1)
 
-          old_click = """      button.addEventListener('click', () => this.selectCard(index));
-          """
-          if old_click not in text:
-              raise SystemExit('card click listener not found')
-          new_click = """      button.addEventListener('click', (event) => {
-                // Pointer input is resolved from transformed card geometry in
-                // setupCardPointerControls. Keep native click only for keyboard activation.
-                if (event.detail === 0) this.selectCard(index);
-              });
-          """
-          text = text.replace(old_click, new_click, 1)
+          click_pattern = re.compile(
+              r"(?m)^\s*button\.addEventListener\('click', \(\) => this\.selectCard\(index\)\);\s*$"
+          )
+          text, count = click_pattern.subn(
+              "      button.addEventListener('click', (event) => {\n"
+              "        // Pointer input is resolved from transformed card geometry above.\n"
+              "        // Keep native click only for keyboard activation.\n"
+              "        if (event.detail === 0) this.selectCard(index);\n"
+              "      });",
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit(f'card click listener count={count}')
 
           path.write_text(text)
           PY

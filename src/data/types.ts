@@ -7,7 +7,9 @@ export type SiteType = 'keep' | 'fort' | 'well';
 export type Trait =
   | 'Blocking'
   | 'Retaliates'
+  | 'Invoker'
   | 'Ranged'
+  | 'SetShot'
   | 'Flying'
   | 'AgileAssault'
   | 'DarkReflection'

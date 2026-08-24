@@ -77,10 +77,12 @@ export type CardDefinitionId = keyof typeof CARD_DEFINITIONS;
 export const FACTION_DECKS: Record<Faction, CardDefinitionId[]> = {
   human: [
     'royalGuard',
+    'royalGuard',
     'longbowRanger',
     'silverwingCavalry',
     'lightMage',
     'bannerCaptain',
+    'windAdept',
     'scorch',
     'raiseFort',
     'buildBridge',
@@ -89,7 +91,9 @@ export const FACTION_DECKS: Record<Faction, CardDefinitionId[]> = {
     'skeletalInfantry',
     'boneArcher',
     'necromancer',
+    'banshee',
     'vampire',
+    'wraith',
     'graveKnight',
     'graveLock',
     'profaneWell',

@@ -3,6 +3,7 @@ import type { WavedashSDK } from '@wvdsh/sdk-js';
 import './style.css';
 import './cardHitAreaFix.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
+import { loadingScreen } from './game/LoadingScreen';
 import { StableInputGameScene } from './game/StableInputGameScene';
 
 type TileBorderMode = 'full' | 'half' | 'off';
@@ -22,6 +23,9 @@ const mapRenderButton = document.querySelector<HTMLButtonElement>('#map-render-b
 const tileBorderButton = document.querySelector<HTMLButtonElement>('#tile-border-button');
 const TILE_BORDER_STORAGE_KEY = 'nido.tileBorderMode';
 const LEGACY_TILE_BORDER_STORAGE_KEY = 'nido.tileBordersVisible';
+
+window.addEventListener('error', () => loadingScreen.fail(), { once: true });
+window.addEventListener('unhandledrejection', () => loadingScreen.fail(), { once: true });
 
 let tileBorderMode: TileBorderMode = 'full';
 try {

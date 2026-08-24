@@ -45,6 +45,7 @@ import type { UnitDefinitionId } from '../data/units';
 import { setDebugStatus } from './DebugStatus';
 import type { AiAction, AiPlan } from './ai';
 import { downloadLiveBattleLog, LiveBattleLogRecorder } from './liveBattleLog';
+import { loadingScreen } from './LoadingScreen';
 import { SelectionHexFx } from './SelectionHexFx';
 import { TacticalHexFxLayer, type TacticalHexFxKind } from './TacticalHexFx';
 import {
@@ -214,6 +215,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload(): void {
+    loadingScreen.setProgress(0.04, 'Preparing the battlefield');
+    const updateLoadingProgress = (value: number): void => {
+      loadingScreen.setProgress(0.06 + value * 0.86, 'Gathering battle assets');
+    };
+    this.load.on(Phaser.Loader.Events.PROGRESS, updateLoadingProgress);
+    this.load.once(Phaser.Loader.Events.FILE_LOAD_ERROR, () => loadingScreen.fail());
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+      this.load.off(Phaser.Loader.Events.PROGRESS, updateLoadingProgress);
+      loadingScreen.setProgress(0.96, 'Deploying the armies');
+    });
     this.load.audio(COMMANDER_DEATH_AUDIO_KEY, commanderDeathUrl);
     this.load.audio(COMBAT_ASSIST_AUDIO_KEY, combatAssistUrl);
     this.load.audio(COMBAT_HIT_MELEE_AUDIO_KEY, combatHitMeleeUrl);
@@ -286,6 +297,7 @@ export class GameScene extends Phaser.Scene {
     this.createGalaxyBackdrop();
     this.renderAll();
     this.resetCamera();
+    this.game.events.once(Phaser.Core.Events.POST_RENDER, () => loadingScreen.complete());
   }
 
   recordAiPlan(plan: AiPlan): void {

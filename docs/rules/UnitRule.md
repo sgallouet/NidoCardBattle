@@ -8,7 +8,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNS3** - Faction roster tables below define the target stats; the Implementation column shows whether the prototype currently matches the target and is not a second source of gameplay rules.
 
 ## Activation
-- **UNA1** - A unit may Move once and Attack once during its activation.
+- **UNA1** - A unit may Move once and Attack once during its activation unless one of its Traits changes that sequence.
 - **UNA2** - Movement must happen before the attack; either action may be skipped.
 - **UNA3** - An Exhausted unit cannot Move or Attack until its owner's next turn.
 
@@ -26,6 +26,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 ## Traits
 - **UNT1** - **Blocking:** when an enemy enters a hex adjacent to this unit, that enemy's movement ends immediately. Most close-range units should have this trait.
 - **UNT2** - **Retaliates:** after surviving an attack, this unit immediately deals its Attack damage back if the attacker is within its Range.
+- **UNT3** - **Invoker:** this unit provides the adjacent spawn destinations defined by `CRU3`.
 - **UNT4** - **Ranged:** this label identifies a unit with base Range 3; its attacks use ranged terrain rules.
 - **UNT5** - **Flying:** terrain does not restrict this unit's movement except for Mountain under `MPT5`; every terrain hex it can enter costs 1 movement point.
 - **UNT6** - **Agile Assault:** this unit may split its Move around its attack, moving before and again after attacking; total movement spent across both movement phases cannot exceed its Move stat. Retaliation damage received by this unit is reduced by 50%, rounded up.
@@ -34,6 +35,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNT9** - **Phase:** this unit ignores enemy Blocking while moving; occupied and otherwise impassable hexes still cannot be entered unless another trait says otherwise.
 - **UNT10** - **Assist:** when an allied unit makes a normal attack against an enemy within this unit's Range, this unit immediately adds 1 damage to that same primary target. If the assisting unit is positioned directly on the opposite side of the target from the primary attacker, forming a straight attacker-target-assister line across the hex grid, that Assist deals 2 damage instead. Assist does not consume Move or Attack, does not trigger retaliation, and may trigger even if the assisting unit has already acted this turn; Exhausted units cannot Assist.
 - **UNT11** - Each eligible assisting unit contributes its own Assist damage, so multiple Assist units may stack on the same attack. Assist damage cannot itself trigger Assist or other attack-triggered effects.
+- **UNT12** - **Set Shot:** after this unit spends any movement during its turn, it cannot make a normal attack that turn. Moving does not disable **Assist**; the unit may still contribute Assist damage while otherwise eligible.
 
 ## Special Abilities / Spells
 - **UNB1** - **Displace:** instead of attacking, move one adjacent unit, allied or enemy, to another free hex adjacent to the Displacer.
@@ -53,7 +55,7 @@ Human identity: formation, mobility, ranged support, and controlled repositionin
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
 | **HUR1** | Human Commander | — | 10 | 3 | 2 | 1 | Blocking, Retaliates | Rally | ✅ Implemented. |
 | **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates, Assist | — | ✅ Implemented. |
-| **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist | — | ✅ Implemented. |
+| **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
 | **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
 | **HUR5** | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore | ✅ Implemented. |
 | **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | — | — | ✅ Implemented with placeholder visuals. |
@@ -67,8 +69,8 @@ Undead identity: summoning, disruption, attrition, damage redirection, and punis
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
 | **UDR1** | Undead Commander | — | 10 | 3 | 2 | 1 | Blocking, Dark Reflection | Soul Link | ✅ Implemented. |
 | **UDR2** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking, Assist | — | ✅ Implemented. |
-| **UDR3** | Bone Archer | 3 | 1 | 1 | 2 | 3 | Ranged, Assist | — | ✅ Implemented with placeholder visuals. |
-| **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Ranged, Necromancy | Curse | ✅ Implemented. |
+| **UDR3** | Bone Archer | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented with placeholder visuals. |
+| **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Ranged, Necromancy, Invoker | Curse | ✅ Implemented. |
 | **UDR5** | Banshee | 4 | 3 | 2 | 3 | 1 | — | Displace | ✅ Implemented. |
 | **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | Flying | Blood Drain | ✅ Implemented with placeholder visuals. |
 | **UDR7** | Wraith | 4 | 3 | 2 | 4 | 1 | Phase | — | ✅ Implemented with placeholder visuals. |

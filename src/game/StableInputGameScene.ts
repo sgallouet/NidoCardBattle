@@ -2,10 +2,12 @@ import Phaser from 'phaser';
 import { AnimatedPrototypeGameScene } from './AnimatedPrototypeGameScene';
 
 interface StableDragState {
+  pointerId: number;
   startX: number;
   startY: number;
   scrollX: number;
   scrollY: number;
+  threshold: number;
   moved: boolean;
 }
 
@@ -30,6 +32,8 @@ interface CameraPanKeys {
 }
 
 const CAMERA_KEYBOARD_SPEED = 620;
+const MOUSE_DRAG_THRESHOLD = 5;
+const TOUCH_DRAG_THRESHOLD = 12;
 const PAN_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
 
 /**
@@ -57,29 +61,38 @@ export class StableInputGameScene extends AnimatedPrototypeGameScene {
       const camera = this.cameras.main;
 
       this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-        if (!pointer.isDown) return;
+        if (!pointer.isDown || internals.dragState) return;
         internals.dragState = {
+          pointerId: pointer.id,
           startX: pointer.x,
           startY: pointer.y,
           scrollX: camera.scrollX,
           scrollY: camera.scrollY,
+          threshold: pointer.wasTouch ? TOUCH_DRAG_THRESHOLD : MOUSE_DRAG_THRESHOLD,
           moved: false,
         };
       });
 
       this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
         const drag = internals.dragState;
-        if (!pointer.isDown || !drag) return;
+        if (!pointer.isDown || !drag || pointer.id !== drag.pointerId) return;
 
         const dx = pointer.x - drag.startX;
         const dy = pointer.y - drag.startY;
-        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+        if (!drag.moved) {
+          if (Math.hypot(dx, dy) < drag.threshold) return;
 
-        drag.moved = true;
-        this.game.canvas.classList.add('dragging');
+          drag.moved = true;
+          drag.startX = pointer.x;
+          drag.startY = pointer.y;
+          drag.scrollX = camera.scrollX;
+          drag.scrollY = camera.scrollY;
+          this.game.canvas.classList.add('dragging');
+          return;
+        }
 
-        // Always derive the camera from the original mouse-down state. There is no
-        // accumulated delta, threshold catch-up, or rebase, so the map cannot teleport.
+        // Derive the camera from the point where the drag threshold was crossed.
+        // Finger jitter remains a tap, while a real pan cannot accumulate drift.
         camera.setScroll(
           drag.scrollX - dx / camera.zoom,
           drag.scrollY - dy / camera.zoom,
@@ -87,12 +100,21 @@ export class StableInputGameScene extends AnimatedPrototypeGameScene {
         internals.constrainCamera();
       });
 
-      this.input.on('pointerup', () => {
+      const finishDrag = (pointer?: Phaser.Input.Pointer): void => {
+        if (pointer && internals.dragState && pointer.id !== internals.dragState.pointerId) return;
         if (internals.dragState?.moved) {
           internals.suppressBoardClickUntil = performance.now() + 150;
         }
         internals.dragState = null;
         this.game.canvas.classList.remove('dragging');
+      };
+      this.input.on('pointerup', finishDrag);
+      this.input.on('pointerupoutside', finishDrag);
+
+      const cancelDrag = (): void => finishDrag();
+      this.game.canvas.addEventListener('pointercancel', cancelDrag);
+      this.events.once('shutdown', () => {
+        this.game.canvas.removeEventListener('pointercancel', cancelDrag);
       });
     };
 

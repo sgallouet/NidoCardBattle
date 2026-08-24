@@ -7,6 +7,7 @@ import {
   getCurseTargets,
   getDisplaceDestinations,
   getDisplaceTargets,
+  getInvokeDestinations,
   getRallyTargets,
   getReachableCoords,
   getSoulLinkTargets,
@@ -85,6 +86,7 @@ export class ActionReadabilityLayer {
   }
 
   private hasLegalSpell(unit: UnitState): boolean {
+    if (getInvokeDestinations(this.game.state, unit.id).length > 0) return true;
     switch (unitDefinition(unit).ability) {
       case 'Displace':
         return getDisplaceTargets(this.game.state, unit.id)

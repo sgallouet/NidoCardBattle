@@ -12,6 +12,7 @@ import {
   effectiveRange,
   endTurn,
   getAttackTargets,
+  getInvokeDestinations,
   getReachableCoords,
   getRestoreTargets,
   getSoulLinkTargets,
@@ -19,6 +20,7 @@ import {
   hexDistance,
   isPassable,
   isStoppedByBlocking,
+  invokeBeast,
   MAX_MANA,
   moveUnit,
   playUnitCard,
@@ -78,6 +80,7 @@ describe('faction rosters and decks', () => {
     expect(UNIT_DEFINITIONS.wraith).toMatchObject({ maxHp: 3, attack: 2, move: 4, traits: ['Phase'] });
     expect(UNIT_DEFINITIONS.bannerCaptain).toMatchObject({ cost: 4, maxHp: 4, traits: [] });
     expect(UNIT_DEFINITIONS.windAdept).toMatchObject({ cost: 3, maxHp: 2, attack: 1, move: 3, range: 2, ability: 'Displace' });
+    expect(UNIT_DEFINITIONS.invokedBeast).toMatchObject({ cost: 0, maxHp: 2, attack: 1, move: 2, range: 1, traits: [] });
   });
 
   it('keeps both prototype faction decks at 10 legal cards and exposes every current unit', () => {
@@ -97,6 +100,7 @@ describe('faction rosters and decks', () => {
       'skeletalInfantry', 'boneArcher', 'necromancer', 'banshee', 'vampire', 'wraith', 'graveKnight',
       'graveLock', 'profaneWell', 'buildBridge',
     ]));
+    expect('invokedBeast' in CARD_DEFINITIONS).toBe(false);
   });
 
   it('rejects a cross-faction card', () => {
@@ -351,15 +355,34 @@ describe('Necromancer', () => {
     expect(raised?.exhausted).toBe(true);
   });
 
-  it('provides free adjacent spawn destinations through Invoker', () => {
+  it('applies UNT3, UDR9, CRU3, and CRC4', () => {
     const state = freshState();
     state.currentPlayer = 2;
     for (const site of state.sites) site.owner = null;
     const necromancer = makeUnit('necro', 'necromancer', 2, { q: 4, r: 6 });
     state.units = [necromancer];
-    const destinations = getValidSummonCoords(state, 2);
-    expect(destinations).toContainEqual({ q: 3, r: 6 });
-    expect(destinations).not.toContainEqual(necromancer.coord);
+    const destinations = getInvokeDestinations(state, necromancer.id);
+    const occupied = destinations[0];
+    const locked = destinations[1];
+    const chosen = destinations[2];
+    state.units.push(makeUnit('blocker', 'skeletalInfantry', 2, occupied));
+    state.tileEffects.push({ kind: 'graveLock', coord: locked, sourcePlayer: 1, expiresAtTurn: 2 });
+
+    expect(getValidSummonCoords(state, 2)).toEqual([]);
+    expect(getInvokeDestinations(state, necromancer.id)).not.toContainEqual(occupied);
+    expect(getInvokeDestinations(state, necromancer.id)).not.toContainEqual(locked);
+
+    const manaBefore = state.players[2].mana;
+    const handBefore = [...state.players[2].hand];
+    const result = invokeBeast(state, necromancer.id, chosen);
+    const beast = result.summonedUnitId ? state.units.find((unit) => unit.id === result.summonedUnitId) : undefined;
+
+    expect(result.ok).toBe(true);
+    expect(necromancer.attacked).toBe(true);
+    expect(beast).toMatchObject({ definitionId: 'invokedBeast', owner: 2, hp: 2, coord: chosen, exhausted: true });
+    expect(state.players[2].mana).toBe(manaBefore);
+    expect(state.players[2].hand).toEqual(handBefore);
+    expect(invokeBeast(state, necromancer.id, destinations[3]).ok).toBe(false);
   });
 
   it('Curse deals 1 damage at the end of the victim owner turn for 3 turns', () => {
@@ -459,14 +482,14 @@ describe('existing summon, restore, capture and victory rules', () => {
     expect(state.turnNumber).toBe(startingTurn);
   });
 
-  it('starts with each Home Keep usable and exposes the starting Necromancer Invoker', () => {
+  it('applies CRU3 to both starting Home Keeps', () => {
     const state = freshState();
     const humanKeep = state.sites.find((site) => site.id === 'keep-1')!;
     const undeadKeep = state.sites.find((site) => site.id === 'keep-2')!;
 
     expect(getValidSummonCoords(state, 1)).toContainEqual(humanKeep.coord);
     expect(getValidSummonCoords(state, 2)).toContainEqual(undeadKeep.coord);
-    expect(getValidSummonCoords(state, 2).length).toBeGreaterThan(1);
+    expect(getValidSummonCoords(state, 2)).toEqual([undeadKeep.coord]);
 
     state.players[1].hand = ['royalGuard'];
     expect(playUnitCard(state, 0, humanKeep.coord).ok).toBe(true);

@@ -615,6 +615,34 @@ export const curseUnit = (state: GameState, actorId: string, targetId: string): 
   return { ok: true, message: `${unitDefinition(actor).name} cursed ${unitDefinition(target).name} for 3 turns.` };
 };
 
+export const getInvokeDestinations = (state: GameState, actorId: string): Coord[] => {
+  const actor = findUnit(state, actorId);
+  if (!actor
+    || state.winner
+    || actor.owner !== state.currentPlayer
+    || actor.exhausted
+    || actor.attacked
+    || !unitDefinition(actor).traits.includes('Invoker')) return [];
+  return neighbors(actor.coord).filter((coord) => isPassableInState(state, coord)
+    && !isGraveLocked(state, coord)
+    && !unitAt(state, coord));
+};
+
+export const invokeBeast = (state: GameState, actorId: string, destination: Coord): ActionResult => {
+  const actor = findUnit(state, actorId);
+  if (!actor || !getInvokeDestinations(state, actorId).some((coord) => sameCoord(coord, destination))) {
+    return { ok: false, message: 'Choose a free adjacent hex for the Invoked Beast.' };
+  }
+  actor.attacked = true;
+  const summoned = createUnit(state, 'invokedBeast', actor.owner, destination, true);
+  state.units.push(summoned);
+  return {
+    ok: true,
+    message: 'Invoked Beast was summoned exhausted.',
+    summonedUnitId: summoned.id,
+  };
+};
+
 export const getValidSummonCoords = (state: GameState, playerId: PlayerId = state.currentPlayer): Coord[] => {
   const siteCoords = state.sites
     .filter((site) => site.owner === playerId
@@ -627,14 +655,8 @@ export const getValidSummonCoords = (state: GameState, playerId: PlayerId = stat
       && !isGraveLocked(state, garrison.coord)
       && !unitAt(state, garrison.coord))
     .map((garrison) => ({ ...garrison.coord }));
-  const invokerCoords = state.units
-    .filter((unit) => unit.owner === playerId && unitDefinition(unit).traits.includes('Invoker'))
-    .flatMap((unit) => neighbors(unit.coord))
-    .filter((coord) => isPassableInState(state, coord)
-      && !isGraveLocked(state, coord)
-      && !unitAt(state, coord));
   const unique = new Map<string, Coord>();
-  for (const coord of [...siteCoords, ...garrisonCoords, ...invokerCoords]) unique.set(coordKey(coord), coord);
+  for (const coord of [...siteCoords, ...garrisonCoords]) unique.set(coordKey(coord), coord);
   return [...unique.values()];
 };
 
@@ -721,7 +743,7 @@ export const playUnitCard = (state: GameState, handIndex: number, destination: C
   if ('ok' in validation) return validation;
   if (validation.type !== 'unit') return { ok: false, message: 'That card does not summon a unit.' };
   if (!getValidSummonCoords(state).some((coord) => sameCoord(coord, destination))) {
-    return { ok: false, message: 'Choose an eligible Keep, Fort, Garrison, or Invoker-adjacent hex.' };
+    return { ok: false, message: 'Choose an eligible Keep, Fort, or Garrison.' };
   }
   const playerId = state.currentPlayer;
   state.players[playerId].mana -= validation.cost;

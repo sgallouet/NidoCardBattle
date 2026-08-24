@@ -36,9 +36,29 @@
       "output": "assets/game/units/shadows/silverwing-cavalry.webp"
     },
     {
+      "id": "lightMage",
+      "source": "assets/game/units/human/light-mage.webp",
+      "output": "assets/game/units/shadows/light-mage.webp"
+    },
+    {
+      "id": "bannerCaptain",
+      "source": "assets/game/units/human/banner-captain.webp",
+      "output": "assets/game/units/shadows/banner-captain.webp"
+    },
+    {
+      "id": "windAdept",
+      "source": "assets/game/units/human/wind-adept.webp",
+      "output": "assets/game/units/shadows/wind-adept.webp"
+    },
+    {
       "id": "undeadCommander",
       "source": "assets/game/units/undead/undead-commander.webp",
       "output": "assets/game/units/shadows/undead-commander.webp"
+    },
+    {
+      "id": "boneArcher",
+      "source": "assets/game/units/undead/bone-archer.webp",
+      "output": "assets/game/units/shadows/bone-archer.webp"
     },
     {
       "id": "necromancer",
@@ -68,6 +88,11 @@
       "id": "graveKnight",
       "source": "assets/game/units/undead/grave-knight.webp",
       "output": "assets/game/units/shadows/grave-knight.webp"
+    },
+    {
+      "id": "invokedBeast",
+      "source": "assets/game/units/undead/invoked-beast.webp",
+      "output": "assets/game/units/shadows/invoked-beast.webp"
     }
   ]
 }

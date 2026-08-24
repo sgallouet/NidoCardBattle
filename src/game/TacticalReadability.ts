@@ -97,7 +97,7 @@ export class TacticalReadabilityLayer {
   }
 
   private hoverAffectsPresentation(): boolean {
-    return this.game.mode === 'unit' || this.game.mode === 'card';
+    return this.game.mode === 'unit' || this.game.mode === 'card' || this.game.mode === 'invoke-destination';
   }
 
   private readonly handleUpdate = (): void => {

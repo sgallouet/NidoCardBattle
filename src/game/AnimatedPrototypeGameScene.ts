@@ -35,6 +35,7 @@ interface AnimatedSceneInternals {
   playTacticSound: (cardId: CardDefinitionId) => void;
   playUnitDeath: (owner: PlayerId, commander?: boolean) => void;
   playUnitSummon: (owner: PlayerId) => void;
+  presentInvokedUnit: (unitId: string) => Promise<void>;
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
 }
 
@@ -55,6 +56,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
     const originalMovement = game.animateMovement.bind(this);
     const originalAttack = game.resolveAnimatedAttack.bind(this);
     const originalRenderAll = game.renderAll.bind(this);
+    const originalPresentInvokedUnit = game.presentInvokedUnit.bind(this);
 
     this.motion = new UnitMotionAnimator(this, () => game.boardLayer);
     this.actionFx = new ActionFxAnimator(this, () => game.boardLayer, game.center.bind(this));
@@ -84,6 +86,13 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
     game.resolveAnimatedAttack = async (attackerId, defenderId) => {
       const result = await this.resolveCodeAnimatedAttack(game, attackerId, defenderId, originalAttack);
       game.message = result.message;
+    };
+
+    game.presentInvokedUnit = async (unitId) => {
+      await originalPresentInvokedUnit(unitId);
+      const summoned = findUnit(game.state, unitId);
+      const view = game.renderedUnits.get(unitId);
+      if (summoned && view && this.actionFx) await this.actionFx.summon(view, summoned.owner);
     };
 
     game.playAiAction = async (action) => this.playAnimatedAiAction(game, action, originalAttack);
@@ -164,6 +173,12 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       const view = result.summonedUnitId ? game.renderedUnits.get(result.summonedUnitId) : undefined;
       if (summoned) game.playUnitSummon(summoned.owner);
       if (summoned && view && fx) await fx.summon(view, summoned.owner);
+      return result;
+    }
+
+    if (action.kind === 'invoke') {
+      const result = applyAiAction(game.state, action);
+      if (result.ok && result.summonedUnitId) await game.presentInvokedUnit(result.summonedUnitId);
       return result;
     }
 

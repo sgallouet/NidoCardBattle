@@ -50,6 +50,26 @@ describe('engine-owned legal actions', () => {
     expect(aiActions).toEqual(engineActions);
   });
 
+  it('exposes and applies UNT3 through the shared action vocabulary', () => {
+    const state = freshState();
+    state.currentPlayer = 2;
+    state.players[2].hand = [];
+    state.units = [
+      makeUnit('necromancer', 'necromancer', 2, { q: 5, r: 4 }),
+      makeUnit('human-commander', 'commander', 1, { q: 15, r: 9 }),
+    ];
+
+    const engineActions = getLegalGameActions(state, 2, { includeCards: false });
+    const aiActions = generateLegalActionsForPlayer(state, 2, false);
+    const invoke = engineActions.find((action) => action.kind === 'invoke');
+
+    expect(invoke).toBeDefined();
+    expect(aiActions).toEqual(engineActions);
+    const result = applyGameAction(state, invoke!);
+    expect(result.ok).toBe(true);
+    expect(state.units.find((unit) => unit.id === result.summonedUnitId)?.definitionId).toBe('invokedBeast');
+  });
+
   it('exposes Soul Link as a normal searched action', () => {
     const state = freshState();
     state.currentPlayer = 2;

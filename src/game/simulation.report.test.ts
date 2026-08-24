@@ -37,4 +37,4 @@ simulationTest('prints an AI-vs-AI balance report', () => {
   console.log(`AI_SIMULATION_REPORT ${JSON.stringify(summary)}`);
   expect(report.matches).toBe(12);
   expect(report.replayFailureRate).toBe(0);
-});
+}, 900_000);

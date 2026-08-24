@@ -10,6 +10,7 @@ import {
   getCurseTargets,
   getDisplaceDestinations,
   getDisplaceTargets,
+  getInvokeDestinations,
   getRallyTargets,
   getReachableCoords,
   getSoulLinkTargets,
@@ -18,6 +19,7 @@ import {
   getValidSummonCoords,
   hexDistance,
   moveUnit,
+  invokeBeast,
   playTacticCard,
   playTacticCardAtCoord,
   playUnitCard,
@@ -41,7 +43,8 @@ export type GameAction =
   | { kind: 'displace'; unitId: string; targetId: string; destination: Coord }
   | { kind: 'rally'; unitId: string }
   | { kind: 'soulLink'; unitId: string; targetId: string }
-  | { kind: 'curse'; unitId: string; targetId: string };
+  | { kind: 'curse'; unitId: string; targetId: string }
+  | { kind: 'invoke'; unitId: string; destination: Coord };
 
 const GAME_ACTION_KIND_SET = {
   summon: true,
@@ -52,6 +55,7 @@ const GAME_ACTION_KIND_SET = {
   rally: true,
   soulLink: true,
   curse: true,
+  invoke: true,
 } satisfies Record<GameAction['kind'], true>;
 
 export const GAME_ACTION_KINDS = Object.keys(GAME_ACTION_KIND_SET) as GameAction['kind'][];
@@ -166,6 +170,9 @@ export const getLegalGameActions = (
       actions.push({ kind: 'move', unitId: unit.id, destination: coordFromKey(key) });
     }
     actions.push(...abilityActions(state, unit.id, unitDefinition(unit).ability));
+    for (const destination of getInvokeDestinations(state, unit.id)) {
+      actions.push({ kind: 'invoke', unitId: unit.id, destination });
+    }
   }
 
   return actions;
@@ -204,6 +211,8 @@ export const applyGameAction = (state: GameState, action: GameAction): ActionRes
       return soulLinkUnit(state, action.unitId, action.targetId);
     case 'curse':
       return curseUnit(state, action.unitId, action.targetId);
+    case 'invoke':
+      return invokeBeast(state, action.unitId, action.destination);
     default: {
       const unhandledAction: never = action;
       return unhandledAction;

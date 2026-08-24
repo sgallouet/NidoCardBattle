@@ -26,7 +26,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 ## Traits
 - **UNT1** - **Blocking:** when an enemy enters a hex adjacent to this unit, that enemy's movement ends immediately. Most close-range units should have this trait.
 - **UNT2** - **Retaliates:** after surviving an attack, this unit immediately deals its Attack damage back if the attacker is within its Range.
-- **UNT3** - **Invoker:** this unit provides the adjacent spawn destinations defined by `CRU3`.
+- **UNT3** - **Invoker:** instead of attacking, this unit may summon an **Invoked Beast** on one free passable adjacent hex not blocked by `CRC4`. The Invoked Beast enters Exhausted, costs no mana, and has no Unit Card.
 - **UNT4** - **Ranged:** this label identifies a unit with base Range 3; its attacks use ranged terrain rules.
 - **UNT5** - **Flying:** terrain does not restrict this unit's movement except for Mountain under `MPT5`; every terrain hex it can enter costs 1 movement point.
 - **UNT6** - **Agile Assault:** this unit may split its Move around its attack, moving before and again after attacking; total movement spent across both movement phases cannot exceed its Move stat. Retaliation damage received by this unit is reduced by 50%, rounded up.
@@ -75,3 +75,4 @@ Undead identity: summoning, disruption, attrition, damage redirection, and punis
 | **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | Flying | Blood Drain | ✅ Implemented with placeholder visuals. |
 | **UDR7** | Wraith | 4 | 3 | 2 | 4 | 1 | Phase | — | ✅ Implemented with placeholder visuals. |
 | **UDR8** | Grave Knight | 5 | 5 | 3 | 2 | 1 | Blocking, Retaliates | Cleave | ✅ Implemented. |
+| **UDR9** | Invoked Beast | — | 2 | 1 | 2 | 1 | — | — | ✅ Implemented as the token created by `UNT3`. |

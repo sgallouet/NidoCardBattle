@@ -16,7 +16,8 @@ export type UnitDefinitionId =
   | 'banshee'
   | 'vampire'
   | 'wraith'
-  | 'graveKnight';
+  | 'graveKnight'
+  | 'invokedBeast';
 
 export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
   commander: {
@@ -82,5 +83,9 @@ export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
   graveKnight: {
     id: 'graveKnight', name: 'Grave Knight', faction: 'undead', cost: 5, maxHp: 5, attack: 3, move: 2, range: 1,
     traits: ['Blocking', 'Retaliates'], ability: 'Cleave', mark: 'K',
+  },
+  invokedBeast: {
+    id: 'invokedBeast', name: 'Invoked Beast', faction: 'undead', cost: 0, maxHp: 2, attack: 1, move: 2, range: 1,
+    traits: [], mark: 'I',
   },
 };

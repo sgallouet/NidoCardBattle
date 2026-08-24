@@ -169,6 +169,17 @@ describe('smart enemy AI', () => {
     expect(actions.some((action) => action.kind === 'displace' && action.targetId === 'human-guard')).toBe(true);
   });
 
+  it('retains UNT3 in the AI ability action family', () => {
+    const state = minimalAiTurnState();
+    state.units.push(makeUnit('undead-invoker', 'necromancer', 2, { q: 8, r: 5 }));
+
+    const selection = selectCandidateActions(state, 2, false);
+
+    expect(selection.stats.legalByKind.invoke).toBeGreaterThan(0);
+    expect(selection.stats.retainedByKind.invoke).toBeGreaterThan(0);
+    expect(selection.actions.some((action) => action.kind === 'invoke' && action.unitId === 'undead-invoker')).toBe(true);
+  });
+
   it('runs a shallow visible-board Human response search', () => {
     const state = createGameState(fixedRandom);
     endTurn(state, fixedRandom);

@@ -23,7 +23,7 @@ This file owns deck, hand, card-type, faction, and summoning rules.
 ## Unit Cards
 - **CRU1** - Unit Cards cost mana to play.
 - **CRU2** - A summoned unit must be placed on an eligible spawn destination.
-- **CRU3** - Eligible spawn destinations are an empty controlled Home Keep, controlled Fort, or Garrison linked to a controlled Fort, plus any free passable hex adjacent to a friendly unit with the **Invoker** trait. Grave Locked hexes are never eligible spawn destinations.
+- **CRU3** - Eligible spawn destinations are an empty controlled Home Keep, controlled Fort, or Garrison linked to a controlled Fort. Grave Locked hexes are never eligible spawn destinations.
 - **CRU4** - A summoned unit enters **Exhausted**.
 
 ## Tactic Cards

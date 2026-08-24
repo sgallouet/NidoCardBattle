@@ -118,14 +118,28 @@ def main() -> int:
         type=Path,
         default=REPOSITORY_ROOT / "assets/game/units/shadows/manifest.json",
     )
+    parser.add_argument(
+        "--unit",
+        action="append",
+        dest="unit_ids",
+        help="Bake only the named unit id. May be supplied more than once.",
+    )
     parser.add_argument("--preview", type=Path, help="Optional contact-sheet output for visual QA.")
     args = parser.parse_args()
     manifest = json.loads(args.manifest.resolve().read_text(encoding="utf-8"))
     defaults = manifest["defaults"]
-    for entry in manifest["units"]:
+    entries = manifest["units"]
+    if args.unit_ids:
+        requested = set(args.unit_ids)
+        known = {str(entry["id"]) for entry in entries}
+        unknown = sorted(requested - known)
+        if unknown:
+            raise ValueError(f"Unknown unit ids: {', '.join(unknown)}")
+        entries = [entry for entry in entries if str(entry["id"]) in requested]
+    for entry in entries:
         bake_shadow(entry, defaults)
     if args.preview:
-        create_preview(manifest["units"], defaults, args.preview.resolve())
+        create_preview(entries, defaults, args.preview.resolve())
     return 0
 
 

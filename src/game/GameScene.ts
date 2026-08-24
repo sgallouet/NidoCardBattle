@@ -59,10 +59,12 @@ import {
   getDisplaceDestinations,
   getDisplaceTargets,
   getGarrisonOwner,
+  getInvokeDestinations,
   getReachableCoords,
   getRestoreTargets,
   getValidSummonCoords,
   hexDistance,
+  invokeBeast,
   MAX_MANA,
   moveUnit,
   playUnitCard,
@@ -93,6 +95,8 @@ const TILE_ZOOM_STEP = 0.12;
 const DEFAULT_TILE_ZOOM_STEPS = 3;
 const TABLET_TILE_ZOOM_STEPS = 2;
 const COMPACT_TILE_ZOOM_STEPS = 1;
+const TABLET_INITIAL_ZOOM = TILE_MAP_MAX_ZOOM;
+const COMPACT_INITIAL_ZOOM = 1;
 const TABLET_VIEWPORT_MAX_WIDTH = 1150;
 const COMPACT_VIEWPORT_MAX_WIDTH = 700;
 const COMPACT_VIEWPORT_MAX_HEIGHT = 500;
@@ -140,7 +144,7 @@ const TERRAIN_PALETTES: Record<'cliff', number[]> = {
 };
 const cardDefinition = (id: CardDefinitionId) => CARD_DEFINITIONS[id];
 
-type InteractionMode = 'unit' | 'card' | 'displace-target' | 'displace-destination' | 'restore-target' | null;
+type InteractionMode = 'unit' | 'card' | 'displace-target' | 'displace-destination' | 'restore-target' | 'invoke-destination' | null;
 type SelectionFxMode = 'current' | 'premium';
 
 interface DragState {
@@ -258,6 +262,7 @@ export class GameScene extends Phaser.Scene {
     document.querySelector<HTMLButtonElement>('#end-turn-button')?.addEventListener('click', () => this.handleEndTurn());
     document.querySelector<HTMLButtonElement>('#cancel-button')?.addEventListener('click', () => this.cancelInteraction('Selection cleared.'));
     document.querySelector<HTMLButtonElement>('#ability-button')?.addEventListener('click', () => this.beginDisplace());
+    document.querySelector<HTMLButtonElement>('#invoke-button')?.addEventListener('click', () => this.beginInvoke());
     document.querySelector<HTMLButtonElement>('#zoom-in')?.addEventListener('click', () => this.zoomBy(TILE_ZOOM_STEP));
     document.querySelector<HTMLButtonElement>('#zoom-out')?.addEventListener('click', () => this.zoomBy(-TILE_ZOOM_STEP));
     document.querySelector<HTMLButtonElement>('#zoom-reset')?.addEventListener('click', () => this.resetCamera());
@@ -380,7 +385,11 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       this.game.canvas.classList.remove('dragging');
     });
 
-    this.scale.on(Phaser.Scale.Events.RESIZE, () => this.resetCamera());
+    this.scale.on(Phaser.Scale.Events.RESIZE, () => {
+      camera.setZoom(Phaser.Math.Clamp(camera.zoom, this.minZoom(), this.maxZoom()));
+      this.constrainCamera();
+      this.updateZoomLabel();
+    });
   }
 
   private resetCamera(): void {
@@ -394,18 +403,26 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       : viewportMode === 'tablet'
         ? TABLET_TILE_ZOOM_STEPS
         : DEFAULT_TILE_ZOOM_STEPS;
-    const zoom = this.useGeneratedMapPreview
+    const fittedZoom = this.useGeneratedMapPreview
       ? Phaser.Math.Clamp(generatedMapZoom, this.minZoom(), GENERATED_MAP_MAX_ZOOM)
       : Phaser.Math.Clamp(
         fit * 1.02 + TILE_ZOOM_STEP * defaultZoomSteps,
         this.minZoom(),
         TILE_MAP_MAX_ZOOM,
       );
+    const initialZoom = viewportMode === 'compact'
+      ? COMPACT_INITIAL_ZOOM
+      : viewportMode === 'tablet'
+        ? TABLET_INITIAL_ZOOM
+        : fittedZoom;
+    const zoom = this.useGeneratedMapPreview ? fittedZoom : Math.max(fittedZoom, initialZoom);
     const camera = this.cameras.main;
+    const localKeep = this.state.sites.find((site) => site.type === 'keep' && site.owner === 1);
+    const focus = localKeep ? this.center(localKeep.coord) : new Phaser.Math.Vector2(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
     camera.setZoom(zoom);
     camera.centerOn(
-      WORLD_WIDTH / 2,
-      WORLD_HEIGHT / 2 + this.bottomHudInset() / (zoom * 2),
+      viewportMode === 'desktop' ? WORLD_WIDTH / 2 : focus.x,
+      (viewportMode === 'desktop' ? WORLD_HEIGHT / 2 : focus.y) + this.bottomHudInset() / (zoom * 2),
     );
     this.constrainCamera();
     this.updateZoomLabel();
@@ -537,6 +554,10 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 
     if (this.mode === 'restore-target' && restoreSource) {
       for (const target of getRestoreTargets(this.state, restoreSource.id)) summon.add(coordKey(target.coord));
+    }
+
+    if (this.mode === 'invoke-destination' && selectedUnit) {
+      for (const coord of getInvokeDestinations(this.state, selectedUnit.id)) summon.add(coordKey(coord));
     }
     return { move, attack, summon, selected };
   }
@@ -730,6 +751,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
   }
 
   private summonHighlightKind(): TacticalHexFxKind {
+    if (this.mode === 'invoke-destination') return 'deploy';
     if (this.mode !== 'card' || this.selectedCardIndex === null) return 'spell';
     const cardId = this.state.players[this.state.currentPlayer].hand[this.selectedCardIndex];
     const card = cardId ? cardDefinition(cardId as CardDefinitionId) : undefined;
@@ -1183,6 +1205,12 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.sound.play(key, { volume });
   }
 
+  private async presentInvokedUnit(unitId: string): Promise<void> {
+    this.renderAll();
+    const unit = findUnit(this.state, unitId);
+    if (unit) this.playUnitSummon(unit.owner);
+  }
+
   playUnitDeath(owner: PlayerId, commander = false): void {
     if (commander) {
       this.sound.play(COMMANDER_DEATH_AUDIO_KEY, { volume: COMMANDER_DEATH_VOLUME });
@@ -1381,6 +1409,21 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     }
 
     const selected = this.selectedUnitId ? findUnit(this.state, this.selectedUnitId) : undefined;
+    if (this.mode === 'invoke-destination' && selected) {
+      const result = invokeBeast(this.state, selected.id, coord);
+      this.message = result.message;
+      if (!result.ok || !result.summonedUnitId) return this.renderAll();
+      this.mode = 'unit';
+      this.setAnimationLock(true);
+      try {
+        await this.presentInvokedUnit(result.summonedUnitId);
+      } finally {
+        this.setAnimationLock(false);
+        this.renderAll();
+      }
+      return;
+    }
+
     if (this.mode === 'displace-target' && selected) {
       if (!occupant || !getDisplaceTargets(this.state, selected.id).some((unit) => unit.id === occupant.id)) {
         this.message = 'Choose a highlighted adjacent unit.';
@@ -1480,6 +1523,18 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.mode = 'displace-target';
     this.displaceTargetId = null;
     this.message = 'Choose a highlighted adjacent unit to displace.';
+    this.renderAll();
+  }
+
+  private beginInvoke(): void {
+    if (this.animationInProgress) return;
+    const selected = this.selectedUnitId ? findUnit(this.state, this.selectedUnitId) : undefined;
+    if (!selected || getInvokeDestinations(this.state, selected.id).length === 0) {
+      this.message = 'No adjacent hex is available for an Invoked Beast.';
+      return this.renderAll();
+    }
+    this.mode = 'invoke-destination';
+    this.message = 'Choose a highlighted adjacent hex for the Invoked Beast.';
     this.renderAll();
   }
 
@@ -1588,6 +1643,20 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
         || selected.attacked
         || this.state.winner !== null
         || this.animationInProgress;
+    }
+
+    const invokeButton = document.querySelector<HTMLButtonElement>('#invoke-button');
+    if (invokeButton) {
+      const isInvoker = selected
+        && selected.owner === this.state.currentPlayer
+        && unitDefinition(selected).traits.includes('Invoker');
+      invokeButton.hidden = !isInvoker;
+      invokeButton.disabled = !isInvoker
+        || !selected
+        || getInvokeDestinations(this.state, selected.id).length === 0
+        || this.state.winner !== null
+        || this.animationInProgress;
+      invokeButton.setAttribute('aria-pressed', `${this.mode === 'invoke-destination'}`);
     }
 
     const endButton = document.querySelector<HTMLButtonElement>('#end-turn-button');

@@ -78,6 +78,7 @@ export interface ActionKindCounts {
   rally: number;
   soulLink: number;
   curse: number;
+  invoke: number;
 }
 
 export interface SearchPhaseDiagnostics {
@@ -291,6 +292,12 @@ const actionPriority = (state: GameState, action: AiAction, actor: PlayerId): nu
     return card.cost * 300 + proximity * 30 + restoreBonus;
   }
 
+  if (action.kind === 'invoke') {
+    const enemyCommander = commander(state, opponent);
+    const proximity = enemyCommander ? 12 - hexDistance(action.destination, enemyCommander.coord) : 0;
+    return 1_800 + proximity * 30;
+  }
+
   if (action.kind === 'move') {
     const unit = findUnit(state, action.unitId);
     if (!unit) return -100_000;
@@ -348,9 +355,10 @@ const emptyActionKindCounts = (): ActionKindCounts => ({
   rally: 0,
   soulLink: 0,
   curse: 0,
+  invoke: 0,
 });
 
-const abilityKinds = new Set<AiAction['kind']>(['displace', 'rally', 'soulLink', 'curse']);
+const abilityKinds = new Set<AiAction['kind']>(['displace', 'rally', 'soulLink', 'curse', 'invoke']);
 type ActionFamily = 'attacks' | 'abilities' | 'summons' | 'tactics' | 'moves';
 const actionFamily = (action: AiAction): ActionFamily => {
   if (action.kind === 'attack') return 'attacks';

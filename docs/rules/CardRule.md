@@ -3,7 +3,7 @@
 This file owns deck, hand, card-type, faction, and summoning rules.
 
 ## Deck
-- **CRD1** - Prototype faction deck size is **8 cards**.
+- **CRD1** - Prototype faction deck size is **10 cards**.
 - **CRD2** - A deck may contain at most 2 copies of the same card.
 - **CRD3** - When the deck is empty, shuffle the discard pile into a new deck.
 - **CRD4** - At New Game, the local player chooses the **Human** or **Undead** faction and the AI uses the other faction; each player draws from that faction's prebuilt deck, which may also contain Shared Tactic Cards under `CRD6`.
@@ -22,8 +22,8 @@ This file owns deck, hand, card-type, faction, and summoning rules.
 
 ## Unit Cards
 - **CRU1** - Unit Cards cost mana to play.
-- **CRU2** - A summoned unit must be placed directly on the hex of a friendly spawn source.
-- **CRU3** - Friendly spawn sources are controlled Home Keeps, controlled Forts, and Garrisons linked to controlled Forts; an occupied spawn source cannot summon a unit.
+- **CRU2** - A summoned unit must be placed on an eligible spawn destination.
+- **CRU3** - Eligible spawn destinations are an empty controlled Home Keep, controlled Fort, or Garrison linked to a controlled Fort, plus any free passable hex adjacent to a friendly unit with the **Invoker** trait. Grave Locked hexes are never eligible spawn destinations.
 - **CRU4** - A summoned unit enters **Exhausted**.
 
 ## Tactic Cards

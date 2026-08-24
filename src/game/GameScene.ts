@@ -94,9 +94,8 @@ const GENERATED_MAP_MAX_ZOOM = 6;
 const TILE_ZOOM_STEP = 0.12;
 const DEFAULT_TILE_ZOOM_STEPS = 3;
 const TABLET_TILE_ZOOM_STEPS = 2;
-const COMPACT_TILE_ZOOM_STEPS = 1;
+const COMPACT_TILE_ZOOM_STEPS = 4;
 const TABLET_INITIAL_ZOOM = TILE_MAP_MAX_ZOOM;
-const COMPACT_INITIAL_ZOOM = 1;
 const TABLET_VIEWPORT_MAX_WIDTH = 1150;
 const COMPACT_VIEWPORT_MAX_WIDTH = 700;
 const COMPACT_VIEWPORT_MAX_HEIGHT = 500;
@@ -410,11 +409,9 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
         this.minZoom(),
         TILE_MAP_MAX_ZOOM,
       );
-    const initialZoom = viewportMode === 'compact'
-      ? COMPACT_INITIAL_ZOOM
-      : viewportMode === 'tablet'
-        ? TABLET_INITIAL_ZOOM
-        : fittedZoom;
+    const initialZoom = viewportMode === 'tablet'
+      ? TABLET_INITIAL_ZOOM
+      : fittedZoom;
     const zoom = this.useGeneratedMapPreview ? fittedZoom : Math.max(fittedZoom, initialZoom);
     const camera = this.cameras.main;
     const localKeep = this.state.sites.find((site) => site.type === 'keep' && site.owner === 1);
@@ -466,9 +463,20 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     const bottomHudInset = this.bottomHudInset() / camera.zoom;
     const currentCenterX = camera.scrollX + halfVisibleWidth;
     const currentCenterY = camera.scrollY + halfVisibleHeight;
-    const centerX = halfVisibleWidth >= WORLD_WIDTH / 2
+    const keepCenterXs = this.viewportMode() === 'compact'
+      ? this.state.sites
+        .filter((site) => site.type === 'keep')
+        .map((site) => this.center(site.coord).x)
+      : [];
+    const minCenterX = keepCenterXs.length > 0
+      ? Math.min(halfVisibleWidth, Math.min(...keepCenterXs))
+      : halfVisibleWidth;
+    const maxCenterX = keepCenterXs.length > 0
+      ? Math.max(WORLD_WIDTH - halfVisibleWidth, Math.max(...keepCenterXs))
+      : WORLD_WIDTH - halfVisibleWidth;
+    const centerX = minCenterX >= maxCenterX
       ? WORLD_WIDTH / 2
-      : Phaser.Math.Clamp(currentCenterX, halfVisibleWidth, WORLD_WIDTH - halfVisibleWidth);
+      : Phaser.Math.Clamp(currentCenterX, minCenterX, maxCenterX);
     const mapTop = this.useGeneratedMapPreview ? (WORLD_HEIGHT - GENERATED_MAP_HEIGHT) / 2 : 0;
     const mapBottom = this.useGeneratedMapPreview ? mapTop + GENERATED_MAP_HEIGHT : WORLD_HEIGHT;
     const minCenterY = mapTop + halfVisibleHeight;

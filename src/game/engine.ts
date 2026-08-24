@@ -298,12 +298,16 @@ export const moveUnit = (state: GameState, unitId: string, destination: Coord): 
 
 export const effectiveRange = (unit: UnitState): number => {
   const definition = unitDefinition(unit);
-  return definition.range > 1 && terrainAt(unit.coord) === 'hill' ? definition.range + 1 : definition.range;
+  return definition.traits.includes('Ranged') && terrainAt(unit.coord) === 'hill'
+    ? definition.range + 1
+    : definition.range;
 };
 
 export const getAttackTargets = (state: GameState, unitId: string): UnitState[] => {
   const unit = findUnit(state, unitId);
   if (!unit || unit.owner !== state.currentPlayer || unit.exhausted || unit.attacked) return [];
+  const definition = unitDefinition(unit);
+  if (definition.traits.includes('SetShot') && (unit.movementSpent ?? 0) > 0) return [];
   const range = effectiveRange(unit);
   return state.units.filter((target) => target.owner !== unit.owner && hexDistance(unit.coord, target.coord) <= range);
 };
@@ -448,7 +452,7 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
     : [];
 
   attacker.attacked = true;
-  const dealt = dealDamage(state, defender, attackerDef.attack, attackerDef.range > 1, attacker.owner, {
+  const dealt = dealDamage(state, defender, attackerDef.attack, attackerDef.traits.includes('Ranged'), attacker.owner, {
     sourceUnitId: attacker.id,
     directAttack: true,
   });
@@ -491,7 +495,7 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
     const retaliation = attackerDef.traits.includes('AgileAssault')
       ? Math.ceil(defenderDef.attack * 0.5)
       : defenderDef.attack;
-    dealDamage(state, attackerAfterDamage, retaliation, defenderDef.range > 1, defenderAfterDamage.owner, {
+    dealDamage(state, attackerAfterDamage, retaliation, defenderDef.traits.includes('Ranged'), defenderAfterDamage.owner, {
       sourceUnitId: defenderAfterDamage.id,
       directAttack: true,
     });
@@ -623,7 +627,15 @@ export const getValidSummonCoords = (state: GameState, playerId: PlayerId = stat
       && !isGraveLocked(state, garrison.coord)
       && !unitAt(state, garrison.coord))
     .map((garrison) => ({ ...garrison.coord }));
-  return [...siteCoords, ...garrisonCoords];
+  const invokerCoords = state.units
+    .filter((unit) => unit.owner === playerId && unitDefinition(unit).traits.includes('Invoker'))
+    .flatMap((unit) => neighbors(unit.coord))
+    .filter((coord) => isPassableInState(state, coord)
+      && !isGraveLocked(state, coord)
+      && !unitAt(state, coord));
+  const unique = new Map<string, Coord>();
+  for (const coord of [...siteCoords, ...garrisonCoords, ...invokerCoords]) unique.set(coordKey(coord), coord);
+  return [...unique.values()];
 };
 
 export const getGarrisonOwner = (state: GameState, fortId: string): PlayerId | null =>
@@ -709,7 +721,7 @@ export const playUnitCard = (state: GameState, handIndex: number, destination: C
   if ('ok' in validation) return validation;
   if (validation.type !== 'unit') return { ok: false, message: 'That card does not summon a unit.' };
   if (!getValidSummonCoords(state).some((coord) => sameCoord(coord, destination))) {
-    return { ok: false, message: 'Choose an empty controlled Keep, Fort, or Garrison.' };
+    return { ok: false, message: 'Choose an eligible Keep, Fort, Garrison, or Invoker-adjacent hex.' };
   }
   const playerId = state.currentPlayer;
   state.players[playerId].mana -= validation.cost;

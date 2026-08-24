@@ -9,6 +9,7 @@ import {
   createGameState,
   curseUnit,
   effectiveMove,
+  effectiveRange,
   endTurn,
   getAttackTargets,
   getReachableCoords,
@@ -68,10 +69,10 @@ describe('faction rosters and decks', () => {
   });
 
   it('matches the agreed Human and Undead unit stats', () => {
-    expect(UNIT_DEFINITIONS.longbowRanger).toMatchObject({ maxHp: 1, attack: 1, range: 3, traits: ['Ranged', 'Assist'] });
-    expect(UNIT_DEFINITIONS.boneArcher).toMatchObject({ maxHp: 1, attack: 1, range: 3, traits: ['Ranged', 'Assist'] });
+    expect(UNIT_DEFINITIONS.longbowRanger).toMatchObject({ maxHp: 1, attack: 1, range: 3, traits: ['Ranged', 'Assist', 'SetShot'] });
+    expect(UNIT_DEFINITIONS.boneArcher).toMatchObject({ maxHp: 1, attack: 1, range: 3, traits: ['Ranged', 'Assist', 'SetShot'] });
     expect(UNIT_DEFINITIONS.silverwingCavalry).toMatchObject({ maxHp: 5, attack: 4, move: 4, traits: ['Flying', 'AgileAssault'] });
-    expect(UNIT_DEFINITIONS.necromancer).toMatchObject({ range: 3, traits: ['Ranged', 'Necromancy'], ability: 'Curse' });
+    expect(UNIT_DEFINITIONS.necromancer).toMatchObject({ range: 3, traits: ['Ranged', 'Necromancy', 'Invoker'], ability: 'Curse' });
     expect(UNIT_DEFINITIONS.graveKnight).toMatchObject({ maxHp: 5, attack: 3, ability: 'Cleave' });
     expect(UNIT_DEFINITIONS.vampire).toMatchObject({ maxHp: 4, attack: 3, move: 3, ability: 'BloodDrain' });
     expect(UNIT_DEFINITIONS.wraith).toMatchObject({ maxHp: 3, attack: 2, move: 4, traits: ['Phase'] });
@@ -79,21 +80,21 @@ describe('faction rosters and decks', () => {
     expect(UNIT_DEFINITIONS.windAdept).toMatchObject({ cost: 3, maxHp: 2, attack: 1, move: 3, range: 2, ability: 'Displace' });
   });
 
-  it('keeps both prototype faction decks at 8 legal cards', () => {
+  it('keeps both prototype faction decks at 10 legal cards and exposes every current unit', () => {
     for (const faction of ['human', 'undead'] as const) {
       const deck = FACTION_DECKS[faction];
-      expect(deck).toHaveLength(8);
+      expect(deck).toHaveLength(10);
       for (const cardId of new Set(deck)) {
         expect(deck.filter((candidate) => candidate === cardId).length).toBeLessThanOrEqual(2);
         expect([faction, 'shared']).toContain(CARD_DEFINITIONS[cardId].faction);
       }
     }
     expect(new Set(FACTION_DECKS.human)).toEqual(new Set([
-      'royalGuard', 'longbowRanger', 'silverwingCavalry', 'lightMage', 'bannerCaptain',
+      'royalGuard', 'longbowRanger', 'silverwingCavalry', 'lightMage', 'bannerCaptain', 'windAdept',
       'scorch', 'raiseFort', 'buildBridge',
     ]));
     expect(new Set(FACTION_DECKS.undead)).toEqual(new Set([
-      'skeletalInfantry', 'boneArcher', 'necromancer', 'vampire', 'graveKnight',
+      'skeletalInfantry', 'boneArcher', 'necromancer', 'banshee', 'vampire', 'wraith', 'graveKnight',
       'graveLock', 'profaneWell', 'buildBridge',
     ]));
   });
@@ -142,6 +143,14 @@ describe('map baseline', () => {
     expect(isPassable({ q: 8, r: 3 })).toBe(false);
     expect(terrainAt({ q: 5, r: 5 })).toBe('mountain');
     expect(isPassable({ q: 5, r: 5 })).toBe(false);
+  });
+
+  it('applies Hill range only to units with the Ranged trait', () => {
+    const ranger = makeUnit('ranger', 'longbowRanger', 1, { q: 6, r: 3 });
+    const mage = makeUnit('mage', 'lightMage', 1, { q: 6, r: 3 });
+    expect(terrainAt(ranger.coord)).toBe('hill');
+    expect(effectiveRange(ranger)).toBe(4);
+    expect(effectiveRange(mage)).toBe(2);
   });
 });
 
@@ -197,11 +206,11 @@ describe('Blocking, Flying and Phase', () => {
   });
 });
 
-describe('UNA1-UNA2 activation order', () => {
+describe('Set Shot activation', () => {
   it.each([
     ['longbowRanger', 1, 2],
     ['boneArcher', 2, 1],
-  ] as const)('keeps %s attack available after movement', (definitionId, owner, enemyOwner) => {
+  ] as const)('blocks %s normal attack after movement', (definitionId, owner, enemyOwner) => {
     const state = freshState();
     state.currentPlayer = owner;
     const archer = makeUnit('archer', definitionId, owner, { q: 3, r: 10 });
@@ -211,9 +220,19 @@ describe('UNA1-UNA2 activation order', () => {
     expect(moveUnit(state, archer.id, { q: 4, r: 9 }).ok).toBe(true);
     expect(archer.moved).toBe(true);
     expect(archer.attacked).toBe(false);
-    expect(getAttackTargets(state, archer.id).map((unit) => unit.id)).toContain(target.id);
-    expect(attackUnit(state, archer.id, target.id).ok).toBe(true);
-    expect(archer.attacked).toBe(true);
+    expect(getAttackTargets(state, archer.id)).toEqual([]);
+    expect(attackUnit(state, archer.id, target.id).ok).toBe(false);
+  });
+
+  it('still allows a moved archer to contribute Assist', () => {
+    const state = freshState();
+    const attacker = makeUnit('attacker', 'windAdept', 1, { q: 4, r: 6 });
+    const archer = makeUnit('archer', 'longbowRanger', 1, { q: 6, r: 6 }, { moved: true, movementSpent: 1 });
+    const defender = makeUnit('defender', 'necromancer', 2, { q: 5, r: 6 });
+    state.units = [attacker, archer, defender];
+
+    expect(attackUnit(state, attacker.id, defender.id).ok).toBe(true);
+    expect(defender.hp).toBe(1); // 1 primary + 2 rear Assist from the moved Ranger.
   });
 });
 
@@ -332,6 +351,17 @@ describe('Necromancer', () => {
     expect(raised?.exhausted).toBe(true);
   });
 
+  it('provides free adjacent spawn destinations through Invoker', () => {
+    const state = freshState();
+    state.currentPlayer = 2;
+    for (const site of state.sites) site.owner = null;
+    const necromancer = makeUnit('necro', 'necromancer', 2, { q: 4, r: 6 });
+    state.units = [necromancer];
+    const destinations = getValidSummonCoords(state, 2);
+    expect(destinations).toContainEqual({ q: 3, r: 6 });
+    expect(destinations).not.toContainEqual(necromancer.coord);
+  });
+
   it('Curse deals 1 damage at the end of the victim owner turn for 3 turns', () => {
     const state = freshState();
     state.currentPlayer = 2;
@@ -429,19 +459,20 @@ describe('existing summon, restore, capture and victory rules', () => {
     expect(state.turnNumber).toBe(startingTurn);
   });
 
-  it('starts with each Home Keep empty and immediately usable for summoning', () => {
+  it('starts with each Home Keep usable and exposes the starting Necromancer Invoker', () => {
     const state = freshState();
     const humanKeep = state.sites.find((site) => site.id === 'keep-1')!;
     const undeadKeep = state.sites.find((site) => site.id === 'keep-2')!;
 
-    expect(getValidSummonCoords(state, 1)).toEqual([humanKeep.coord]);
-    expect(getValidSummonCoords(state, 2)).toEqual([undeadKeep.coord]);
+    expect(getValidSummonCoords(state, 1)).toContainEqual(humanKeep.coord);
+    expect(getValidSummonCoords(state, 2)).toContainEqual(undeadKeep.coord);
+    expect(getValidSummonCoords(state, 2).length).toBeGreaterThan(1);
 
     state.players[1].hand = ['royalGuard'];
     expect(playUnitCard(state, 0, humanKeep.coord).ok).toBe(true);
   });
 
-  it('summons only on an empty controlled Keep, Fort, or linked Garrison', () => {
+  it('summons on empty controlled fixed spawn sources when no Invoker is present', () => {
     const state = freshState();
     const keep = state.sites.find((site) => site.id === 'keep-1')!;
     const fort = state.sites.find((site) => site.id === 'fort-north')!;

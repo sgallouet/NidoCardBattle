@@ -85,10 +85,17 @@ const GENERATED_MAP_TEXTURE_KEY = 'debug-generated-map-preview';
 const GENERATED_MAP_HEIGHT = 600;
 const GENERATED_MAP_VIEWPORT_HEIGHT_RATIO = 2;
 const MIN_ZOOM = 0.52;
+const TABLET_MIN_ZOOM = 0.42;
+const COMPACT_MIN_ZOOM = 0.3;
 const TILE_MAP_MAX_ZOOM = 1.25;
 const GENERATED_MAP_MAX_ZOOM = 6;
 const TILE_ZOOM_STEP = 0.12;
 const DEFAULT_TILE_ZOOM_STEPS = 3;
+const TABLET_TILE_ZOOM_STEPS = 2;
+const COMPACT_TILE_ZOOM_STEPS = 1;
+const TABLET_VIEWPORT_MAX_WIDTH = 1150;
+const COMPACT_VIEWPORT_MAX_WIDTH = 700;
+const COMPACT_VIEWPORT_MAX_HEIGHT = 500;
 const TOKEN_MOVEMENT_MS_PER_HEX = 190;
 const TOKEN_ATTACK_DURATION_MS = 500;
 const TOKEN_ATTACK_IMPACT_MS = 320;
@@ -317,7 +324,7 @@ export class GameScene extends Phaser.Scene {
       deltaY: number,
     ) => {
       const worldPoint = camera.getWorldPoint(pointer.x, pointer.y);
-      const zoom = Phaser.Math.Clamp(camera.zoom - deltaY * 0.0012, MIN_ZOOM, this.maxZoom());
+      const zoom = Phaser.Math.Clamp(camera.zoom - deltaY * 0.0012, this.minZoom(), this.maxZoom());
       camera.setZoom(zoom);
       camera.setScroll(worldPoint.x - pointer.x / zoom, worldPoint.y - pointer.y / zoom);
       this.constrainCamera();
@@ -377,13 +384,21 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
   }
 
   private resetCamera(): void {
-    const fit = Math.min(this.scale.width / (WORLD_WIDTH - 120), this.scale.height / (WORLD_HEIGHT - 100));
-    const generatedMapZoom = this.scale.height * GENERATED_MAP_VIEWPORT_HEIGHT_RATIO / GENERATED_MAP_HEIGHT;
+    const viewportMode = this.viewportMode();
+    const hudInset = viewportMode === 'desktop' ? 0 : this.bottomHudInset();
+    const usableHeight = Math.max(1, this.scale.height - hudInset);
+    const fit = Math.min(this.scale.width / (WORLD_WIDTH - 120), usableHeight / (WORLD_HEIGHT - 100));
+    const generatedMapZoom = usableHeight * GENERATED_MAP_VIEWPORT_HEIGHT_RATIO / GENERATED_MAP_HEIGHT;
+    const defaultZoomSteps = viewportMode === 'compact'
+      ? COMPACT_TILE_ZOOM_STEPS
+      : viewportMode === 'tablet'
+        ? TABLET_TILE_ZOOM_STEPS
+        : DEFAULT_TILE_ZOOM_STEPS;
     const zoom = this.useGeneratedMapPreview
-      ? Phaser.Math.Clamp(generatedMapZoom, MIN_ZOOM, GENERATED_MAP_MAX_ZOOM)
+      ? Phaser.Math.Clamp(generatedMapZoom, this.minZoom(), GENERATED_MAP_MAX_ZOOM)
       : Phaser.Math.Clamp(
-        fit * 1.02 + TILE_ZOOM_STEP * DEFAULT_TILE_ZOOM_STEPS,
-        MIN_ZOOM,
+        fit * 1.02 + TILE_ZOOM_STEP * defaultZoomSteps,
+        this.minZoom(),
         TILE_MAP_MAX_ZOOM,
       );
     const camera = this.cameras.main;
@@ -400,11 +415,27 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     return this.useGeneratedMapPreview ? GENERATED_MAP_MAX_ZOOM : TILE_MAP_MAX_ZOOM;
   }
 
+  private minZoom(): number {
+    const viewportMode = this.viewportMode();
+    if (viewportMode === 'compact') return COMPACT_MIN_ZOOM;
+    if (viewportMode === 'tablet') return TABLET_MIN_ZOOM;
+    return MIN_ZOOM;
+  }
+
+  private viewportMode(): 'compact' | 'tablet' | 'desktop' {
+    if (
+      this.scale.width <= COMPACT_VIEWPORT_MAX_WIDTH
+      || this.scale.height <= COMPACT_VIEWPORT_MAX_HEIGHT
+    ) return 'compact';
+    if (this.scale.width <= TABLET_VIEWPORT_MAX_WIDTH) return 'tablet';
+    return 'desktop';
+  }
+
   private zoomBy(change: number): void {
     const camera = this.cameras.main;
     const pointer = new Phaser.Math.Vector2(this.scale.width / 2, this.scale.height / 2);
     const worldPoint = camera.getWorldPoint(pointer.x, pointer.y);
-    const zoom = Phaser.Math.Clamp(camera.zoom + change, MIN_ZOOM, this.maxZoom());
+    const zoom = Phaser.Math.Clamp(camera.zoom + change, this.minZoom(), this.maxZoom());
     camera.setZoom(zoom);
     camera.setScroll(worldPoint.x - pointer.x / zoom, worldPoint.y - pointer.y / zoom);
     this.constrainCamera();

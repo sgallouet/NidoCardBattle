@@ -6,6 +6,7 @@ dist/
 !.env.example
 .DS_Store
 Thumbs.db
+.codex-remote-attachments/
 *.log
 reports/battle-logs/
 __pycache__/

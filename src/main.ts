@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
-import Wavedash from '@wvdsh/sdk-js';
+import type { WavedashSDK } from '@wvdsh/sdk-js';
 import './style.css';
 import './cardHitAreaFix.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
 import { StableInputGameScene } from './game/StableInputGameScene';
 
 type TileBorderMode = 'full' | 'half' | 'off';
+
+type WavedashWindow = Window & { Wavedash?: WavedashSDK };
 
 type GraphicsLineStyle = (
   this: Phaser.GameObjects.Graphics,
@@ -119,7 +121,7 @@ const game = new Phaser.Game({
     pixelArt: false,
   },
   callbacks: {
-    postBoot: () => Wavedash.init(),
+    postBoot: () => (window as WavedashWindow).Wavedash?.init(),
   },
 });
 

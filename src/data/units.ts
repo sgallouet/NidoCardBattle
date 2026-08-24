@@ -37,7 +37,7 @@ export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
   },
   longbowRanger: {
     id: 'longbowRanger', name: 'Longbow Ranger', faction: 'human', cost: 3, maxHp: 1, attack: 1, move: 2, range: 3,
-    traits: ['Ranged', 'Assist'], mark: 'L',
+    traits: ['Ranged', 'Assist', 'SetShot'], mark: 'L',
   },
   silverwingCavalry: {
     id: 'silverwingCavalry', name: 'Silverwing Cavalry', faction: 'human', cost: 6, maxHp: 5, attack: 4, move: 4, range: 1,
@@ -61,11 +61,11 @@ export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
   },
   boneArcher: {
     id: 'boneArcher', name: 'Bone Archer', faction: 'undead', cost: 3, maxHp: 1, attack: 1, move: 2, range: 3,
-    traits: ['Ranged', 'Assist'], mark: 'A',
+    traits: ['Ranged', 'Assist', 'SetShot'], mark: 'A',
   },
   necromancer: {
     id: 'necromancer', name: 'Necromancer', faction: 'undead', cost: 5, maxHp: 4, attack: 1, move: 2, range: 3,
-    traits: ['Ranged', 'Necromancy'], ability: 'Curse', mark: 'N',
+    traits: ['Ranged', 'Necromancy', 'Invoker'], ability: 'Curse', mark: 'N',
   },
   banshee: {
     id: 'banshee', name: 'Banshee', faction: 'undead', cost: 4, maxHp: 3, attack: 2, move: 3, range: 1,

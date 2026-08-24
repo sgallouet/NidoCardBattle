@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import Wavedash from '@wvdsh/sdk-js';
 import './style.css';
 import './cardHitAreaFix.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
@@ -116,6 +117,9 @@ const game = new Phaser.Game({
   render: {
     antialias: true,
     pixelArt: false,
+  },
+  callbacks: {
+    postBoot: () => Wavedash.init(),
   },
 });
 

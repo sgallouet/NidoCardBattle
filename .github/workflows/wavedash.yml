@@ -1,0 +1,28 @@
+name: Build Wavedash
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Install Wavedash CLI
+        run: curl -fsSL https://wavedash.com/cli/install.sh | sh
+
+      - name: Upload to Wavedash
+        run: wavedash build push -m "GitHub ${{ github.sha }}"
+        env:
+          WAVEDASH_TOKEN: ${{ secrets.WAVEDASH_TOKEN }}

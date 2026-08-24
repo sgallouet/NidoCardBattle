@@ -58,8 +58,8 @@ Human identity: formation, mobility, ranged support, and controlled repositionin
 | **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
 | **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
 | **HUR5** | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore | ✅ Implemented. |
-| **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | — | — | ✅ Implemented with placeholder visuals. |
-| **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | ✅ Implemented with placeholder visuals. |
+| **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | — | — | ✅ Implemented. |
+| **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | ✅ Implemented. |
 
 ## Undead Army
 
@@ -69,10 +69,10 @@ Undead identity: summoning, disruption, attrition, damage redirection, and punis
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
 | **UDR1** | Undead Commander | — | 10 | 3 | 2 | 1 | Blocking, Dark Reflection | Soul Link | ✅ Implemented. |
 | **UDR2** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking, Assist | — | ✅ Implemented. |
-| **UDR3** | Bone Archer | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented with placeholder visuals. |
+| **UDR3** | Bone Archer | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
 | **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Ranged, Necromancy, Invoker | Curse | ✅ Implemented. |
 | **UDR5** | Banshee | 4 | 3 | 2 | 3 | 1 | — | Displace | ✅ Implemented. |
-| **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | Flying | Blood Drain | ✅ Implemented with placeholder visuals. |
-| **UDR7** | Wraith | 4 | 3 | 2 | 4 | 1 | Phase | — | ✅ Implemented with placeholder visuals. |
+| **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | Flying | Blood Drain | ✅ Implemented. |
+| **UDR7** | Wraith | 4 | 3 | 2 | 4 | 1 | Phase | — | ✅ Implemented. |
 | **UDR8** | Grave Knight | 5 | 5 | 3 | 2 | 1 | Blocking, Retaliates | Cleave | ✅ Implemented. |
 | **UDR9** | Invoked Beast | — | 2 | 1 | 2 | 1 | — | — | ✅ Implemented as the token created by `UNT3`. |

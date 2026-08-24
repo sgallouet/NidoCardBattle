@@ -3,6 +3,7 @@ import { SPELL_UI, isActiveSpellId, type ActiveSpellId } from '../data/spellArt'
 import type { Coord, GameState, UnitState } from '../data/types';
 import {
   coordKey,
+  curseUnit,
   findUnit,
   getCurseTargets,
   getDisplaceDestinations,
@@ -10,6 +11,7 @@ import {
   getRallyTargets,
   getSoulLinkTargets,
   rallyAdjacentAllies,
+  soulLinkUnit,
   unitAt,
   unitDefinition,
 } from './engine';
@@ -69,9 +71,19 @@ export class SpellHud {
     this.game.highlights = () => {
       const highlight = originalHighlights();
       const selected = this.game.selectedUnitId ? findUnit(this.game.state, this.game.selectedUnitId) : undefined;
-      if (this.game.mode === 'rally-target' && selected) {
+      if (!selected) return highlight;
+
+      if (this.game.mode === 'rally-target') {
         for (const target of getRallyTargets(this.game.state, selected.id)) {
           highlight.summon.add(coordKey(target.coord));
+        }
+      } else if (this.game.mode === 'soul-link-target') {
+        for (const target of getSoulLinkTargets(this.game.state, selected.id)) {
+          highlight.summon.add(coordKey(target.coord));
+        }
+      } else if (this.game.mode === 'curse-target') {
+        for (const target of getCurseTargets(this.game.state, selected.id)) {
+          highlight.attack.add(coordKey(target.coord));
         }
       }
       return highlight;
@@ -87,6 +99,26 @@ export class SpellHud {
           this.game.message = 'Choose a highlighted ally, or tap Rally again to cast.';
           this.game.renderAll();
         }
+        return;
+      }
+      if (this.game.mode === 'soul-link-target' && selected) {
+        const occupant = unitAt(this.game.state, coord);
+        const result = occupant
+          ? soulLinkUnit(this.game.state, selected.id, occupant.id)
+          : { ok: false, message: 'Choose a highlighted adjacent Undead ally.' };
+        this.game.message = result.message;
+        if (result.ok) this.game.mode = 'unit';
+        this.game.renderAll();
+        return;
+      }
+      if (this.game.mode === 'curse-target' && selected) {
+        const occupant = unitAt(this.game.state, coord);
+        const result = occupant
+          ? curseUnit(this.game.state, selected.id, occupant.id)
+          : { ok: false, message: 'Choose a highlighted enemy within Curse range.' };
+        this.game.message = result.message;
+        if (result.ok) this.game.mode = 'unit';
+        this.game.renderAll();
         return;
       }
       await originalHandleHexClick(coord);
@@ -162,6 +194,32 @@ export class SpellHud {
       }
       this.game.mode = 'rally-target';
       this.game.message = 'Rally will affect the highlighted allies.';
+      this.game.renderAll();
+      return;
+    }
+
+    if (ability === 'SoulLink') {
+      const targets = getSoulLinkTargets(this.game.state, selected.id);
+      if (targets.length === 0) {
+        this.game.message = 'No adjacent Undead ally can receive Soul Link.';
+        this.game.renderAll();
+        return;
+      }
+      this.game.mode = 'soul-link-target';
+      this.game.message = 'Choose a highlighted adjacent Undead ally for Soul Link.';
+      this.game.renderAll();
+      return;
+    }
+
+    if (ability === 'Curse') {
+      const targets = getCurseTargets(this.game.state, selected.id);
+      if (targets.length === 0) {
+        this.game.message = 'No enemy is within Curse range.';
+        this.game.renderAll();
+        return;
+      }
+      this.game.mode = 'curse-target';
+      this.game.message = 'Choose a highlighted enemy to Curse.';
       this.game.renderAll();
       return;
     }

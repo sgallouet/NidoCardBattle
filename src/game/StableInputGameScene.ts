@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { AnimatedPrototypeGameScene } from './AnimatedPrototypeGameScene';
+import './TouchCardPolish.css';
 
 interface StableDragState {
   pointerId: number;
@@ -188,17 +189,103 @@ export class StableInputGameScene extends AnimatedPrototypeGameScene {
 
         event.preventDefault();
         event.stopPropagation();
+
+        if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+          this.beginTouchCardInteraction(button, surface, event, () => internals.selectCard(index));
+          return;
+        }
+
         internals.selectCard(index);
       });
 
       // GameScene already owns the native button click for keyboard accessibility.
-      // Suppress only mouse/touch synthesized clicks because pointer-down above already
-      // selected the card; otherwise the later click can toggle the fresh selection off.
+      // Suppress only mouse/touch synthesized clicks because pointer input already
+      // selected the card; keyboard activation still reaches the normal click path.
       button.addEventListener('click', (event) => {
         if (event.detail === 0) return;
         event.preventDefault();
         event.stopImmediatePropagation();
       }, true);
     }
+  }
+
+  private beginTouchCardInteraction(
+    button: HTMLButtonElement,
+    surface: HTMLElement,
+    initialEvent: PointerEvent,
+    select: () => void,
+  ): void {
+    const pointerId = initialEvent.pointerId;
+    let finished = false;
+
+    const updateTilt = (event: PointerEvent): void => {
+      if (event.pointerId !== pointerId) return;
+      const rect = surface.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+      const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
+      button.style.setProperty('--tilt-x', `${(0.5 - y) * 16}deg`);
+      button.style.setProperty('--tilt-y', `${(x - 0.5) * 20}deg`);
+      button.style.setProperty('--shine-x', `${x * 100}%`);
+      button.style.setProperty('--shine-y', `${y * 100}%`);
+      button.style.setProperty('--holo-x', `${(1 - x) * 100}%`);
+      button.style.setProperty('--holo-y', `${(1 - y) * 100}%`);
+    };
+
+    const resetTilt = (): void => {
+      button.style.setProperty('--tilt-x', '0deg');
+      button.style.setProperty('--tilt-y', '0deg');
+      button.style.setProperty('--shine-x', '50%');
+      button.style.setProperty('--shine-y', '50%');
+      button.style.setProperty('--holo-x', '50%');
+      button.style.setProperty('--holo-y', '50%');
+    };
+
+    const cleanup = (): void => {
+      surface.removeEventListener('pointermove', handleMove);
+      surface.removeEventListener('pointerup', handleUp);
+      surface.removeEventListener('pointercancel', handleCancel);
+      button.classList.remove('touch-hover');
+      resetTilt();
+      try {
+        if (surface.hasPointerCapture(pointerId)) surface.releasePointerCapture(pointerId);
+      } catch {
+        // Pointer capture may already have been released by the browser.
+      }
+    };
+
+    const finish = (shouldSelect: boolean): void => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      if (shouldSelect) select();
+    };
+
+    const handleMove = (event: PointerEvent): void => {
+      if (event.pointerId !== pointerId) return;
+      event.preventDefault();
+      updateTilt(event);
+    };
+    const handleUp = (event: PointerEvent): void => {
+      if (event.pointerId !== pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      finish(true);
+    };
+    const handleCancel = (event: PointerEvent): void => {
+      if (event.pointerId !== pointerId) return;
+      finish(false);
+    };
+
+    button.classList.add('touch-hover');
+    updateTilt(initialEvent);
+    try {
+      surface.setPointerCapture(pointerId);
+    } catch {
+      // Pointer capture is optional; the interaction still works without it.
+    }
+    surface.addEventListener('pointermove', handleMove, { passive: false });
+    surface.addEventListener('pointerup', handleUp, { passive: false });
+    surface.addEventListener('pointercancel', handleCancel);
   }
 }

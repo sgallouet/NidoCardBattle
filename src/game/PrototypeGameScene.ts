@@ -7,6 +7,10 @@ import {
   type ActionReadabilitySceneInternals,
 } from './ActionReadability';
 import { AuthoredMapPresentation } from './AuthoredMapPresentation';
+import {
+  CapturePresentation,
+  type CapturePresentationSceneInternals,
+} from './CapturePresentation';
 import { FactionCursor, type FactionCursorSceneInternals } from './FactionCursor';
 import { PersistentAiGameScene } from './PersistentAiGameScene';
 import { SpellHud, type SpellHudSceneInternals } from './SpellHud';
@@ -24,7 +28,8 @@ interface PrototypeSceneInternals
   ActionReadabilitySceneInternals,
   SpellHudSceneInternals,
   FactionCursorSceneInternals,
-  UnitInteractionSceneInternals {
+  UnitInteractionSceneInternals,
+  CapturePresentationSceneInternals {
   state: GameState;
   boardLayer?: Phaser.GameObjects.Container;
   renderedUnits: Map<string, { container: Phaser.GameObjects.Container }>;
@@ -42,6 +47,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
   private readability?: TacticalReadabilityLayer;
   private actionReadability?: ActionReadabilityLayer;
   private unitInteraction?: UnitInteractionPolish;
+  private capturePresentation?: CapturePresentation;
   private spellHud?: SpellHud;
   private factionCursor?: FactionCursor;
   private authoredMap?: AuthoredMapPresentation;
@@ -60,6 +66,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
     this.readability = new TacticalReadabilityLayer(this, scene);
     this.actionReadability = new ActionReadabilityLayer(this, scene);
     this.unitInteraction = new UnitInteractionPolish(this, scene);
+    this.capturePresentation = new CapturePresentation(this, scene);
 
     scene.renderAll = () => {
       originalRenderAll();
@@ -67,16 +74,19 @@ export class PrototypeGameScene extends PersistentAiGameScene {
       this.renderTacticPlaceholders(scene);
       this.readability?.render();
       this.actionReadability?.render();
+      this.capturePresentation?.render();
       this.unitInteraction?.render();
     };
 
     this.readability.install();
     this.actionReadability.install();
     this.unitInteraction.install();
+    this.capturePresentation.install();
     this.events.once('shutdown', () => {
       this.readability = undefined;
       this.actionReadability = undefined;
       this.unitInteraction = undefined;
+      this.capturePresentation = undefined;
       this.spellHud = undefined;
       this.factionCursor = undefined;
       this.authoredMap = undefined;

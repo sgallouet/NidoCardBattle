@@ -14,12 +14,17 @@ import {
   TacticalReadabilityLayer,
   type TacticalSceneInternals,
 } from './TacticalReadability';
+import {
+  UnitInteractionPolish,
+  type UnitInteractionSceneInternals,
+} from './UnitInteractionPolish';
 
 interface PrototypeSceneInternals
   extends TacticalSceneInternals,
   ActionReadabilitySceneInternals,
   SpellHudSceneInternals,
-  FactionCursorSceneInternals {
+  FactionCursorSceneInternals,
+  UnitInteractionSceneInternals {
   state: GameState;
   boardLayer?: Phaser.GameObjects.Container;
   renderedUnits: Map<string, { container: Phaser.GameObjects.Container }>;
@@ -36,6 +41,7 @@ const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x55b9f3, 2: 0xf05b67 };
 export class PrototypeGameScene extends PersistentAiGameScene {
   private readability?: TacticalReadabilityLayer;
   private actionReadability?: ActionReadabilityLayer;
+  private unitInteraction?: UnitInteractionPolish;
   private spellHud?: SpellHud;
   private factionCursor?: FactionCursor;
   private authoredMap?: AuthoredMapPresentation;
@@ -53,6 +59,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
     const originalRenderAll = scene.renderAll.bind(this);
     this.readability = new TacticalReadabilityLayer(this, scene);
     this.actionReadability = new ActionReadabilityLayer(this, scene);
+    this.unitInteraction = new UnitInteractionPolish(this, scene);
 
     scene.renderAll = () => {
       originalRenderAll();
@@ -60,13 +67,16 @@ export class PrototypeGameScene extends PersistentAiGameScene {
       this.renderTacticPlaceholders(scene);
       this.readability?.render();
       this.actionReadability?.render();
+      this.unitInteraction?.render();
     };
 
     this.readability.install();
     this.actionReadability.install();
+    this.unitInteraction.install();
     this.events.once('shutdown', () => {
       this.readability = undefined;
       this.actionReadability = undefined;
+      this.unitInteraction = undefined;
       this.spellHud = undefined;
       this.factionCursor = undefined;
       this.authoredMap = undefined;

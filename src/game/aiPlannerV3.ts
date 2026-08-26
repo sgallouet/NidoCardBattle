@@ -98,7 +98,6 @@ const nowMs = (): number => typeof performance !== 'undefined' ? performance.now
 const cloneState = (state: GameState): GameState => structuredClone(state);
 const opponentOf = (player: PlayerId): PlayerId => player === 1 ? 2 : 1;
 const sameCoord = (left: Coord, right: Coord): boolean => left.q === right.q && left.r === right.r;
-const clamp = (value: number, minimum: number, maximum: number): number => Math.max(minimum, Math.min(maximum, value));
 const emptyCounts = (): ActionKindCounts => ({ summon: 0, tactic: 0, move: 0, attack: 0, displace: 0, rally: 0, soulLink: 0, curse: 0, invoke: 0 });
 const emptyDiagnostics = (): SearchPhaseDiagnostics => ({ nodes: 0, stopReason: 'complete', legalActions: 0, retainedActions: 0, legalByKind: emptyCounts(), retainedByKind: emptyCounts() });
 const createBudget = (maxNodes: number, maxMs: number): Budget => ({ deadline: nowMs() + maxMs, maxNodes, nodes: 0, stopReason: 'complete', legalActions: 0, retainedActions: 0, legalByKind: emptyCounts(), retainedByKind: emptyCounts() });
@@ -216,10 +215,11 @@ const doctrineUrgency = (state: GameState, actor: PlayerId, doctrine: PlannerV3D
   const ownDanger = approximateIncomingDamage(state, enemy, ownCommander);
   const enemyHp = enemyCommander?.hp ?? 0;
   const deploymentEmergency = freeDeploymentSites(state, actor) === 0 && playableUnitCards(state, actor) > 0;
+  const blockedDeployments = blockedDeploymentSites(state, actor);
   const siteDeficit = siteControlValue(state, enemy) - siteControlValue(state, actor);
   switch (doctrine) {
     case 'assassinate': return (enemyHp <= 5 ? 20 : 4) + Math.max(0, 8 - enemyHp) * 2;
-    case 'deployment-tempo': return deploymentEmergency ? 28 : state.players[actor].mana >= 5 ? 10 : 3;
+    case 'deployment-tempo': return deploymentEmergency ? 28 : state.players[actor].mana >= 5 ? 10 + blockedDeployments * 3 : 3 + blockedDeployments * 3;
     case 'objective-rush': return 7 + Math.max(0, siteDeficit) * 2;
     case 'attrition': return 6 + Math.max(0, lethalExposureValue(state, enemy) / 350);
     case 'fortress': return ownDanger >= (ownCommander?.hp ?? 10) ? 30 : ownDanger > 0 ? 16 : 3;
@@ -313,7 +313,7 @@ const doctrineActionBias = (state: GameState, actor: PlayerId, action: AiAction,
         if (unit) return (nearestObjectiveDistance(state, actor, unit)
           - Math.min(12, ...state.sites.filter((site) => site.owner !== actor).map((site) => hexDistance(action.destination, site.coord)))) * 1_500;
       }
-      if (action.kind === 'raiseFort') return 8_000;
+      if (action.kind === 'tactic' && action.cardId === 'raiseFort') return 8_000;
       return 0;
     case 'attrition':
       if (action.kind === 'attack') {
@@ -348,7 +348,7 @@ const doctrineActionBias = (state: GameState, actor: PlayerId, action: AiAction,
           : 0;
         return mobility * 700 + approach * 900;
       }
-      if (action.kind === 'buildBridge') return 12_000;
+      if (action.kind === 'tactic' && action.cardId === 'buildBridge') return 12_000;
       if (action.kind === 'displace') return 7_000;
       return 0;
     case 'ability-combo':
@@ -524,7 +524,6 @@ const auditCandidate = (
   initial: GameState,
   candidate: DoctrineCandidate,
   perspective: PlayerId,
-  options: Required<AiSearchOptions>,
   budget: Budget,
 ): AuditedCandidate => {
   const responder = opponentOf(perspective);
@@ -635,7 +634,7 @@ export const planAiTurnV3 = (state: GameState, overrides: AiSearchOptions = {}):
   let responseSequencesChecked = 0;
   for (const candidate of candidates) {
     const budget = createBudget(perCandidateNodes, perCandidateMs);
-    const result = auditCandidate(state, candidate, actor, options, budget);
+    const result = auditCandidate(state, candidate, actor, budget);
     audited.push(result);
     responseSequencesChecked += result.responseSequencesChecked;
     mergeDiagnostics(tacticalDiagnostics, diagnosticsOf(budget));

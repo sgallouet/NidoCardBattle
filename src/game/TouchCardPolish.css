@@ -1,0 +1,36 @@
+.card.touch-hover:not(:disabled) {
+  z-index: 14;
+}
+
+.card.touch-hover:not(:disabled) .card-surface {
+  box-shadow:
+    0 18px 32px #000e,
+    0 0 0 2px #fff1a680,
+    0 0 20px #5bd2ff70;
+  transform: perspective(850px) translateY(-28px) scale(1.06)
+    rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+}
+
+.hand.targeting .card.touch-hover:not(:disabled) .card-surface {
+  transform: perspective(850px) translateY(-10px) scale(1.04)
+    rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+}
+
+.card.touch-hover:not(:disabled) .card-holo { opacity: .52; }
+.card.touch-hover:not(:disabled) .card-glare { opacity: .72; }
+.card[data-holo-style="cosmos"].touch-hover:not(:disabled) .card-holo { opacity: .62; }
+.card[data-holo-style="cosmos"].touch-hover:not(:disabled) .card-glare { opacity: .66; }
+.card[data-holo-style="radiant"].touch-hover:not(:disabled) .card-holo { opacity: .58; }
+.card[data-holo-style="radiant"].touch-hover:not(:disabled) .card-glare { opacity: .62; }
+.card[data-holo-style="reverse"].touch-hover:not(:disabled) .card-holo { opacity: .5; }
+.card[data-holo-style="reverse"].touch-hover:not(:disabled) .card-glare { opacity: .6; }
+
+/* A selected card should keep a little of the premium foil response on touch devices.
+   Mouse users still get the stronger live hover driven by pointer position. */
+@media (pointer: coarse) {
+  .card.selected:not(:disabled) .card-holo { opacity: .42; }
+  .card.selected:not(:disabled) .card-glare { opacity: .34; }
+  .card[data-holo-style="cosmos"].selected:not(:disabled) .card-holo { opacity: .48; }
+  .card[data-holo-style="radiant"].selected:not(:disabled) .card-holo { opacity: .46; }
+  .card[data-holo-style="reverse"].selected:not(:disabled) .card-holo { opacity: .4; }
+}

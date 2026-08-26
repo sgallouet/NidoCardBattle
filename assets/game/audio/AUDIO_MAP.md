@@ -17,6 +17,7 @@ This file is the runtime audio contract and acceptance registry. Generated candi
 | `combat-hit-melee` | `sfx/combat-hit-melee.mp3` | A close-range attack or retaliation reaches its visual impact after successfully dealing damage. | impact | 0.85 | Animation-serialized / pool 1 | Adapted from WorldXplore `crit-crack.mp3`; user approved 2026-08-23. |
 | `combat-hit-ranged` | `sfx/combat-hit-ranged.mp3` | A ranged attack or retaliation reaches its visual impact after successfully dealing damage. | impact | 0.78 | Animation-serialized / pool 1 | Stable Audio candidate A; user approved 2026-08-23. |
 | `combat-retaliation` | `sfx/combat-retaliation.mp3` | A defender begins a valid retaliation after the initiating attack successfully deals damage. | impact | 0.58 | Animation-serialized / pool 1 | Adapted from WorldXplore `sword-draw.mp3`; user approved 2026-08-23. |
+| `site-capture` | `sfx/site-capture.mp3` | One or more existing site owners change during the active player's end-turn `MPC1`–`MPC3` capture resolution. | sting | 0.68 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `build-place.mp3`; one cue per capture group; user approved 2026-08-26. |
 | `unit-death-human` | `sfx/unit-death-human.mp3` | A Human unit's zero-HP removal reaches its death animation. | impact | 0.70 | Animation-serialized / pool 1 | De-clipped and converted from WorldXplore runtime `heavy-stomp.wav`; user approved 2026-08-23. |
 | `unit-death-undead` | `sfx/unit-death-undead.mp3` | An Undead unit's zero-HP removal reaches its death animation. | impact | 0.74 | Animation-serialized / pool 1 | Converted from WorldXplore runtime `bone-break.wav`; user approved 2026-08-23. |
 | `unit-summon-human` | `sfx/unit-summon-human.mp3` | A Human unit is successfully created from a unit card. | sting | 0.72 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-confirm.mp3`; user approved 2026-08-23. |
@@ -24,6 +25,7 @@ This file is the runtime audio contract and acceptance registry. Generated candi
 | `turn-end` | `sfx/turn-end.mp3` | End Turn succeeds and control is handed to the other player. | ui | 0.52 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-select.mp3`; user approved 2026-08-23. |
 | `ui-card-draw` | `sfx/ui-card-draw.mp3` | A card is successfully added to the newly active player's hand. | ui | 0.58 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `ui-paper-slide.wav`; user approved 2026-08-23. |
 | `ui-card-play` | `sfx/ui-card-play.mp3` | A successful card play removes its card from the active player's hand. | ui | 0.62 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-paper-full.mp3`; user approved 2026-08-23. |
+| `victory-countdown` | `sfx/victory-countdown.mp3` | An existing `GRV2` countdown advances by one end-turn checkpoint. | ui | 0.72 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `thunder-distant.mp3`; user approved 2026-08-26. |
 | `tactic-build-bridge` | `sfx/tactic-build-bridge.mp3` | Build Bridge successfully adds a built bridge. | sting | 0.66 | Action-serialized / pool 1 | Converted from WorldXplore runtime `tree-fall.wav`; user approved 2026-08-23. |
 | `tactic-grave-lock` | `sfx/tactic-grave-lock.mp3` | Grave Lock successfully creates its tile effect. | ui | 0.68 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-click-sharp-full.mp3`; user approved 2026-08-23. |
 | `tactic-profane-well-complete` | `sfx/tactic-profane-well-complete.mp3` | A pending Profane Well becomes an actual Mana Well under `CRC8`. | sting | 0.72 | Turn-serialized / pool 1 | Stable Audio candidate B; user approved 2026-08-23. |
@@ -41,8 +43,6 @@ These are generation/integration targets, not accepted files. Do not add runtime
 | Event ID | Exact trigger | Sound direction | Generation notes |
 | --- | --- | --- | --- |
 | `unit-move-step` | A rendered unit reaches a movement path hex after leaving its source hex. | Soft compact terrain-neutral movement tick. | Low volume; cooldown/pool required. |
-| `site-capture` | A site owner actually changes during capture resolution. | Positive tactical claim chime. | Same sound for either faction initially. |
-| `victory-countdown` | A surviving Commander's victory checkpoint count advances. | Rising short tension pulse. | One sound can be pitch/volume varied in code later. |
 | `match-victory` | `winner` changes from null to a player ID. | Short triumphant end-match sting. | Music-length celebration comes later. |
 
 ### P0 — tactic cards

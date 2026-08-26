@@ -52,8 +52,10 @@ interface GameSceneInternals {
   playTacticSound: (cardId: CardDefinitionId) => void;
   playProfaneWellComplete: () => void;
   playProfaneWellTick: () => void;
+  playSiteCapture: () => void;
   playTurnEnd: () => void;
   playUnitDeath: (owner: PlayerId, commander?: boolean) => void;
+  playVictoryCountdown: () => void;
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
   recordAiPlan: (plan: AiPlan) => void;
   beginAiAction: () => void;
@@ -370,10 +372,16 @@ export class AiGameScene extends GameScene {
       const nextHandSize = scene.state.players[nextPlayer].hand.length;
       const pendingWellsBefore = new Map(scene.state.pendingManaWells.map((well) => [well.id, well.remainingTurns]));
       const commandersBefore = scene.state.units.filter((unit) => unit.definitionId === 'commander');
+      const siteOwnersBefore = new Map(scene.state.sites.map((site) => [site.id, site.owner]));
+      const countdownBefore = scene.state.countdown ? { ...scene.state.countdown } : null;
       scene.beginAiAction();
       const result = endTurn(scene.state);
       scene.recordAiAction(endingPlayer, { kind: 'endTurn' }, result);
       if (result.ok) {
+        const siteCaptured = scene.state.sites.some(
+          (site) => siteOwnersBefore.has(site.id) && site.owner !== siteOwnersBefore.get(site.id),
+        );
+        if (siteCaptured) scene.playSiteCapture();
         const deadCommander = commandersBefore.find((commander) => !findUnit(scene.state, commander.id));
         if (deadCommander) scene.playUnitDeath(deadCommander.owner, true);
         const profaneWellTicked = scene.state.pendingManaWells.some(
@@ -384,6 +392,10 @@ export class AiGameScene extends GameScene {
         );
         if (profaneWellTicked) scene.playProfaneWellTick();
         if (profaneWellCompleted) scene.playProfaneWellComplete();
+        const countdownAdvanced = countdownBefore
+          && scene.state.countdown?.player === countdownBefore.player
+          && scene.state.countdown.checkpoints > countdownBefore.checkpoints;
+        if (countdownAdvanced) scene.playVictoryCountdown();
         if (scene.state.currentPlayer !== endingPlayer) {
           scene.playTurnEnd();
           if (scene.state.players[nextPlayer].hand.length > nextHandSize) scene.playCardDraw();

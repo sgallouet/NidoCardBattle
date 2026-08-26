@@ -4,6 +4,7 @@ import combatAssistUrl from '../../assets/game/audio/sfx/combat-assist.mp3?url';
 import combatHitMeleeUrl from '../../assets/game/audio/sfx/combat-hit-melee.mp3?url';
 import combatHitRangedUrl from '../../assets/game/audio/sfx/combat-hit-ranged.mp3?url';
 import combatRetaliationUrl from '../../assets/game/audio/sfx/combat-retaliation.mp3?url';
+import siteCaptureUrl from '../../assets/game/audio/sfx/site-capture.mp3?url';
 import unitDeathHumanUrl from '../../assets/game/audio/sfx/unit-death-human.mp3?url';
 import unitDeathUndeadUrl from '../../assets/game/audio/sfx/unit-death-undead.mp3?url';
 import unitSummonHumanUrl from '../../assets/game/audio/sfx/unit-summon-human.mp3?url';
@@ -11,6 +12,7 @@ import unitSummonUndeadUrl from '../../assets/game/audio/sfx/unit-summon-undead.
 import turnEndUrl from '../../assets/game/audio/sfx/turn-end.mp3?url';
 import uiCardDrawUrl from '../../assets/game/audio/sfx/ui-card-draw.mp3?url';
 import uiCardPlayUrl from '../../assets/game/audio/sfx/ui-card-play.mp3?url';
+import victoryCountdownUrl from '../../assets/game/audio/sfx/victory-countdown.mp3?url';
 import tacticBuildBridgeUrl from '../../assets/game/audio/sfx/tactic-build-bridge.mp3?url';
 import tacticGraveLockUrl from '../../assets/game/audio/sfx/tactic-grave-lock.mp3?url';
 import tacticProfaneWellCompleteUrl from '../../assets/game/audio/sfx/tactic-profane-well-complete.mp3?url';
@@ -113,6 +115,8 @@ const COMBAT_HIT_RANGED_AUDIO_KEY = 'combat-hit-ranged';
 const COMBAT_HIT_RANGED_VOLUME = 0.78;
 const COMBAT_RETALIATION_AUDIO_KEY = 'combat-retaliation';
 const COMBAT_RETALIATION_VOLUME = 0.58;
+const SITE_CAPTURE_AUDIO_KEY = 'site-capture';
+const SITE_CAPTURE_VOLUME = 0.68;
 const UNIT_DEATH_HUMAN_AUDIO_KEY = 'unit-death-human';
 const UNIT_DEATH_HUMAN_VOLUME = 0.7;
 const UNIT_DEATH_UNDEAD_AUDIO_KEY = 'unit-death-undead';
@@ -127,6 +131,8 @@ const UI_CARD_DRAW_AUDIO_KEY = 'ui-card-draw';
 const UI_CARD_DRAW_VOLUME = 0.58;
 const UI_CARD_PLAY_AUDIO_KEY = 'ui-card-play';
 const UI_CARD_PLAY_VOLUME = 0.62;
+const VICTORY_COUNTDOWN_AUDIO_KEY = 'victory-countdown';
+const VICTORY_COUNTDOWN_VOLUME = 0.72;
 const TACTIC_PROFANE_WELL_COMPLETE_AUDIO_KEY = 'tactic-profane-well-complete';
 const TACTIC_PROFANE_WELL_COMPLETE_VOLUME = 0.72;
 const TACTIC_PROFANE_WELL_TICK_AUDIO_KEY = 'tactic-profane-well-tick';
@@ -230,6 +236,7 @@ export class GameScene extends Phaser.Scene {
     this.load.audio(COMBAT_HIT_MELEE_AUDIO_KEY, combatHitMeleeUrl);
     this.load.audio(COMBAT_HIT_RANGED_AUDIO_KEY, combatHitRangedUrl);
     this.load.audio(COMBAT_RETALIATION_AUDIO_KEY, combatRetaliationUrl);
+    this.load.audio(SITE_CAPTURE_AUDIO_KEY, siteCaptureUrl);
     this.load.audio(UNIT_DEATH_HUMAN_AUDIO_KEY, unitDeathHumanUrl);
     this.load.audio(UNIT_DEATH_UNDEAD_AUDIO_KEY, unitDeathUndeadUrl);
     this.load.audio(UNIT_SUMMON_HUMAN_AUDIO_KEY, unitSummonHumanUrl);
@@ -237,6 +244,7 @@ export class GameScene extends Phaser.Scene {
     this.load.audio(TURN_END_AUDIO_KEY, turnEndUrl);
     this.load.audio(UI_CARD_DRAW_AUDIO_KEY, uiCardDrawUrl);
     this.load.audio(UI_CARD_PLAY_AUDIO_KEY, uiCardPlayUrl);
+    this.load.audio(VICTORY_COUNTDOWN_AUDIO_KEY, victoryCountdownUrl);
     this.load.audio(TACTIC_PROFANE_WELL_COMPLETE_AUDIO_KEY, tacticProfaneWellCompleteUrl);
     this.load.audio(TACTIC_PROFANE_WELL_TICK_AUDIO_KEY, tacticProfaneWellTickUrl);
     for (const audio of Object.values(TACTIC_AUDIO)) this.load.audio(audio.key, audio.url);
@@ -1254,6 +1262,14 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.sound.play(TURN_END_AUDIO_KEY, { volume: TURN_END_VOLUME });
   }
 
+  playSiteCapture(): void {
+    this.sound.play(SITE_CAPTURE_AUDIO_KEY, { volume: SITE_CAPTURE_VOLUME });
+  }
+
+  playVictoryCountdown(): void {
+    this.sound.play(VICTORY_COUNTDOWN_AUDIO_KEY, { volume: VICTORY_COUNTDOWN_VOLUME });
+  }
+
   playTacticSound(cardId: CardDefinitionId): void {
     const audio = TACTIC_AUDIO[cardId as keyof typeof TACTIC_AUDIO];
     if (!audio) throw new Error(`No accepted tactic audio for ${cardId}.`);
@@ -1574,8 +1590,14 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     const nextHandSize = this.state.players[nextPlayer].hand.length;
     const pendingWellsBefore = new Map(this.state.pendingManaWells.map((well) => [well.id, well.remainingTurns]));
     const commandersBefore = this.state.units.filter((unit) => unit.definitionId === 'commander');
+    const siteOwnersBefore = new Map(this.state.sites.map((site) => [site.id, site.owner]));
+    const countdownBefore = this.state.countdown ? { ...this.state.countdown } : null;
     const result = endTurn(this.state);
     if (result.ok) {
+      const siteCaptured = this.state.sites.some(
+        (site) => siteOwnersBefore.has(site.id) && site.owner !== siteOwnersBefore.get(site.id),
+      );
+      if (siteCaptured) this.playSiteCapture();
       const deadCommander = commandersBefore.find((commander) => !findUnit(this.state, commander.id));
       if (deadCommander) this.playUnitDeath(deadCommander.owner, true);
       const profaneWellTicked = this.state.pendingManaWells.some(
@@ -1586,6 +1608,10 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       );
       if (profaneWellTicked) this.playProfaneWellTick();
       if (profaneWellCompleted) this.playProfaneWellComplete();
+      const countdownAdvanced = countdownBefore
+        && this.state.countdown?.player === countdownBefore.player
+        && this.state.countdown.checkpoints > countdownBefore.checkpoints;
+      if (countdownAdvanced) this.playVictoryCountdown();
       if (this.state.currentPlayer !== endingPlayer) {
         this.playTurnEnd();
         if (this.state.players[nextPlayer].hand.length > nextHandSize) this.playCardDraw();

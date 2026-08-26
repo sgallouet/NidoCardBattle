@@ -1,30 +1,33 @@
 import { CARD_DEFINITIONS } from '../data/cards';
-import type { ActionResult, GameState } from '../data/types';
+import type { ActionResult, Coord, GameState } from '../data/types';
 import { applyAiAction, type AiAction } from './ai';
 import { findUnit, unitDefinition } from './engine';
 import { StableInputGameScene } from './StableInputGameScene';
 import './EnemyTurnPresentation.css';
 
 const ENEMY_ANIMATION_STORAGE_KEY = 'nido.enemyTurnAnimations';
+const CAMERA_FOCUS_MS = 220;
 
 const ACTION_PACING: Record<AiAction['kind'], { leadIn: number; settle: number }> = {
-  summon: { leadIn: 240, settle: 400 },
-  tactic: { leadIn: 260, settle: 420 },
-  move: { leadIn: 180, settle: 240 },
-  attack: { leadIn: 260, settle: 420 },
-  displace: { leadIn: 220, settle: 340 },
-  rally: { leadIn: 220, settle: 320 },
-  soulLink: { leadIn: 220, settle: 340 },
-  curse: { leadIn: 220, settle: 340 },
-  invoke: { leadIn: 240, settle: 380 },
+  summon: { leadIn: 260, settle: 400 },
+  tactic: { leadIn: 280, settle: 420 },
+  move: { leadIn: 260, settle: 240 },
+  attack: { leadIn: 280, settle: 420 },
+  displace: { leadIn: 260, settle: 340 },
+  rally: { leadIn: 240, settle: 320 },
+  soulLink: { leadIn: 260, settle: 340 },
+  curse: { leadIn: 260, settle: 340 },
+  invoke: { leadIn: 260, settle: 380 },
 };
 
 interface EnemyPresentationInternals {
   state: GameState;
   message: string;
   renderAll: () => void;
+  center: (coord: Coord) => { x: number; y: number };
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
   waitForAiAction: (duration: number) => Promise<void>;
+  finishAiUi: (scene: EnemyPresentationInternals) => void;
 }
 
 export class EnemyTurnPresentationGameScene extends StableInputGameScene {
@@ -39,6 +42,7 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
     const game = this as unknown as EnemyPresentationInternals;
     const animatedAiAction = game.playAiAction?.bind(this);
     const baseWaitForAiAction = game.waitForAiAction.bind(this);
+    const baseFinishAiUi = game.finishAiUi.bind(this);
 
     this.forceInstant = this.isSimulationMode();
     this.enemyAnimationsEnabled = this.forceInstant ? false : this.loadAnimationPreference();
@@ -47,6 +51,11 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
     game.waitForAiAction = (duration) => {
       if (!this.enemyAnimationsEnabled) return Promise.resolve();
       return baseWaitForAiAction(duration);
+    };
+
+    game.finishAiUi = (scene) => {
+      this.hideEnemyAction();
+      baseFinishAiUi(scene);
     };
 
     if (animatedAiAction) {
@@ -59,6 +68,7 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
         const pacing = ACTION_PACING[action.kind];
         const actionLabel = this.describeAction(game.state, action);
         this.showEnemyAction(actionLabel);
+        this.focusAction(game, action);
         game.message = actionLabel;
         game.renderAll();
         document.querySelector<HTMLElement>('#hand')?.replaceChildren();
@@ -152,6 +162,35 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
     if (!this.enemyActionBanner) return;
     this.enemyActionBanner.hidden = true;
     this.enemyActionBanner.classList.remove('is-showing');
+  }
+
+  private focusAction(game: EnemyPresentationInternals, action: AiAction): void {
+    const coord = this.actionFocusCoord(game.state, action);
+    if (!coord) return;
+    const point = game.center(coord);
+    this.cameras.main.pan(point.x, point.y, CAMERA_FOCUS_MS, 'Sine.easeInOut');
+  }
+
+  private actionFocusCoord(state: GameState, action: AiAction): Coord | undefined {
+    switch (action.kind) {
+      case 'summon':
+      case 'move':
+      case 'invoke':
+        return action.destination;
+      case 'tactic':
+        return 'destination' in action ? action.destination : findUnit(state, action.targetId)?.coord;
+      case 'attack':
+      case 'displace':
+      case 'soulLink':
+      case 'curse':
+        return findUnit(state, action.targetId)?.coord;
+      case 'rally':
+        return findUnit(state, action.unitId)?.coord;
+      default: {
+        const unhandledAction: never = action;
+        return unhandledAction;
+      }
+    }
   }
 
   private describeAction(state: GameState, action: AiAction): string {

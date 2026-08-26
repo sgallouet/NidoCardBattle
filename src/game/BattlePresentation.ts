@@ -85,14 +85,6 @@ export class BattlePresentation {
       }
     }
 
-    if (next.currentPlayer !== this.previous.currentPlayer) {
-      this.enqueue({
-        title: next.currentPlayer === 1 ? 'Your Turn' : 'Enemy Turn',
-        className: `player-${next.currentPlayer}`,
-        duration: 560,
-      });
-    }
-
     this.previous = next;
   }
 

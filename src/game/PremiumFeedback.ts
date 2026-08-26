@@ -73,6 +73,10 @@ export class PremiumFeedback {
     }
     if (captured) this.playCaptureChime();
 
+    if (next.message !== this.previous.message && this.isRejectedMessage(next.message)) {
+      this.playRejectedCue();
+    }
+
     this.previous = next;
   }
 
@@ -244,6 +248,10 @@ export class PremiumFeedback {
     );
   }
 
+  private isRejectedMessage(message: string): boolean {
+    return /no longer|not available|no adjacent|select .* first|already |cannot|can't|blocked|not enough|must /i.test(message);
+  }
+
   private readonly handleUiPointerDown = (event: PointerEvent): void => {
     this.ensureAudioContext();
     const target = event.target instanceof Element ? event.target : null;
@@ -320,5 +328,9 @@ export class PremiumFeedback {
   private playCaptureChime(): void {
     this.playUiTone(460, 690, 0.14, 0.018);
     window.setTimeout(() => this.playUiTone(620, 930, 0.16, 0.014), 75);
+  }
+
+  private playRejectedCue(): void {
+    this.playUiTone(220, 165, 0.075, 0.013);
   }
 }

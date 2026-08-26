@@ -4,7 +4,7 @@ import './style.css';
 import './cardHitAreaFix.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
 import { loadingScreen } from './game/LoadingScreen';
-import { PlayerCameraChoreographyGameScene } from './game/PlayerCameraChoreographyGameScene';
+import { ProductionGameScene } from './game/ProductionGameScene';
 
 type TileBorderMode = 'full' | 'half' | 'off';
 
@@ -115,7 +115,7 @@ const game = new Phaser.Game({
   width: window.innerWidth,
   height: window.innerHeight,
   backgroundColor: '#02091a',
-  scene: [PlayerCameraChoreographyGameScene],
+  scene: [ProductionGameScene],
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.NO_CENTER,

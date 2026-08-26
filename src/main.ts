@@ -3,8 +3,8 @@ import type { WavedashSDK } from '@wvdsh/sdk-js';
 import './style.css';
 import './cardHitAreaFix.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
+import { EnemyTurnPresentationGameScene } from './game/EnemyTurnPresentationGameScene';
 import { loadingScreen } from './game/LoadingScreen';
-import { StableInputGameScene } from './game/StableInputGameScene';
 
 type TileBorderMode = 'full' | 'half' | 'off';
 
@@ -115,7 +115,7 @@ const game = new Phaser.Game({
   width: window.innerWidth,
   height: window.innerHeight,
   backgroundColor: '#02091a',
-  scene: [StableInputGameScene],
+  scene: [EnemyTurnPresentationGameScene],
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.NO_CENTER,

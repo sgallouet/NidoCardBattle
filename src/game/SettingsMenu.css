@@ -1,0 +1,245 @@
+.settings-menu-button {
+  position: absolute;
+  z-index: 92;
+  top: max(14px, calc(env(safe-area-inset-top) + 8px));
+  right: max(14px, calc(env(safe-area-inset-right) + 8px));
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(236, 216, 161, .32);
+  border-radius: 50%;
+  color: #f7efd9;
+  background: rgba(12, 16, 14, .78);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .05);
+  backdrop-filter: blur(10px);
+  font-size: 21px;
+  line-height: 1;
+}
+
+.settings-menu-button[aria-expanded='true'] {
+  border-color: rgba(233, 197, 110, .68);
+  background: rgba(31, 28, 20, .94);
+}
+
+.settings-menu-scrim {
+  position: absolute;
+  z-index: 89;
+  inset: 0;
+  background: rgba(2, 5, 8, .18);
+  backdrop-filter: blur(1px);
+}
+
+.settings-menu-scrim[hidden],
+.settings-menu-panel[hidden] {
+  display: none;
+}
+
+.settings-menu-panel {
+  position: absolute;
+  z-index: 91;
+  top: max(66px, calc(env(safe-area-inset-top) + 58px));
+  right: max(14px, calc(env(safe-area-inset-right) + 8px));
+  width: min(334px, calc(100vw - 28px));
+  max-height: calc(100% - 84px - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+  border: 1px solid rgba(228, 207, 153, .3);
+  border-radius: 16px;
+  color: #f6efdf;
+  background:
+    linear-gradient(155deg, rgba(28, 33, 28, .97), rgba(10, 13, 11, .96));
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .05);
+  backdrop-filter: blur(18px);
+}
+
+.settings-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 1px 1px 9px;
+}
+
+.settings-menu-header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.settings-menu-header span {
+  color: #bbaa82;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+
+.settings-menu-header strong {
+  font: 800 22px/1.05 Georgia, serif;
+  letter-spacing: -.02em;
+}
+
+.settings-menu-close {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  border-color: rgba(226, 210, 174, .2);
+  color: #d9d1c0;
+  background: rgba(255, 255, 255, .035);
+  font-size: 23px;
+  line-height: 1;
+}
+
+.settings-menu-section {
+  padding: 11px 0 3px;
+  border-top: 1px solid rgba(232, 218, 182, .1);
+}
+
+.settings-menu-section h3 {
+  margin: 0 0 7px;
+  color: #b9b09c;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.settings-menu-section-body {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-menu-row {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 6px 5px 10px;
+  border: 1px solid rgba(227, 215, 183, .08);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.settings-menu-row-label {
+  min-width: 0;
+  color: #ddd5c5;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.settings-menu-row > button {
+  position: static !important;
+  inset: auto !important;
+  flex: 0 0 auto;
+  min-width: 112px;
+  min-height: 34px;
+  margin: 0 !important;
+  padding: 6px 9px;
+  border-radius: 7px;
+  transform: none !important;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.settings-menu-row > .fullscreen-button {
+  width: 40px !important;
+  min-width: 40px;
+  height: 34px !important;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 6px !important;
+}
+
+.settings-menu-row > .fullscreen-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.settings-menu-battle-log {
+  position: static !important;
+  inset: auto !important;
+  width: 100%;
+  display: grid;
+  gap: 6px;
+  padding: 8px !important;
+  border-radius: 9px !important;
+  transform: none !important;
+}
+
+.settings-menu-battle-log[hidden] {
+  display: none !important;
+}
+
+.settings-menu-battle-log .battle-log-download {
+  width: 100%;
+  min-height: 38px;
+}
+
+.settings-menu-battle-log span {
+  white-space: normal;
+  text-align: center;
+}
+
+.settings-menu-debug-status {
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 8px 9px !important;
+  border-radius: 8px !important;
+  transform: none !important;
+  color: #9f9a8e !important;
+  background: rgba(5, 8, 6, .42) !important;
+  box-shadow: none !important;
+  font-size: 9px !important;
+  line-height: 1.35 !important;
+  white-space: normal !important;
+}
+
+/* Once the old controls have been moved, the normal turn strip is deliberately sparse. */
+.turn-control {
+  gap: 5px;
+}
+
+.turn-control > #end-turn-button,
+.turn-control > #turn-indicator {
+  display: initial;
+}
+
+@media (max-width: 700px), (max-height: 500px) {
+  .settings-menu-button {
+    top: max(10px, calc(env(safe-area-inset-top) + 6px));
+    right: max(10px, calc(env(safe-area-inset-right) + 6px));
+    width: 42px;
+    height: 42px;
+  }
+
+  .settings-menu-panel {
+    top: max(58px, calc(env(safe-area-inset-top) + 52px));
+    right: max(10px, calc(env(safe-area-inset-right) + 6px));
+    width: min(320px, calc(100vw - 20px));
+    max-height: calc(100% - 70px - env(safe-area-inset-bottom));
+    padding: 12px;
+  }
+
+  .settings-menu-row {
+    min-height: 42px;
+  }
+
+  .settings-menu-row > button {
+    min-width: 106px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-menu-panel,
+  .settings-menu-scrim {
+    scroll-behavior: auto;
+  }
+}

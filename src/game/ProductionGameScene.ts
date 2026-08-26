@@ -5,11 +5,16 @@ import {
   type CelShadedRiverSceneInternals,
 } from './CelShadedRiverSurface';
 import { PlayerCameraChoreographyGameScene } from './PlayerCameraChoreographyGameScene';
+import {
+  PremiumFeedback,
+  type PremiumFeedbackSceneInternals,
+} from './PremiumFeedback';
 import { SettingsMenu } from './SettingsMenu';
 
-interface ProductionSceneInternals extends CelShadedRiverSceneInternals {
+interface ProductionSceneInternals extends CelShadedRiverSceneInternals, PremiumFeedbackSceneInternals {
   addRiverSurface: () => void;
   clearRiverSurface: () => void;
+  renderAll: () => void;
   boardLayer?: Phaser.GameObjects.Container;
   center: (coord: Coord) => Phaser.Math.Vector2;
   hexPoints: (center: Phaser.Math.Vector2, inset?: number) => Phaser.Geom.Point[];
@@ -18,6 +23,7 @@ interface ProductionSceneInternals extends CelShadedRiverSceneInternals {
 export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private settingsMenu?: SettingsMenu;
   private celRiver?: CelShadedRiverSurface;
+  private premiumFeedback?: PremiumFeedback;
 
   create(): void {
     const game = this as unknown as ProductionSceneInternals;
@@ -39,7 +45,17 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     this.settingsMenu = new SettingsMenu();
     this.settingsMenu.install();
 
+    this.premiumFeedback = new PremiumFeedback(this, game);
+    this.premiumFeedback.install();
+    const originalRenderAll = game.renderAll.bind(this);
+    game.renderAll = () => {
+      originalRenderAll();
+      this.premiumFeedback?.sync(game.state, game.message);
+    };
+
     this.events.once('shutdown', () => {
+      this.premiumFeedback?.destroy();
+      this.premiumFeedback = undefined;
       this.celRiver?.destroy();
       this.celRiver = undefined;
       this.settingsMenu?.destroy();

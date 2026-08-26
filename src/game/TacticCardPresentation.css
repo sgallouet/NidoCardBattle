@@ -1,0 +1,190 @@
+.tactic-cast-overlay {
+  position: fixed;
+  z-index: 996;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tactic-cast-focus {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 50% 39%, color-mix(in srgb, var(--tactic-accent) 16%, transparent), transparent 29%),
+    radial-gradient(circle at 50% 46%, transparent 20%, rgba(1, 5, 13, .08) 45%, rgba(1, 4, 10, .48) 100%);
+  backdrop-filter: blur(0);
+  transition: opacity 180ms ease;
+}
+
+.tactic-cast-overlay.is-revealing .tactic-cast-focus {
+  opacity: 1;
+}
+
+.tactic-cast-caption {
+  position: absolute;
+  top: min(14vh, 112px);
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  opacity: 0;
+  color: #fff9eb;
+  text-align: center;
+  text-shadow: 0 2px 8px #000, 0 0 18px color-mix(in srgb, var(--tactic-accent) 55%, transparent);
+  transform: translate(-50%, -8px) scale(.96);
+  animation: tactic-caption-in 280ms 110ms cubic-bezier(.16,.84,.22,1) forwards;
+}
+
+.tactic-cast-caption span {
+  color: var(--tactic-accent);
+  font: 800 10px/1 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: .28em;
+}
+
+.tactic-cast-caption strong {
+  font: 800 clamp(18px, 2.4vw, 28px)/1 Georgia, serif;
+  letter-spacing: .02em;
+}
+
+.tactic-cast-caption.is-casting {
+  animation: tactic-caption-out 440ms ease forwards;
+}
+
+.tactic-card-play-ghost {
+  z-index: 1001;
+  pointer-events: none !important;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity, filter;
+}
+
+.tactic-card-play-ghost::before {
+  position: absolute;
+  z-index: -1;
+  inset: -7px;
+  border: 2px solid color-mix(in srgb, var(--tactic-accent) 80%, white 20%);
+  border-radius: 5%;
+  box-shadow:
+    0 0 8px #fff7,
+    0 0 22px color-mix(in srgb, var(--tactic-accent) 76%, transparent),
+    0 0 52px color-mix(in srgb, var(--tactic-accent) 44%, transparent);
+  content: "";
+  animation: tactic-card-aura 520ms ease-in-out infinite alternate;
+}
+
+.tactic-card-play-ghost .card-surface {
+  box-shadow:
+    0 22px 45px #000e,
+    0 0 0 2px color-mix(in srgb, var(--tactic-accent) 65%, white 35%),
+    0 0 30px color-mix(in srgb, var(--tactic-accent) 60%, transparent);
+}
+
+.tactic-card-play-ghost .card-holo {
+  opacity: .6 !important;
+  animation: tactic-holo-charge 620ms linear infinite;
+}
+
+.tactic-card-play-ghost .card-glare {
+  opacity: .75 !important;
+  animation: tactic-glare-sweep 520ms ease-in-out infinite alternate;
+}
+
+.tactic-cast-target {
+  position: absolute;
+  width: 102px;
+  height: 62px;
+  border: 2px solid color-mix(in srgb, var(--tactic-accent) 70%, white 30%);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow:
+    inset 0 0 18px color-mix(in srgb, var(--tactic-accent) 28%, transparent),
+    0 0 17px color-mix(in srgb, var(--tactic-accent) 44%, transparent);
+  transform: translate(-50%, -50%) scale(.42);
+}
+
+.tactic-cast-target::before,
+.tactic-cast-target::after {
+  position: absolute;
+  inset: 10px;
+  border: 1px dashed color-mix(in srgb, var(--tactic-accent) 76%, white 24%);
+  border-radius: inherit;
+  content: "";
+}
+
+.tactic-cast-target::after {
+  inset: 21px 30px;
+  border-style: solid;
+  background: color-mix(in srgb, var(--tactic-accent) 16%, transparent);
+}
+
+.tactic-cast-target.is-armed {
+  animation: tactic-target-arm 480ms cubic-bezier(.18,.8,.2,1) forwards;
+}
+
+.tactic-cast-target.is-armed::before {
+  animation: tactic-target-spin 1.6s linear infinite;
+}
+
+.tactic-cast-target.is-impact {
+  animation: tactic-target-impact 250ms cubic-bezier(.15,.72,.2,1) forwards;
+}
+
+.tactic-cast-overlay.is-impact .tactic-cast-focus {
+  animation: tactic-screen-flash 220ms ease-out;
+}
+
+@keyframes tactic-caption-in {
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+@keyframes tactic-caption-out {
+  0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -12px) scale(1.035); }
+}
+
+@keyframes tactic-card-aura {
+  from { opacity: .58; filter: brightness(.92); }
+  to { opacity: 1; filter: brightness(1.42); }
+}
+
+@keyframes tactic-holo-charge {
+  0% { filter: hue-rotate(0deg) brightness(1.05) saturate(1.35); }
+  50% { filter: hue-rotate(28deg) brightness(1.38) saturate(1.75); }
+  100% { filter: hue-rotate(0deg) brightness(1.05) saturate(1.35); }
+}
+
+@keyframes tactic-glare-sweep {
+  from { transform: translate3d(-16%, -8%, 0) scale(.92); }
+  to { transform: translate3d(16%, 10%, 0) scale(1.12); }
+}
+
+@keyframes tactic-target-arm {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.42); }
+  55% { opacity: .88; transform: translate(-50%, -50%) scale(1.08); }
+  100% { opacity: .72; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes tactic-target-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes tactic-target-impact {
+  0% { opacity: .9; transform: translate(-50%, -50%) scale(.86); filter: brightness(1); }
+  42% { opacity: 1; transform: translate(-50%, -50%) scale(1.34); filter: brightness(2); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.75); filter: brightness(2.7); }
+}
+
+@keyframes tactic-screen-flash {
+  0% { opacity: 1; }
+  20% { opacity: .38; background-color: color-mix(in srgb, var(--tactic-accent) 10%, transparent); }
+  100% { opacity: 1; background-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tactic-card-play-ghost::before,
+  .tactic-card-play-ghost .card-holo,
+  .tactic-card-play-ghost .card-glare,
+  .tactic-cast-target.is-armed::before {
+    animation: none;
+  }
+}

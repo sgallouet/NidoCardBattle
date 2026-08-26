@@ -259,11 +259,17 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       && defenderDamage.damage > primaryTargetDamage
       && !redirected;
 
+    const primaryImpactPower = defenderDamage?.dead
+      ? 1.55
+      : Math.max(1, Math.min(1.45, (primaryTargetDamage || defenderDamage?.damage || 1) / 3));
     game.playCombatHit(attackPose.ranged);
-    await motion.impact(
+    await this.playImpactBeat(
+      motion,
       defenderCoord,
       game.center.bind(this),
-      defenderDamage?.dead ? 1.55 : Math.max(1, Math.min(1.45, (primaryTargetDamage || defenderDamage?.damage || 1) / 3)),
+      [attackerView, defenderView],
+      primaryImpactPower,
+      defenderDamage?.dead ?? false,
     );
 
     if (redirected && (!defenderDamage || defenderDamage.damage === 0)) {
@@ -313,7 +319,14 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
           true,
         );
         game.playCombatAssist();
-        await motion.impact(defenderCoord, game.center.bind(this), actualDamage >= 2 ? 1.18 : 0.9);
+        await this.playImpactBeat(
+          motion,
+          defenderCoord,
+          game.center.bind(this),
+          [assisterView, defenderView],
+          actualDamage >= 2 ? 1.18 : 0.9,
+          lethal,
+        );
         if (this.actionFx) await this.actionFx.assistHit(defenderCoord, actualDamage);
         await Promise.all([
           motion.hurt(defenderView, defenderBefore, actualDamage, game.center(assister.coord), lethal),
@@ -356,7 +369,14 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
           true,
         );
         game.playCombatHit(counterPose.ranged);
-        await motion.impact(attackerCoord, game.center.bind(this), attackerDamage.dead ? 1.45 : 1);
+        await this.playImpactBeat(
+          motion,
+          attackerCoord,
+          game.center.bind(this),
+          [defenderView, attackerView],
+          attackerDamage.dead ? 1.45 : 1,
+          attackerDamage.dead,
+        );
         await Promise.all([
           motion.hurt(
             attackerView,
@@ -393,6 +413,32 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
 
     game.message = result.message;
     return result;
+  }
+
+  private async playImpactBeat(
+    motion: UnitMotionAnimator,
+    coord: Coord,
+    center: (coord: Coord) => Phaser.Math.Vector2,
+    views: AnimatedUnitView[],
+    power: number,
+    lethal: boolean,
+  ): Promise<void> {
+    const hitStopMs = lethal ? 76 : power >= 1.3 ? 60 : 46;
+    const recoveryMs = lethal ? 34 : power >= 1.3 ? 24 : 16;
+    const pausedSprites = views
+      .map((view) => view.sprite)
+      .filter((sprite): sprite is Phaser.GameObjects.Sprite => !!sprite?.active && sprite.anims.isPlaying);
+
+    for (const sprite of pausedSprites) sprite.anims.pause();
+    const impact = motion.impact(coord, center, power);
+    if (lethal) this.cameras.main.shake(115, 0.0026);
+    else if (power >= 1.3) this.cameras.main.shake(82, 0.0017);
+
+    await Promise.all([impact, this.waitForAnimation(hitStopMs)]);
+    for (const sprite of pausedSprites) {
+      if (sprite.active) sprite.anims.resume();
+    }
+    await this.waitForAnimation(recoveryMs);
   }
 
   private damageEvents(before: GameState, after: GameState): DamageEvent[] {

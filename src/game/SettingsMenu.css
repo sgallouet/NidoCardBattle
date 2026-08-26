@@ -207,11 +207,6 @@
   gap: 5px;
 }
 
-.turn-control > #end-turn-button,
-.turn-control > #turn-indicator {
-  display: initial;
-}
-
 @media (max-width: 700px), (max-height: 500px) {
   .settings-menu-button {
     top: max(10px, calc(env(safe-area-inset-top) + 6px));

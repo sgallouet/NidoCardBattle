@@ -49,7 +49,7 @@ export class BattlePresentation {
   constructor(
     private readonly scene: Phaser.Scene,
     initialState: GameState,
-    private readonly center: (coord: Coord) => Phaser.Math.Vector2,
+    private readonly center?: (coord: Coord) => Phaser.Math.Vector2,
   ) {
     this.previous = snapshot(initialState);
     this.scene.events.once('shutdown', () => this.destroy());
@@ -115,7 +115,7 @@ export class BattlePresentation {
     const focusCoord = next.commanderCoords[winner]
       ?? this.previous.commanderCoords[defeated]
       ?? next.commanderCoords[defeated];
-    const focus = focusCoord ? this.center(focusCoord) : null;
+    const focus = focusCoord ? this.resolveCenter(focusCoord) : null;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (focus) {
@@ -153,7 +153,9 @@ export class BattlePresentation {
     title.textContent = localVictory ? 'Victory' : 'Defeat';
 
     const subtitle = document.createElement('p');
-    subtitle.textContent = 'The enemy commander fell and the three-turn survival hold is complete.';
+    subtitle.textContent = localVictory
+      ? 'The enemy commander fell and the three-turn survival hold is complete.'
+      : 'Your commander fell. The enemy survived the three-turn hold.';
 
     const playAgain = document.createElement('button');
     playAgain.className = 'battle-finale-play-again';
@@ -172,6 +174,14 @@ export class BattlePresentation {
     requestAnimationFrame(() => finale.classList.add('is-visible'));
     if (reducedMotion) playAgain.focus({ preventScroll: true });
     else window.setTimeout(() => playAgain.focus({ preventScroll: true }), 720);
+  }
+
+  private resolveCenter(coord: Coord): Phaser.Math.Vector2 | null {
+    if (this.center) return this.center(coord);
+    const sceneCenter = (this.scene as unknown as {
+      center?: (target: Coord) => Phaser.Math.Vector2;
+    }).center;
+    return sceneCenter ? sceneCenter.call(this.scene, coord) : null;
   }
 
   private spawnFinaleWorldFx(

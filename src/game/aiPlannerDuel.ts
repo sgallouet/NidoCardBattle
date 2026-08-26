@@ -1,5 +1,4 @@
 import type { Faction, GameState, PlayerId } from '../data/types';
-import { GAME_ACTION_KINDS, type GameAction } from './actions';
 import { executeAiPlan, type AiPlan, type AiSearchOptions } from './ai';
 import { planAiTurnV2AnyPlayer } from './aiPlannerAdapters';
 import { planAiTurnV3, type PlannerV3Doctrine } from './aiPlannerV3';

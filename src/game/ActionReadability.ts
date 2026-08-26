@@ -28,9 +28,18 @@ export interface ActionReadabilitySceneInternals {
   center: (coord: Coord) => Phaser.Math.Vector2;
 }
 
+interface CombatPreview {
+  targetDamage: number;
+  retaliationDamage: number;
+  lethal: boolean;
+  attackerDies: boolean;
+}
+
 const MOVE_COLOR = 0x4eb9ff;
 const ATTACK_COLOR = 0xff7180;
 const SPENT_COLOR = 0x26332d;
+const PREVIEW_BG = '#24171ae8';
+const LETHAL_BG = '#4a1018ee';
 
 export class ActionReadabilityLayer {
   private layer?: Phaser.GameObjects.Container;
@@ -61,7 +70,7 @@ export class ActionReadabilityLayer {
     board.add(this.layer);
 
     this.renderActionStates();
-    this.renderLethalTargets();
+    this.renderCombatPreviews();
   }
 
   private readonly handleUpdate = (): void => {
@@ -139,37 +148,70 @@ export class ActionReadabilityLayer {
     graphics.strokePath();
   }
 
-  private renderLethalTargets(): void {
+  private renderCombatPreviews(): void {
     if (this.game.mode !== 'unit' || !this.game.selectedUnitId) return;
     const attacker = findUnit(this.game.state, this.game.selectedUnitId);
     if (!attacker || attacker.owner !== this.game.state.currentPlayer) return;
 
     for (const target of getAttackTargets(this.game.state, attacker.id)) {
-      const preview = structuredClone(this.game.state);
-      const result = attackUnit(preview, attacker.id, target.id);
-      if (!result.ok || findUnit(preview, target.id)) continue;
-      this.drawLethalMarker(target.coord);
+      const preview = this.previewCombat(attacker, target);
+      if (!preview) continue;
+      this.drawCombatPreview(target.coord, preview);
     }
   }
 
-  private drawLethalMarker(coord: Coord): void {
-    const center = this.game.center(coord);
-    const graphics = this.scene.add.graphics();
+  private previewCombat(attacker: UnitState, target: UnitState): CombatPreview | null {
+    const previewState = structuredClone(this.game.state);
+    const result = attackUnit(previewState, attacker.id, target.id);
+    if (!result.ok) return null;
 
+    const targetAfter = findUnit(previewState, target.id);
+    const attackerAfter = findUnit(previewState, attacker.id);
+    return {
+      targetDamage: Math.max(0, target.hp - (targetAfter?.hp ?? 0)),
+      retaliationDamage: Math.max(0, attacker.hp - (attackerAfter?.hp ?? 0)),
+      lethal: !targetAfter,
+      attackerDies: !attackerAfter,
+    };
+  }
+
+  private drawCombatPreview(coord: Coord, preview: CombatPreview): void {
+    const center = this.game.center(coord);
+    const parts = [`${preview.targetDamage} DMG`];
+    if (preview.lethal) parts.push('KILL');
+    if (preview.retaliationDamage > 0) {
+      parts.push(preview.attackerDies ? '↩ KILL' : `↩ ${preview.retaliationDamage}`);
+    }
+
+    const label = this.scene.add.text(center.x, center.y - 49, parts.join(' · '), {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: preview.lethal ? '12px' : '11px',
+      color: preview.lethal ? '#fff3e5' : '#f6ede8',
+      fontStyle: 'bold',
+      backgroundColor: preview.lethal ? LETHAL_BG : PREVIEW_BG,
+      padding: { x: 7, y: 4 },
+      stroke: preview.lethal ? '#6b1621' : '#181113',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+    this.layer?.add(label);
+
+    if (!preview.lethal) return;
+
+    const marker = this.scene.add.graphics();
     const skullX = center.x + 31;
     const skullY = center.y - 35;
-    graphics.fillStyle(0x330a11, 0.96);
-    graphics.fillCircle(skullX, skullY, 11);
-    graphics.fillRect(skullX - 7, skullY + 5, 14, 8);
-    graphics.lineStyle(2, 0xffe9e4, 1);
-    graphics.strokeCircle(skullX, skullY, 9);
-    graphics.lineBetween(skullX - 6, skullY + 7, skullX + 6, skullY + 7);
-    graphics.fillStyle(0xffe9e4, 1);
-    graphics.fillCircle(skullX - 4, skullY - 1, 2);
-    graphics.fillCircle(skullX + 4, skullY - 1, 2);
-    graphics.fillTriangle(skullX, skullY + 2, skullX - 2, skullY + 5, skullX + 2, skullY + 5);
+    marker.fillStyle(0x330a11, 0.96);
+    marker.fillCircle(skullX, skullY, 11);
+    marker.fillRect(skullX - 7, skullY + 5, 14, 8);
+    marker.lineStyle(2, 0xffe9e4, 1);
+    marker.strokeCircle(skullX, skullY, 9);
+    marker.lineBetween(skullX - 6, skullY + 7, skullX + 6, skullY + 7);
+    marker.fillStyle(0xffe9e4, 1);
+    marker.fillCircle(skullX - 4, skullY - 1, 2);
+    marker.fillCircle(skullX + 4, skullY - 1, 2);
+    marker.fillTriangle(skullX, skullY + 2, skullX - 2, skullY + 5, skullX + 2, skullY + 5);
 
-    this.layer?.add(graphics);
-    this.lethalMarkers.push(graphics);
+    this.layer?.add(marker);
+    this.lethalMarkers.push(marker);
   }
 }

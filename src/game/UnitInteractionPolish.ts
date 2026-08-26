@@ -111,7 +111,7 @@ export class UnitInteractionPolish {
       const center = this.game.center(unit.coord);
       const selected = unitId === this.game.selectedUnitId;
       const color = PLAYER_COLORS[unit.owner];
-      const halo = this.scene.add.graphics().setDepth(view.container.depth - 0.5);
+      const halo = this.scene.add.graphics();
 
       halo.fillStyle(color, selected ? 0.11 : 0.06);
       halo.fillEllipse(center.x, center.y + 21, selected ? 70 : 62, selected ? 23 : 19);
@@ -122,10 +122,10 @@ export class UnitInteractionPolish {
         halo.strokeEllipse(center.x, center.y + 21, 82, 29);
       }
 
-      board.add(halo);
+      const unitIndex = board.getIndex(view.container);
+      board.addAt(halo, unitIndex >= 0 ? unitIndex : board.list.length);
       this.haloObjects.push(halo);
     }
-    board.sort('depth');
   }
 
   private clearHalos(): void {

@@ -10,8 +10,11 @@ import {
   getDisplaceTargets,
   getRallyTargets,
   getSoulLinkTargets,
+  getThunderTargetCoords,
   rallyAdjacentAllies,
+  sameCoord,
   soulLinkUnit,
+  thunderAtCoord,
   unitAt,
   unitDefinition,
 } from './engine';
@@ -85,6 +88,10 @@ export class SpellHud {
         for (const target of getCurseTargets(this.game.state, selected.id)) {
           highlight.attack.add(coordKey(target.coord));
         }
+      } else if (this.game.mode === 'thunder-target') {
+        for (const target of getThunderTargetCoords(this.game.state, selected.id)) {
+          highlight.attack.add(coordKey(target));
+        }
       }
       return highlight;
     };
@@ -116,6 +123,17 @@ export class SpellHud {
         const result = occupant
           ? curseUnit(this.game.state, selected.id, occupant.id)
           : { ok: false, message: 'Choose a highlighted enemy within Curse range.' };
+        this.game.message = result.message;
+        if (result.ok) this.game.mode = 'unit';
+        this.game.renderAll();
+        return;
+      }
+      if (this.game.mode === 'thunder-target' && selected) {
+        const valid = getThunderTargetCoords(this.game.state, selected.id)
+          .some((target) => sameCoord(target, coord));
+        const result = valid
+          ? thunderAtCoord(this.game.state, selected.id, coord)
+          : { ok: false, message: 'Choose a highlighted battlefield hex within Thunder range.' };
         this.game.message = result.message;
         if (result.ok) this.game.mode = 'unit';
         this.game.renderAll();
@@ -224,6 +242,19 @@ export class SpellHud {
       return;
     }
 
+    if (ability === 'Thunder') {
+      const targets = getThunderTargetCoords(this.game.state, selected.id);
+      if (targets.length === 0) {
+        this.game.message = 'No battlefield hex is within Thunder range.';
+        this.game.renderAll();
+        return;
+      }
+      this.game.mode = 'thunder-target';
+      this.game.message = 'Choose a highlighted hex. Thunder deals 1 damage there and to all adjacent units, allies included.';
+      this.game.renderAll();
+      return;
+    }
+
     originalBeginAbility();
   }
 
@@ -240,6 +271,7 @@ export class SpellHud {
     }
     if (ability === 'SoulLink') return this.game.mode === 'soul-link-target';
     if (ability === 'Curse') return this.game.mode === 'curse-target';
+    if (ability === 'Thunder') return this.game.mode === 'thunder-target';
     return this.game.mode === 'rally-target';
   }
 
@@ -250,6 +282,7 @@ export class SpellHud {
     }
     if (ability === 'Rally') return getRallyTargets(this.game.state, unit.id).length > 0;
     if (ability === 'SoulLink') return getSoulLinkTargets(this.game.state, unit.id).length > 0;
+    if (ability === 'Thunder') return getThunderTargetCoords(this.game.state, unit.id).length > 0;
     return getCurseTargets(this.game.state, unit.id).length > 0;
   }
 

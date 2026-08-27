@@ -16,16 +16,18 @@ import {
   getSoulLinkTargets,
   getTacticTargetCoords,
   getTacticTargets,
+  getThunderTargetCoords,
   getValidSummonCoords,
   hexDistance,
-  moveUnit,
   invokeBeast,
+  moveUnit,
   playTacticCard,
   playTacticCardAtCoord,
   playUnitCard,
   rallyAdjacentAllies,
   restoreAdjacentAlly,
   soulLinkUnit,
+  thunderAtCoord,
   unitDefinition,
 } from './engine';
 
@@ -44,6 +46,7 @@ export type GameAction =
   | { kind: 'rally'; unitId: string }
   | { kind: 'soulLink'; unitId: string; targetId: string }
   | { kind: 'curse'; unitId: string; targetId: string }
+  | { kind: 'thunder'; unitId: string; destination: Coord }
   | { kind: 'invoke'; unitId: string; destination: Coord };
 
 const GAME_ACTION_KIND_SET = {
@@ -55,6 +58,7 @@ const GAME_ACTION_KIND_SET = {
   rally: true,
   soulLink: true,
   curse: true,
+  thunder: true,
   invoke: true,
 } satisfies Record<GameAction['kind'], true>;
 
@@ -101,6 +105,12 @@ const abilityActions = (state: GameState, unitId: string, ability: Ability | und
         kind: 'curse' as const,
         unitId,
         targetId: target.id,
+      }));
+    case 'Thunder':
+      return getThunderTargetCoords(state, unitId).map((destination) => ({
+        kind: 'thunder' as const,
+        unitId,
+        destination,
       }));
     case 'Restore':
     case 'BloodDrain':
@@ -211,6 +221,8 @@ export const applyGameAction = (state: GameState, action: GameAction): ActionRes
       return soulLinkUnit(state, action.unitId, action.targetId);
     case 'curse':
       return curseUnit(state, action.unitId, action.targetId);
+    case 'thunder':
+      return thunderAtCoord(state, action.unitId, action.destination);
     case 'invoke':
       return invokeBeast(state, action.unitId, action.destination);
     default: {

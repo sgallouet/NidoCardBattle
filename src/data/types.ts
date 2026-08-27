@@ -19,6 +19,7 @@ export type Trait =
 export type Ability =
   | 'Displace'
   | 'Restore'
+  | 'Thunder'
   | 'Rally'
   | 'SoulLink'
   | 'Curse'

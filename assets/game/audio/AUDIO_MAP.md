@@ -1,6 +1,78 @@
 # NidoCardBattle Audio Map
 
-This file is the runtime audio contract and acceptance registry. Generated candidates remain outside the repository until accepted.
+This file is the runtime audio contract, acceptance registry, and **master audio work checklist**. Generated candidates remain outside the repository until accepted.
+
+Audit snapshot: **2026-08-27**.
+
+## Status legend
+
+- `[x]` = the required audio feedback is present and its runtime trigger was verified in code.
+- `[ ]` = work remains: generate/accept an asset, integrate it, or clean up the runtime behavior.
+- `asset ✅` = an accepted runtime file exists under `assets/game/audio/`.
+- `runtime ✅` = the playback path is wired to the intended gameplay/UI event.
+- Code-generated Web Audio tones do not require an MP3 unless playtesting shows they need replacement.
+
+## Master work checklist
+
+### Complete — accepted files and runtime integration
+
+- [x] `commander-death` — asset ✅ `sfx/commander-death.mp3`; runtime ✅ Commander death, including end-turn Curse removal.
+- [x] `combat-assist` — asset ✅ `sfx/combat-assist.mp3`; runtime ✅ Assist impact presentation.
+- [x] `combat-hit-melee` — asset ✅ `sfx/combat-hit-melee.mp3`; runtime ✅ melee attack/retaliation impact.
+- [x] `combat-hit-ranged` — asset ✅ `sfx/combat-hit-ranged.mp3`; runtime ✅ ranged attack/retaliation impact.
+- [x] `combat-retaliation` — asset ✅ `sfx/combat-retaliation.mp3`; runtime ✅ retaliation start.
+- [x] `site-capture` — asset ✅ `sfx/site-capture.mp3`; runtime ✅ end-turn capture resolution. See duplicate-cue cleanup below.
+- [x] `unit-death-human` — asset ✅ `sfx/unit-death-human.mp3`; runtime ✅ Human unit death.
+- [x] `unit-death-undead` — asset ✅ `sfx/unit-death-undead.mp3`; runtime ✅ Undead unit death.
+- [x] `unit-summon-human` — asset ✅ `sfx/unit-summon-human.mp3`; runtime ✅ Human card summon.
+- [x] `unit-summon-undead` — asset ✅ `sfx/unit-summon-undead.mp3`; runtime ✅ Undead card summon and `UNT3` Invoked Beast summon.
+- [x] `turn-end` — asset ✅ `sfx/turn-end.mp3`; runtime ✅ successful turn handoff.
+- [x] `ui-card-draw` — asset ✅ `sfx/ui-card-draw.mp3`; runtime ✅ successful start-turn card draw.
+- [x] `ui-card-play` — asset ✅ `sfx/ui-card-play.mp3`; runtime ✅ successful unit/tactic card play.
+- [x] `victory-countdown` — asset ✅ `sfx/victory-countdown.mp3`; runtime ✅ survival countdown checkpoint.
+- [x] `tactic-build-bridge` — asset ✅ `sfx/tactic-build-bridge.mp3`; runtime ✅ successful Build Bridge resolution.
+- [x] `tactic-grave-lock` — asset ✅ `sfx/tactic-grave-lock.mp3`; runtime ✅ successful Grave Lock resolution.
+- [x] `tactic-profane-well-complete` — asset ✅ `sfx/tactic-profane-well-complete.mp3`; runtime ✅ pending Well completes.
+- [x] `tactic-profane-well-sacrifice` — asset ✅ `sfx/tactic-profane-well-sacrifice.mp3`; runtime ✅ Profane Well sacrifice resolves.
+- [x] `tactic-profane-well-tick` — asset ✅ `sfx/tactic-profane-well-tick.mp3`; runtime ✅ pending Well countdown ticks.
+- [x] `tactic-raise-fort` — asset ✅ `sfx/tactic-raise-fort.mp3`; runtime ✅ successful Raise Fort resolution.
+- [x] `tactic-scorch` — asset ✅ `sfx/tactic-scorch.mp3`; runtime ✅ successful Scorch resolution.
+
+### Complete — code-generated feedback, no dedicated file currently required
+
+- [x] `ui-card-hover/select` — runtime ✅ short synthesized UI tones in `PremiumFeedback`.
+- [x] `ui-button/board-confirm` — runtime ✅ short synthesized UI tones in `PremiumFeedback`.
+- [x] `ui-rejected-action` — runtime ✅ synthesized rejection cue when the status message reports an invalid/rejected action.
+- [x] `turn-start` — runtime ✅ Human/Undead synthesized turn-transition tones.
+- [x] `mana-gain` / `mana-spend` — runtime ✅ synthesized mana feedback. This currently also covers the new `ECM6` Ruin +1 mana reward, so a separate Ruin MP3 is **not required** unless playtesting shows the source is unclear.
+- [x] `invoke-beast` — covered by the accepted Undead summon cue rather than a separate file.
+
+### P0 — work left for core match readability
+
+- [ ] `unit-move-step` — asset ❌; runtime ❌. Trigger when a rendered unit reaches each movement path hex after leaving its source. Soft, compact, terrain-neutral step; low volume with cooldown/pooling.
+- [ ] `match-victory` — asset ❌; runtime ❌. Trigger when the local player becomes the winner. Short triumphant finale sting; separate from later victory music.
+- [ ] `match-defeat` — asset ❌; runtime ❌. Trigger when the opposing player becomes the winner. Short restrained defeat/failure finale sting.
+- [ ] `location-village-heal` — asset ❌; runtime ❌. Trigger at `MPL8` only when a unit actually restores HP at turn start. Small warm restorative cue; may intentionally share the eventual Restore sonic family.
+- [ ] `site-capture duplicate cue cleanup` — the accepted `site-capture.mp3` is wired, but `PremiumFeedback` also emits a synthesized capture chime from the same ownership change. Decide whether the synth is a deliberate layer; otherwise remove it so capture has one clear cue.
+
+### P1 — unit abilities and traits
+
+- [ ] `ability-displace` — asset ❌; runtime audio ❌. Trigger when Displace successfully moves its target. Air displacement / magical shove.
+- [ ] `ability-restore` — asset ❌; runtime audio ❌. Trigger when Restore actually heals its chosen adjacent ally. Warm clean restorative chime.
+- [ ] `ability-rally` — asset ❌; runtime audio ❌. Trigger when Rally successfully resolves. Short banner/command accent, no spoken dialogue.
+- [ ] `ability-soul-link` — asset ❌; runtime audio ❌. Trigger when Soul Link successfully attaches. Dark tether / spectral bond.
+- [ ] `ability-curse` — asset ❌; runtime audio ❌. Trigger when Curse is successfully applied. Thin dark whisper/rune sting without intelligible speech.
+- [ ] `ability-curse-tick` — asset ❌; runtime audio ❌. Trigger when Curse deals periodic damage. Tiny dry dark pulse; cooldown/pooling for multiple ticks.
+- [ ] `ability-blood-drain` — asset ❌; runtime audio ❌. Trigger when Blood Drain actually restores HP after attack damage. Short vampiric siphon/reverse-impact.
+- [ ] `ability-cleave` — asset ❌; runtime audio ❌. Trigger when Cleave damages at least one additional adjacent enemy. Broad heavy sweep layered with the normal attack hit.
+- [ ] `trait-dark-reflection` — asset ❌; runtime audio ❌. Trigger when Dark Reflection actually returns damage. Sharp dark mirror/rebound accent.
+- [ ] `trait-necromancy` — asset ❌; runtime audio ❌. Trigger when Necromancy successfully creates Skeletal Infantry. Bone-rise assembly burst.
+
+### P2 — ambience and music
+
+- [ ] `ambience-battlefield` — asset ❌; runtime ❌. Restrained looping fantasy battlefield/environment bed with plenty of room for tactical SFX.
+- [ ] `music-match` — asset ❌; runtime ❌. Main tactical fantasy gameplay music; colorful modern tone with Human/Undead identity.
+- [ ] `music-victory` — asset ❌; runtime ❌. Victory presentation music/transition after the short result sting.
 
 ## Runtime folders
 
@@ -8,7 +80,7 @@ This file is the runtime audio contract and acceptance registry. Generated candi
 - `assets/game/audio/ambience/` — environmental beds and loops.
 - `assets/game/audio/music/` — accepted authored music.
 
-## Accepted assets
+## Accepted asset contracts
 
 | ID | File | Trigger | Kind | Volume | Cooldown / Pool | Notes |
 | --- | --- | --- | --- | ---: | --- | --- |
@@ -34,51 +106,12 @@ This file is the runtime audio contract and acceptance registry. Generated candi
 | `tactic-raise-fort` | `sfx/tactic-raise-fort.mp3` | Raise Fort successfully creates the Fort site. | sting | 0.70 | Action-serialized / pool 1 | Converted from WorldXplore runtime `wood-deposit.mp3`; user approved 2026-08-23. |
 | `tactic-scorch` | `sfx/tactic-scorch.mp3` | Scorch successfully marks a Forest hex as scorched. | impact | 0.78 | Action-serialized / pool 1 | Excerpted from WorldXplore runtime `campfire-crackle.mp3`; user approved 2026-08-23. |
 
-## Planned event contracts
+## Recommended work order
 
-These are generation/integration targets, not accepted files. Do not add runtime playback until a candidate has been auditioned and accepted.
-
-### P0 — core match readability
-
-| Event ID | Exact trigger | Sound direction | Generation notes |
-| --- | --- | --- | --- |
-| `unit-move-step` | A rendered unit reaches a movement path hex after leaving its source hex. | Soft compact terrain-neutral movement tick. | Low volume; cooldown/pool required. |
-| `match-victory` | `winner` changes from null to a player ID. | Short triumphant end-match sting. | Music-length celebration comes later. |
-
-### P0 — tactic cards
-
-| Event ID | Exact trigger | Sound direction | Generation notes |
-| --- | --- | --- | --- |
-
-### P1 — unit abilities and traits
-
-| Event ID | Exact trigger | Sound direction |
-| --- | --- | --- |
-| `ability-displace` | Displace successfully moves its target. | Air displacement / magical shove. |
-| `ability-restore` | Restore successfully heals its chosen ally. | Warm clean restorative chime. |
-| `ability-rally` | Rally resolves successfully. | Short banner/command accent, not spoken dialogue. |
-| `ability-soul-link` | Soul Link successfully attaches to its target. | Dark tether / spectral bond. |
-| `ability-curse` | Curse is successfully applied. | Thin dark whisper/rune sting without intelligible speech. |
-| `ability-curse-tick` | Curse deals its periodic damage. | Tiny dry dark pulse. |
-| `ability-blood-drain` | Blood Drain heals after attack damage. | Short reverse-impact / vampiric siphon. |
-| `ability-cleave` | Cleave damages at least one additional adjacent enemy. | Broad heavy sweep accent layered with attack. |
-| `trait-dark-reflection` | Dark Reflection returns damage to an attacker. | Sharp dark mirror/rebound accent. |
-| `trait-necromancy` | Necromancy successfully creates a Skeletal Infantry. | Bone-rise assembly burst. |
-
-### P2 — ambience and music
-
-| Event ID | Exact trigger | Sound direction |
-| --- | --- | --- |
-| `ambience-battlefield` | Match scene is active. | Very restrained fantasy battlefield/environment bed with room for SFX. |
-| `music-match` | Match scene starts and gameplay music is enabled. | Tactical fantasy loop; colorful modern tone; Human and Undead motifs can coexist. |
-| `music-victory` | Match victory presentation begins. | Short victory cue or transition from match music. |
-
-## Generation order
-
-1. Tactics: Grave Lock, Build Bridge, Scorch, Raise Fort, Profane Well events.
-2. Objectives: site capture, Commander death, countdown, victory.
-3. Abilities/traits.
-4. Ambience and music only after the SFX language feels coherent.
+1. Fix the duplicate site-capture cue.
+2. Generate/integrate `unit-move-step`, `match-victory`, `match-defeat`, and `location-village-heal`.
+3. Generate/integrate ability and trait sounds in the order players encounter them most often.
+4. Add ambience and authored music after the SFX language is coherent.
 
 ## Integration rules
 

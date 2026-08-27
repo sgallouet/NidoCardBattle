@@ -40,7 +40,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 ## Special Abilities / Spells
 - **UNB1** - **Displace:** instead of attacking, move one adjacent unit, allied or enemy, to another free hex adjacent to the Displacer.
 - **UNB2** - Displacement is repositioning, not normal movement, so it ignores Blocking.
-- **UNB6** - **Restore:** when this unit is summoned, its owner chooses one damaged adjacent ally and restores 2 HP to it, up to that ally's maximum HP. If there is no valid ally, the effect ends.
+- **UNB6** - **Thunder:** instead of attacking, choose one battlefield hex within this unit's Range. Deal **1 damage** to every unit on the chosen hex and on each adjacent hex, including allied units and the caster if they are inside the blast. Thunder is ability damage, not a normal attack: it does not trigger retaliation, Assist, Necromancy, Blood Drain, Cleave, or Dark Reflection.
 - **UNB7** - **Rally:** instead of attacking, give each adjacent allied unit +1 Move for the current turn; Rally cannot increase a unit that has already completed its movement this turn.
 - **UNB8** - **Soul Link:** instead of attacking, choose one adjacent allied Undead unit. Until the start of the Commander's next turn, all damage that would be dealt to the Commander is dealt to the linked unit instead. If redirected damage kills the linked unit, any excess damage from that same damage instance is dealt to the Commander normally; the link then ends.
 - **UNB9** - **Curse:** instead of attacking, choose one enemy within Range. That unit takes 1 damage at the end of each of its owner's next 3 turns, then Curse ends.
@@ -57,7 +57,7 @@ Human identity: formation, mobility, ranged support, and controlled repositionin
 | **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates, Assist | — | ✅ Implemented. |
 | **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
 | **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
-| **HUR5** | Light Mage | 4 | 3 | 2 | 2 | 2 | — | Restore | ✅ Implemented. |
+| **HUR5** | Thunder Mage | 4 | 3 | 2 | 2 | 2 | — | Thunder | ✅ Implemented; existing Light Mage art remains temporary until replacement art is accepted. |
 | **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | — | — | ✅ Implemented. |
 | **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | ✅ Implemented. |
 

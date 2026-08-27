@@ -35,6 +35,22 @@ export interface DoctrineStateWeights {
   balanced: { materialSwing: number; siteSwing: number; manaSpent: number; action: number };
 }
 
+export interface PortfolioHabitWeights {
+  profaneWellAction: number;
+  unusedProfaneWellPenalty: number;
+  pendingWell: number;
+  unusedCursePenalty: number;
+  curseCommanderAction: number;
+  unthreatenedSoulLinkPenalty: number;
+  unusedManaPlayablePenalty: number;
+  commanderRetreatPenalty: number;
+  invokeOnObjectiveBonus: number;
+  extraBeastPenalty: number;
+  expensiveSummonBonus: number;
+  selfDisplaceCommanderPenalty: number;
+  profaneWellInHandUrgency: number;
+}
+
 export interface PortfolioScoringProfile {
   outlook: number;
   urgency: number;
@@ -45,6 +61,7 @@ export interface PortfolioScoringProfile {
   materialLossDivisor: number;
   deploymentLossPenalty: number;
   doctrines: DoctrineStateWeights;
+  habits: PortfolioHabitWeights;
 }
 
 export interface PortfolioSearchProfile {
@@ -60,11 +77,27 @@ export interface PortfolioSearchProfile {
 }
 
 export interface PortfolioPlannerProfile {
-  id: 'v3-portfolio' | 'v4-portfolio';
+  id: 'v3-portfolio' | 'v4-portfolio' | 'v5-portfolio';
   liveOptions: Required<AiSearchOptions>;
   search: PortfolioSearchProfile;
   scoring: PortfolioScoringProfile;
 }
+
+const ZERO_HABITS: PortfolioHabitWeights = {
+  profaneWellAction: 0,
+  unusedProfaneWellPenalty: 0,
+  pendingWell: 0,
+  unusedCursePenalty: 0,
+  curseCommanderAction: 0,
+  unthreatenedSoulLinkPenalty: 0,
+  unusedManaPlayablePenalty: 0,
+  commanderRetreatPenalty: 0,
+  invokeOnObjectiveBonus: 0,
+  extraBeastPenalty: 0,
+  expensiveSummonBonus: 0,
+  selfDisplaceCommanderPenalty: 0,
+  profaneWellInHandUrgency: 0,
+};
 
 const V3_SCORING: PortfolioScoringProfile = {
   outlook: 4,
@@ -86,6 +119,7 @@ const V3_SCORING: PortfolioScoringProfile = {
     abilityCombo: { abilityAction: 130, tacticAction: 80 },
     balanced: { materialSwing: 0.1, siteSwing: 80, manaSpent: 25, action: 25 },
   },
+  habits: ZERO_HABITS,
 };
 
 export const PLANNER_V3_PROFILE: PortfolioPlannerProfile = {
@@ -152,6 +186,43 @@ export const PLANNER_V4_PROFILE: PortfolioPlannerProfile = {
       mobilityFlank: { siteSwing: 120, moveAction: 38 },
       abilityCombo: { abilityAction: 155, tacticAction: 95 },
       balanced: { materialSwing: 0.13, siteSwing: 105, manaSpent: 30, action: 22 },
+    },
+    habits: ZERO_HABITS,
+  },
+};
+
+export const PLANNER_V5_PROFILE: PortfolioPlannerProfile = {
+  id: 'v5-portfolio',
+  liveOptions: {
+    ...PLANNER_V4_PROFILE.liveOptions,
+  },
+  search: {
+    ...PLANNER_V4_PROFILE.search,
+    retainedActions: 10,
+    maxRetainedActions: 15,
+    expandedActionsPerNode: 7,
+  },
+  scoring: {
+    ...PLANNER_V4_PROFILE.scoring,
+    doctrines: {
+      ...PLANNER_V4_PROFILE.scoring.doctrines,
+      manaEngine: { wellGain: 420, pendingWell: 220, manaSpent: 24 },
+      abilityCombo: { abilityAction: 90, tacticAction: 110 },
+    },
+    habits: {
+      profaneWellAction: 9_000,
+      unusedProfaneWellPenalty: 420,
+      pendingWell: 90,
+      unusedCursePenalty: 240,
+      curseCommanderAction: 22_000,
+      unthreatenedSoulLinkPenalty: 160,
+      unusedManaPlayablePenalty: 40,
+      commanderRetreatPenalty: 70,
+      invokeOnObjectiveBonus: 7_000,
+      extraBeastPenalty: 35,
+      expensiveSummonBonus: 900,
+      selfDisplaceCommanderPenalty: 9_000,
+      profaneWellInHandUrgency: 18,
     },
   },
 };

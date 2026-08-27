@@ -182,7 +182,12 @@ const nearestObjectiveDistance = (state: GameState, player: PlayerId, unit: Unit
   return distances.length > 0 ? Math.min(...distances) : 12;
 };
 
-const doctrineUrgency = (state: GameState, actor: PlayerId, doctrine: PlannerV3Doctrine): number => {
+const doctrineUrgency = (
+  state: GameState,
+  actor: PlayerId,
+  doctrine: PlannerV3Doctrine,
+  profile: PortfolioPlannerProfile,
+): number => {
   const enemy = opponentOf(actor);
   const ownCommander = commander(state, actor);
   const enemyCommander = commander(state, enemy);
@@ -197,15 +202,22 @@ const doctrineUrgency = (state: GameState, actor: PlayerId, doctrine: PlannerV3D
     case 'objective-rush': return 7 + Math.max(0, siteDeficit) * 2;
     case 'attrition': return 6 + Math.max(0, lethalExposureValue(state, enemy) / 350);
     case 'fortress': return ownDanger >= (ownCommander?.hp ?? 10) ? 30 : ownDanger > 0 ? 16 : 3;
-    case 'mana-engine': return 4 + state.sites.filter((site) => site.type === 'well' && site.owner !== actor).length * 3;
+    case 'mana-engine': return 4 + state.sites.filter((site) => site.type === 'well' && site.owner !== actor).length * 3
+      + (state.players[actor].hand.includes('profaneWell') ? profile.scoring.habits.profaneWellInHandUrgency : 0);
     case 'mobility-flank': return 5 + state.units.filter((unit) => unit.owner === actor && unitDefinition(unit).move >= 3).length;
     case 'ability-combo': return 4 + state.units.filter((unit) => unit.owner === actor && unitDefinition(unit).ability).length * 2;
     case 'balanced': return 8;
   }
 };
 
-const commonActionScore = (state: GameState, actor: PlayerId, action: AiAction): number => {
+const commonActionScore = (
+  state: GameState,
+  actor: PlayerId,
+  action: AiAction,
+  profile: PortfolioPlannerProfile,
+): number => {
   const enemy = opponentOf(actor);
+  const habits = profile.scoring.habits;
   if (action.kind === 'attack') {
     const attacker = findUnit(state, action.unitId);
     const target = findUnit(state, action.targetId);
@@ -222,7 +234,13 @@ const commonActionScore = (state: GameState, actor: PlayerId, action: AiAction):
       && playableUnitCards(state, actor) > 0;
     const capture = state.sites.some((site) => site.owner !== actor && sameCoord(site.coord, action.destination));
     const danger = approximateThreatCount(state, enemy, action.destination);
-    return (freesDeployment ? 14_000 : 0) + (capture ? 8_000 : 0) - danger * 450;
+    const objectiveAfter = state.sites.filter((site) => site.owner !== actor)
+      .map((site) => hexDistance(action.destination, site.coord));
+    const retreat = unit.definitionId === 'commander'
+      && objectiveAfter.length > 0
+      && Math.min(...objectiveAfter) > nearestObjectiveDistance(state, actor, unit);
+    return (freesDeployment ? 14_000 : 0) + (capture ? 8_000 : 0) - danger * 450
+      - (retreat ? habits.commanderRetreatPenalty * 80 : 0);
   }
   if (action.kind === 'summon') {
     const card = CARD_DEFINITIONS[action.cardId];
@@ -236,24 +254,44 @@ const commonActionScore = (state: GameState, actor: PlayerId, action: AiAction):
         && hexDistance(unit.coord, action.destination) <= enemyDefinition.move + enemyDefinition.range;
     });
     return 4_000 + card.cost * 550
+      + (card.cost >= 4 ? habits.expensiveSummonBonus * card.cost : 0)
       + (enemyCommander ? Math.max(0, 12 - hexDistance(action.destination, enemyCommander.coord)) * 120 : 0)
       - danger * 500 - (lethalDanger ? 12_000 : 0);
   }
   if (action.kind === 'curse') {
     const target = findUnit(state, action.targetId);
-    return target?.definitionId === 'commander' ? 8_000 : 3_500 + (target ? strategicUnitValue(target) : 0);
+    return target?.definitionId === 'commander'
+      ? 8_000 + habits.curseCommanderAction
+      : 3_500 + (target ? strategicUnitValue(target) : 0);
   }
   if (action.kind === 'displace') {
     const target = findUnit(state, action.targetId);
     const targetSite = target && state.sites.some((site) => site.owner === target.owner && sameCoord(site.coord, target.coord));
-    return 3_500 + (targetSite ? 4_000 : 0) + (target?.definitionId === 'commander' ? 3_000 : 0);
+    const commanderObjectiveAfter = target && state.sites.filter((site) => site.owner !== actor)
+      .map((site) => hexDistance(action.destination, site.coord));
+    const ownCommanderRetreat = Boolean(target?.owner === actor && target.definitionId === 'commander'
+      && approximateIncomingDamage(state, enemy, target) === 0
+      && commanderObjectiveAfter && commanderObjectiveAfter.length > 0
+      && Math.min(...commanderObjectiveAfter) > nearestObjectiveDistance(state, actor, target));
+    return 3_500 + (targetSite ? 4_000 : 0) + (target?.definitionId === 'commander' ? 3_000 : 0)
+      - (ownCommanderRetreat ? habits.selfDisplaceCommanderPenalty : 0);
   }
   if (action.kind === 'rally') return 4_000;
-  if (action.kind === 'soulLink') return 3_800;
-  if (action.kind === 'invoke') return 4_500 - approximateThreatCount(state, enemy, action.destination) * 350;
+  if (action.kind === 'soulLink') {
+    const ownCommander = commander(state, actor);
+    const unthreatened = approximateIncomingDamage(state, enemy, ownCommander) === 0;
+    return 3_800 - (unthreatened ? habits.unthreatenedSoulLinkPenalty * 30 : 0);
+  }
+  if (action.kind === 'invoke') {
+    const onObjective = state.sites.some((site) => site.owner !== actor && sameCoord(site.coord, action.destination));
+    const beastCount = state.units.filter((unit) => unit.owner === actor && unit.definitionId === 'invokedBeast').length;
+    return 4_500 - approximateThreatCount(state, enemy, action.destination) * 350
+      + (onObjective ? habits.invokeOnObjectiveBonus : 0)
+      - beastCount * habits.extraBeastPenalty * 80;
+  }
   if (action.kind === 'tactic') {
     if (action.cardId === 'raiseFort') return 7_000;
-    if (action.cardId === 'profaneWell') return 6_500;
+    if (action.cardId === 'profaneWell') return 6_500 + habits.profaneWellAction;
     if (action.cardId === 'graveLock') return 5_500;
     if (action.cardId === 'buildBridge') return 3_800;
     if (action.cardId === 'scorch') return 3_200;
@@ -365,7 +403,7 @@ const doctrineStateScore = (
   const abilityActions = actions.filter((action) => action.kind === 'curse' || action.kind === 'displace'
     || action.kind === 'rally' || action.kind === 'soulLink' || action.kind === 'invoke').length;
   const tacticActions = actions.filter((action) => action.kind === 'tactic').length;
-  const urgency = doctrineUrgency(initial, actor, doctrine) * weights.urgency;
+  const urgency = doctrineUrgency(initial, actor, doctrine, profile) * weights.urgency;
   let doctrineBonus = 0;
   switch (doctrine) {
     case 'assassinate': doctrineBonus = enemyCommanderDamage * weights.doctrines.assassinate.enemyCommanderDamage
@@ -397,7 +435,40 @@ const doctrineStateScore = (
   const emergencyPenalty = freeDeploymentSites(state, actor) === 0 && playableUnitCards(state, actor) > 0
     ? weights.blockedDeploymentPenalty
     : 0;
-  return base + urgency + doctrineBonus + actions.length * weights.action - emergencyPenalty;
+  const habits = weights.habits;
+  const pendingWellGain = (state.pendingManaWells.filter((well) => well.owner === actor).length
+    - initial.pendingManaWells.filter((well) => well.owner === actor).length) * habits.pendingWell;
+  const unusedProfaneWell = initial.players[actor].hand.includes('profaneWell')
+    && initial.players[actor].mana >= 2
+    && !actions.some((action) => action.kind === 'tactic' && action.cardId === 'profaneWell')
+    ? habits.unusedProfaneWellPenalty
+    : 0;
+  const canCurseCommander = initial.units.some((unit) => {
+    if (unit.owner !== actor || unit.definitionId !== 'necromancer' || unit.exhausted) return false;
+    const target = commander(initial, enemy);
+    return Boolean(target) && hexDistance(unit.coord, target!.coord) <= unitDefinition(unit).move + unitDefinition(unit).range;
+  });
+  const unusedCurse = canCurseCommander && !actions.some((action) => action.kind === 'curse')
+    ? habits.unusedCursePenalty
+    : 0;
+  const leftoverMana = state.players[actor].mana;
+  const leftoverPlayable = leftoverMana > 0 && state.players[actor].hand.some((cardId) => {
+    const card = CARD_DEFINITIONS[cardId as keyof typeof CARD_DEFINITIONS];
+    return Boolean(card) && card.cost <= leftoverMana;
+  });
+  const unusedMana = leftoverPlayable ? leftoverMana * habits.unusedManaPlayablePenalty : 0;
+  const unthreatenedSoulLink = actions.some((action) => action.kind === 'soulLink')
+    && approximateIncomingDamage(initial, enemy, ownCommanderBefore) === 0
+    ? habits.unthreatenedSoulLinkPenalty
+    : 0;
+  const commanderRetreat = ownCommanderBefore && ownCommanderAfter
+    && approximateIncomingDamage(initial, enemy, ownCommanderBefore) === 0
+    && ownCommanderBefore.hp >= (unitDefinition(ownCommanderBefore).maxHp)
+    ? Math.max(0, nearestObjectiveDistance(state, actor, ownCommanderAfter)
+      - nearestObjectiveDistance(initial, actor, ownCommanderBefore)) * habits.commanderRetreatPenalty
+    : 0;
+  return base + urgency + doctrineBonus + actions.length * weights.action - emergencyPenalty
+    + pendingWellGain - unusedProfaneWell - unusedCurse - unusedMana - unthreatenedSoulLink - commanderRetreat;
 };
 
 const recordSelection = (budget: Budget, stats: ReturnType<typeof selectCandidateActions>['stats'], retained: AiAction[]): void => {
@@ -418,8 +489,8 @@ const doctrineActions = (
 ): AiAction[] => {
   const selection = selectCandidateActions(state, actor, true);
   const ranked = [...selection.actions].sort((left, right) =>
-    commonActionScore(state, actor, right) + doctrineActionBias(state, actor, right, doctrine)
-    - commonActionScore(state, actor, left) - doctrineActionBias(state, actor, left, doctrine));
+    commonActionScore(state, actor, right, profile) + doctrineActionBias(state, actor, right, doctrine)
+    - commonActionScore(state, actor, left, profile) - doctrineActionBias(state, actor, left, doctrine));
   const retained = ranked.slice(0, profile.search.retainedActions);
   if (profile.search.representActionKinds) {
     const representedKinds = new Set(retained.map((action) => action.kind));
@@ -558,11 +629,11 @@ const auditCandidate = (
 
   const rootSelection = selectCandidateActions(candidate.endedState, responder, false);
   const immediate = rootSelection.actions.filter((action) => action.kind === 'attack')
-    .sort((left, right) => commonActionScore(candidate.endedState, responder, right) - commonActionScore(candidate.endedState, responder, left))
+    .sort((left, right) => commonActionScore(candidate.endedState, responder, right, profile) - commonActionScore(candidate.endedState, responder, left, profile))
     .slice(0, 12)
     .map((action) => [action]);
   const moveSetups = rootSelection.actions.filter((action) => action.kind === 'move')
-    .sort((left, right) => commonActionScore(candidate.endedState, responder, right) - commonActionScore(candidate.endedState, responder, left))
+    .sort((left, right) => commonActionScore(candidate.endedState, responder, right, profile) - commonActionScore(candidate.endedState, responder, left, profile))
     .slice(0, 10);
   const displaceSetups = rootSelection.actions.filter((action) => action.kind === 'displace').slice(0, 5);
   recordSelection(budget, rootSelection.stats, [...immediate.flat(), ...moveSetups, ...displaceSetups]);
@@ -576,7 +647,7 @@ const auditCandidate = (
     budget.nodes += 1;
     const followup = selectCandidateActions(afterSetup, responder, false);
     const attacks = followup.actions.filter((action) => action.kind === 'attack')
-      .sort((left, right) => commonActionScore(afterSetup, responder, right) - commonActionScore(afterSetup, responder, left))
+      .sort((left, right) => commonActionScore(afterSetup, responder, right, profile) - commonActionScore(afterSetup, responder, left, profile))
       .slice(0, profile.search.responseActionsPerNode);
     recordSelection(budget, followup.stats, attacks);
     for (const attack of attacks) sequences.push([setup, attack]);
@@ -628,9 +699,10 @@ const diverseResponseActions = (
   responder: PlayerId,
   actions: AiAction[],
   limit: number,
+  profile: PortfolioPlannerProfile,
 ): AiAction[] => {
   const ranked = [...actions].sort((left, right) =>
-    commonActionScore(state, responder, right) - commonActionScore(state, responder, left));
+    commonActionScore(state, responder, right, profile) - commonActionScore(state, responder, left, profile));
   const primaryCount = Math.max(1, limit - 3);
   const retained = ranked.slice(0, primaryCount);
   const representedKinds = new Set(retained.map((action) => action.kind));
@@ -677,6 +749,7 @@ const auditCandidateWithResponseBeam = (
         responder,
         selection.actions,
         profile.search.responseActionsPerNode,
+        profile,
       );
       recordSelection(budget, selection.stats, retained);
       for (const action of retained) {
@@ -810,7 +883,7 @@ export const planPortfolioAiTurn = (
   const doctrineScores: Partial<Record<PlannerV3Doctrine, number>> = {};
   const candidates: DoctrineCandidate[] = [];
   const urgencies = PORTFOLIO_DOCTRINES.map((doctrine) =>
-    Math.sqrt(Math.max(1, doctrineUrgency(state, actor, doctrine))));
+    Math.sqrt(Math.max(1, doctrineUrgency(state, actor, doctrine, profile))));
   const nodeBudgets = profile.search.adaptiveDoctrineBudgets
     ? proportionalBudgets(options.strategyMaxNodes, urgencies, 12)
     : PORTFOLIO_DOCTRINES.map(() => Math.max(40, Math.floor(options.strategyMaxNodes / PORTFOLIO_DOCTRINES.length)));
@@ -846,9 +919,9 @@ export const planPortfolioAiTurn = (
     responseSequencesChecked += result.responseSequencesChecked;
     mergeDiagnostics(tacticalDiagnostics, diagnosticsOf(budget));
   }
-  audited.sort(profile.id === 'v4-portfolio'
-    ? (left, right) => compareV4Candidates(left, right, profile)
-    : compareAuditedCandidates);
+  audited.sort(profile.id === 'v3-portfolio'
+    ? compareAuditedCandidates
+    : (left, right) => compareV4Candidates(left, right, profile));
   const best = audited[0];
   const diagnostics: PortfolioDiagnostics = {
     strategy: strategyDiagnostics,

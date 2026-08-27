@@ -41,3 +41,9 @@ Compare V3 against the data-driven V4 portfolio:
 ```bash
 npm run simulate:v4
 ```
+
+Compare V4 against experimental Planner V5:
+
+```bash
+npm run simulate:v5
+```

@@ -19,11 +19,12 @@ This document describes AI architecture only. Gameplay rules remain authoritativ
 - **AI-017** - Before applying the 72-action node cap, reserve capacity for attacks, abilities, summons, tactics, and moves; tile-target cards keep only their strongest representative destinations and no family may consume the entire backfill.
 - **AI-018** - Strategic planning and tactical opponent response have independent node/time budgets and independently report `complete`, `node-limit`, or `time-limit`.
 - **AI-019** - Committed Commander damage is worth substantially more than speculative future attack pressure. Wounded Commanders increase pursuit priority, while tactical safety tiers still prevent avoidable Commander losses.
-- **AI-020** - Portfolio planner search policy and strategic doctrine weights live in typed versioned profile constants, so V3 and V4 share one implementation and tuning does not fork gameplay logic.
+- **AI-020** - Portfolio planner search policy and strategic doctrine weights live in typed versioned profile constants, so V3, V4, and V5 share one implementation and tuning does not fork gameplay logic.
+- **AI-023** - V5 keeps V4's search budget and adds habit weights for early Profane Well, unused Curse, empty Soul Link, leftover playable mana, healthy Commander retreat, and Invoked Beast spam.
 - **AI-021** - V4 retains multiple candidates per doctrine, allocates doctrine budgets by bounded urgency, preserves action-family diversity, deduplicates equivalent end states, and audits diverse visible response sequences under the same total node budget as V3.
 - **AI-022** - Planner matchup reports aggregate per-planner candidate counts, response sequences, node use, termination reasons, doctrine selections, replay failures, captures, kills, and paired outcomes. Live promotion requires a separate held-out seed set.
 
-The live opponent uses Planner V4's nine-doctrine portfolio. V4 was promoted after a 32-game held-out paired-seed run produced an 81.8% decisive win rate against V3, 11 paired-seed wins versus 1, and zero replay failures. Planner V3 remains isolated as the accepted regression baseline.
+The live opponent uses Planner V4's nine-doctrine portfolio. V4 was promoted after a 32-game held-out paired-seed run produced an 81.8% decisive win rate against V3, 11 paired-seed wins versus 1, and zero replay failures. Planner V3 remains isolated as the accepted regression baseline. Planner V5 is an experimental profile on the same engine; it is not live until a held-out V4-vs-V5 matchup under **AI-022**.
 
 ## Rules-Aware Contract
 - `src/game/actions.ts` is the AI-facing gameplay action boundary.
@@ -54,6 +55,7 @@ The live opponent uses Planner V4's nine-doctrine portfolio. V4 was promoted aft
 - `npm run battlelog -- --matches 2 --seed 20260823` writes detailed alternating-first-player logs and their analysis under `reports/battle-logs/`. Use `--out <path>` to choose another output file.
 - `npm run simulate:planners` compares V2 and V3 over 40 paired seeds, prints progress after every pair, and runs the CPU-bound batch in a child process. A parent-process timeout defaults to one hour and can be changed with `--timeout-ms`.
 - `npm run simulate:v4` compares V3 and V4 under the same node budgets. V4 uses typed scoring/search profiles, two candidates per doctrine, urgency-weighted budget allocation, cross-doctrine state deduplication, and a diverse visible-response beam.
+- `npm run simulate:v5` compares V4 and V5 under the same node budgets. V5 adds habit weights from first-turn reviews: play Profane Well before well-income ticks, Curse a reachable Commander, skip Soul Link with no threat, and stop parking a healthy Commander on the map edge.
 
 ## Known Limits From Self-Review
 - Opponent response search models visible board actions only and deliberately does not guess hidden cards yet.

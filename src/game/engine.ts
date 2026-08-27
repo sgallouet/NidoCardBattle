@@ -1,5 +1,5 @@
 import { CARD_DEFINITIONS, FACTION_DECKS, type CardDefinitionId } from '../data/cards';
-import { MAP_GARRISONS, MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
+import { MAP_DECORATIONS, MAP_GARRISONS, MAP_HEIGHT, MAP_SITES, MAP_WIDTH, STARTING_UNITS, TERRAIN } from '../data/map';
 import type {
   ActionResult,
   CardDefinition,
@@ -152,16 +152,26 @@ const beginTurn = (state: GameState, random: () => number): void => {
     unit.postAttackMoved = false;
     unit.moveBonus = 0;
   }
+
+  for (const village of MAP_DECORATIONS.filter((decoration) => decoration.type === 'village')) {
+    const occupant = unitAt(state, village.coord);
+    if (!occupant || occupant.owner !== playerId) continue;
+    occupant.hp = Math.min(unitDefinition(occupant).maxHp, occupant.hp + 1);
+  }
+
+  const occupiedRuins = MAP_DECORATIONS.filter((decoration) => {
+    if (decoration.type !== 'ruin') return false;
+    return unitAt(state, decoration.coord)?.owner === playerId;
+  }).length;
   const playerTurn = Math.ceil(state.turnNumber / 2);
+  let manaIncome = occupiedRuins;
   if (playerTurn > 1) {
     const controlledKeeps = state.sites.filter((site) => site.type === 'keep' && site.owner === playerId).length;
     const controlledWells = state.sites.filter((site) => site.type === 'well' && site.owner === playerId).length;
     const wellIncome = playerTurn % 3 === 0 ? controlledWells * 2 : 0;
-    state.players[playerId].mana = Math.min(
-      MAX_MANA,
-      state.players[playerId].mana + controlledKeeps + wellIncome,
-    );
+    manaIncome += controlledKeeps + wellIncome;
   }
+  state.players[playerId].mana = Math.min(MAX_MANA, state.players[playerId].mana + manaIncome);
   drawCard(state, playerId, random);
 };
 

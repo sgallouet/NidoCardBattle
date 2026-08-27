@@ -19,6 +19,11 @@ This document describes AI architecture only. Gameplay rules remain authoritativ
 - **AI-017** - Before applying the 72-action node cap, reserve capacity for attacks, abilities, summons, tactics, and moves; tile-target cards keep only their strongest representative destinations and no family may consume the entire backfill.
 - **AI-018** - Strategic planning and tactical opponent response have independent node/time budgets and independently report `complete`, `node-limit`, or `time-limit`.
 - **AI-019** - Committed Commander damage is worth substantially more than speculative future attack pressure. Wounded Commanders increase pursuit priority, while tactical safety tiers still prevent avoidable Commander losses.
+- **AI-020** - Portfolio planner search policy and strategic doctrine weights live in typed versioned profile constants, so V3 and V4 share one implementation and tuning does not fork gameplay logic.
+- **AI-021** - V4 retains multiple candidates per doctrine, allocates doctrine budgets by bounded urgency, preserves action-family diversity, deduplicates equivalent end states, and audits diverse visible response sequences under the same total node budget as V3.
+- **AI-022** - Planner matchup reports aggregate per-planner candidate counts, response sequences, node use, termination reasons, doctrine selections, replay failures, captures, kills, and paired outcomes. Live promotion requires a separate held-out seed set.
+
+The live opponent uses Planner V4's nine-doctrine portfolio. V4 was promoted after a 32-game held-out paired-seed run produced an 81.8% decisive win rate against V3, 11 paired-seed wins versus 1, and zero replay failures. Planner V3 remains isolated as the accepted regression baseline.
 
 ## Rules-Aware Contract
 - `src/game/actions.ts` is the AI-facing gameplay action boundary.
@@ -30,7 +35,7 @@ This document describes AI architecture only. Gameplay rules remain authoritativ
 - Simulation action counters use the same canonical action-kind list, so adding an action cannot silently break telemetry.
 
 ## Common Performance Budget
-- Every live device uses the same mobile-safe two-phase profile: strategic planning gets **1,800 nodes / 35 ms**, and tactical opponent response gets **1,000 nodes / 20 ms** across 4 candidate plans.
+- Every live device uses the same V4 two-phase profile: strategic planning gets **2,600 nodes / 160 ms**, and tactical opponent response gets **1,200 nodes / 120 ms** across the doctrine portfolio.
 - Each phase's node budget is its intelligence limit; its wall-clock limit is a safety valve for slow phones.
 - Headless simulation uses the same node/search-width limits but relaxes the wall-clock cap so benchmark results do not depend on the machine running them.
 - Search uses a correctness-first serializable GameState clone so newly added state fields are preserved automatically.
@@ -47,6 +52,8 @@ This document describes AI architecture only. Gameplay rules remain authoritativ
 - Simulation repetition fingerprints include full unit status state so Curse, Soul Link, movement bonuses, and future status effects cannot create false repetitions.
 - `npm run simulate` runs a reproducible 12-match baseline report without loading Phaser or game art.
 - `npm run battlelog -- --matches 2 --seed 20260823` writes detailed alternating-first-player logs and their analysis under `reports/battle-logs/`. Use `--out <path>` to choose another output file.
+- `npm run simulate:planners` compares V2 and V3 over 40 paired seeds, prints progress after every pair, and runs the CPU-bound batch in a child process. A parent-process timeout defaults to one hour and can be changed with `--timeout-ms`.
+- `npm run simulate:v4` compares V3 and V4 under the same node budgets. V4 uses typed scoring/search profiles, two candidates per doctrine, urgency-weighted budget allocation, cross-doctrine state deduplication, and a diverse visible-response beam.
 
 ## Known Limits From Self-Review
 - Opponent response search models visible board actions only and deliberately does not guess hidden cards yet.

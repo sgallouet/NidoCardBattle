@@ -5,7 +5,6 @@ import {
   COMMON_AI_OPTIONS,
   buildThreatMap,
   generateLegalAiActions,
-  getBrowserAiSearchOptions,
   planSmartAiTurn,
   runSmartAiTurn,
   selectCandidateActions,
@@ -221,14 +220,6 @@ describe('smart enemy AI', () => {
     expect(result.diagnostics.tactical.stopReason).toBe('node-limit');
     expect(result.endedTurn).toBe(true);
     expect(state.currentPlayer).toBe(1);
-  });
-
-  it('uses one common mobile-safe profile on every browser', () => {
-    expect(getBrowserAiSearchOptions()).toBe(COMMON_AI_OPTIONS);
-    expect(COMMON_AI_OPTIONS.strategyMaxPlanningMs).toBe(35);
-    expect(COMMON_AI_OPTIONS.strategyMaxNodes).toBe(1_800);
-    expect(COMMON_AI_OPTIONS.tacticalMaxPlanningMs).toBe(20);
-    expect(COMMON_AI_OPTIONS.tacticalMaxNodes).toBe(1_000);
   });
 
   it('preserves action-family diversity when one tactic exposes over 200 tile targets', () => {

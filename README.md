@@ -27,3 +27,17 @@ npm run battlelog -- --matches 2 --seed 20260823
 ```
 
 The report path is printed after the run. Optional flags are `--max-half-turns`, `--repetition-limit`, `--out`, and `--pretty`.
+
+Compare Planner V2 and Planner V3 over paired seeds with progress after every pair:
+
+```bash
+npm run simulate:planners
+```
+
+Optional flags are `--pairs`, `--seed`, `--max-half-turns`, `--repetition-limit`, and `--timeout-ms`. The default one-hour timeout is enforced by a parent process, so it can terminate a CPU-bound simulator that cannot service an in-process timer.
+
+Compare V3 against the data-driven V4 portfolio:
+
+```bash
+npm run simulate:v4
+```

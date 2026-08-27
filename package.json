@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "simulate": "vitest run src/game/simulation.report.test.ts --mode simulation --reporter=verbose",
-    "simulate:planners": "vitest run src/game/aiPlannerDuel.report.test.ts --mode simulation --reporter=verbose",
+    "simulate:planners": "node tools/run-planner-simulation.mjs",
+    "simulate:v4": "node tools/run-planner-simulation.mjs --planner-a v3 --planner-b v4",
     "battlelog": "vite-node tools/generate-battle-log.mjs"
   },
   "dependencies": {

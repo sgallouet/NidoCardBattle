@@ -2,11 +2,10 @@ import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import type { ActionResult, Coord, GameState, PlayerId } from '../data/types';
 import {
   applyAiAction,
-  COMMON_AI_OPTIONS,
-  planSmartAiTurn,
   type AiAction,
   type AiPlan,
 } from './ai';
+import { LIVE_AI_OPTIONS_V4, planAiTurnV4 } from './aiPlannerV4';
 import {
   coordKey,
   curseUnit,
@@ -297,7 +296,7 @@ export class AiGameScene extends GameScene {
     this.aiWorker.postMessage({
       requestId: this.aiRequestId,
       state: scene.state,
-      options: COMMON_AI_OPTIONS,
+      options: LIVE_AI_OPTIONS_V4,
     });
   }
 
@@ -330,7 +329,7 @@ export class AiGameScene extends GameScene {
     this.aiWorker = null;
     this.stopAiHeartbeat();
     const planningStartedAt = performance.now();
-    const plan = planSmartAiTurn(scene.state, COMMON_AI_OPTIONS);
+    const plan = planAiTurnV4(scene.state, LIVE_AI_OPTIONS_V4);
     const totalNodes = plan.diagnostics.strategy.nodes + plan.diagnostics.tactical.nodes;
     const budgetReached = plan.diagnostics.strategy.stopReason !== 'complete'
       || plan.diagnostics.tactical.stopReason !== 'complete';

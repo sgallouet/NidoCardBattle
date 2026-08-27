@@ -3,7 +3,6 @@ import type { Coord, GameState, PlayerId, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS } from '../data/units';
 import { GAME_ACTION_KINDS } from './actions';
 import {
-  COMMON_AI_OPTIONS,
   applyAiAction,
   assessTacticalOutcome,
   selectCandidateActions,
@@ -16,51 +15,26 @@ import {
   type TacticalAssessment,
 } from './ai';
 import { evaluateStrategicPosition, strategicUnitValue, type StrategicEvaluation } from './aiEvaluation';
+import {
+  PLANNER_V3_PROFILE,
+  PORTFOLIO_DOCTRINES,
+  type PortfolioDoctrine,
+  type PortfolioPlannerProfile,
+} from './aiPlannerProfiles';
 import { endTurn, findUnit, hexDistance, terrainAt, unitDefinition } from './engine';
 
-export type PlannerV3Doctrine =
-  | 'assassinate'
-  | 'deployment-tempo'
-  | 'objective-rush'
-  | 'attrition'
-  | 'fortress'
-  | 'mana-engine'
-  | 'mobility-flank'
-  | 'ability-combo'
-  | 'balanced';
+export type PlannerV3Doctrine = PortfolioDoctrine;
+export const LIVE_AI_OPTIONS_V3: Required<AiSearchOptions> = PLANNER_V3_PROFILE.liveOptions;
 
-const DOCTRINES: readonly PlannerV3Doctrine[] = [
-  'assassinate',
-  'deployment-tempo',
-  'objective-rush',
-  'attrition',
-  'fortress',
-  'mana-engine',
-  'mobility-flank',
-  'ability-combo',
-  'balanced',
-] as const;
-
-export const LIVE_AI_OPTIONS_V3: Required<AiSearchOptions> = {
-  ...COMMON_AI_OPTIONS,
-  beamWidth: 3,
-  maxDepth: 6,
-  strategyMaxNodes: 2_600,
-  strategyMaxPlanningMs: 160,
-  candidatePlans: DOCTRINES.length,
-  responseBeamWidth: 3,
-  responseDepth: 2,
-  tacticalMaxNodes: 1_200,
-  tacticalMaxPlanningMs: 120,
-};
-
-interface V3Diagnostics {
+interface PortfolioDiagnostics {
   strategy: SearchPhaseDiagnostics;
   tactical: SearchPhaseDiagnostics;
-  planner: 'v3-portfolio';
+  planner: PortfolioPlannerProfile['id'];
   selectedDoctrine: PlannerV3Doctrine;
   doctrineScores: Partial<Record<PlannerV3Doctrine, number>>;
   doctrinesCompleted: number;
+  candidatesGenerated: number;
+  candidatesAfterDeduplication: number;
   tacticalCandidatesAssessed: number;
   responseSequencesChecked: number;
 }
@@ -370,9 +344,11 @@ const doctrineStateScore = (
   actor: PlayerId,
   doctrine: PlannerV3Doctrine,
   actions: AiAction[],
+  profile: PortfolioPlannerProfile,
 ): number => {
   const enemy = opponentOf(actor);
-  const base = evaluateStrategicPosition(state, actor).outlook * 4;
+  const weights = profile.scoring;
+  const base = evaluateStrategicPosition(state, actor).outlook * weights.outlook;
   const ownCommanderBefore = commander(initial, actor);
   const ownCommanderAfter = commander(state, actor);
   const enemyCommanderBefore = commander(initial, enemy);
@@ -389,21 +365,39 @@ const doctrineStateScore = (
   const abilityActions = actions.filter((action) => action.kind === 'curse' || action.kind === 'displace'
     || action.kind === 'rally' || action.kind === 'soulLink' || action.kind === 'invoke').length;
   const tacticActions = actions.filter((action) => action.kind === 'tactic').length;
-  const urgency = doctrineUrgency(initial, actor, doctrine) * 10;
+  const urgency = doctrineUrgency(initial, actor, doctrine) * weights.urgency;
   let doctrineBonus = 0;
   switch (doctrine) {
-    case 'assassinate': doctrineBonus = enemyCommanderDamage * 180 - ownCommanderDamage * 120; break;
-    case 'deployment-tempo': doctrineBonus = manaSpent * 70 + deployGain * 220 + (state.units.filter((unit) => unit.owner === actor).length - initial.units.filter((unit) => unit.owner === actor).length) * 130; break;
-    case 'objective-rush': doctrineBonus = siteSwing * 150 + threatenedCaptureValue(state, actor) * 70; break;
-    case 'attrition': doctrineBonus = materialSwing / 5 + exposureImprovement / 8; break;
-    case 'fortress': doctrineBonus = -ownCommanderDamage * 180 - approximateIncomingDamage(state, enemy, ownCommanderAfter) * 80 + commanderScreen(state, actor) * 60; break;
-    case 'mana-engine': doctrineBonus = (state.sites.filter((site) => site.owner === actor && site.type === 'well').length - initial.sites.filter((site) => site.owner === actor && site.type === 'well').length) * 350 + state.pendingManaWells.filter((well) => well.owner === actor).length * 160 + manaSpent * 35; break;
-    case 'mobility-flank': doctrineBonus = siteSwing * 90 + actions.filter((action) => action.kind === 'move').length * 45; break;
-    case 'ability-combo': doctrineBonus = abilityActions * 130 + tacticActions * 80; break;
-    case 'balanced': doctrineBonus = materialSwing / 10 + siteSwing * 80 + manaSpent * 25 + actions.length * 25; break;
+    case 'assassinate': doctrineBonus = enemyCommanderDamage * weights.doctrines.assassinate.enemyCommanderDamage
+      - ownCommanderDamage * weights.doctrines.assassinate.ownCommanderDamage; break;
+    case 'deployment-tempo': doctrineBonus = manaSpent * weights.doctrines.deploymentTempo.manaSpent
+      + deployGain * weights.doctrines.deploymentTempo.deploymentGain
+      + (state.units.filter((unit) => unit.owner === actor).length - initial.units.filter((unit) => unit.owner === actor).length)
+        * weights.doctrines.deploymentTempo.unitGain; break;
+    case 'objective-rush': doctrineBonus = siteSwing * weights.doctrines.objectiveRush.siteSwing
+      + threatenedCaptureValue(state, actor) * weights.doctrines.objectiveRush.threatenedCapture; break;
+    case 'attrition': doctrineBonus = materialSwing * weights.doctrines.attrition.materialSwing
+      + exposureImprovement * weights.doctrines.attrition.exposureImprovement; break;
+    case 'fortress': doctrineBonus = -ownCommanderDamage * weights.doctrines.fortress.ownCommanderDamage
+      - approximateIncomingDamage(state, enemy, ownCommanderAfter) * weights.doctrines.fortress.incomingDamage
+      + commanderScreen(state, actor) * weights.doctrines.fortress.commanderScreen; break;
+    case 'mana-engine': doctrineBonus = (state.sites.filter((site) => site.owner === actor && site.type === 'well').length
+      - initial.sites.filter((site) => site.owner === actor && site.type === 'well').length) * weights.doctrines.manaEngine.wellGain
+      + state.pendingManaWells.filter((well) => well.owner === actor).length * weights.doctrines.manaEngine.pendingWell
+      + manaSpent * weights.doctrines.manaEngine.manaSpent; break;
+    case 'mobility-flank': doctrineBonus = siteSwing * weights.doctrines.mobilityFlank.siteSwing
+      + actions.filter((action) => action.kind === 'move').length * weights.doctrines.mobilityFlank.moveAction; break;
+    case 'ability-combo': doctrineBonus = abilityActions * weights.doctrines.abilityCombo.abilityAction
+      + tacticActions * weights.doctrines.abilityCombo.tacticAction; break;
+    case 'balanced': doctrineBonus = materialSwing * weights.doctrines.balanced.materialSwing
+      + siteSwing * weights.doctrines.balanced.siteSwing
+      + manaSpent * weights.doctrines.balanced.manaSpent
+      + actions.length * weights.doctrines.balanced.action; break;
   }
-  const emergencyPenalty = freeDeploymentSites(state, actor) === 0 && playableUnitCards(state, actor) > 0 ? 260 : 0;
-  return base + urgency + doctrineBonus + actions.length * 18 - emergencyPenalty;
+  const emergencyPenalty = freeDeploymentSites(state, actor) === 0 && playableUnitCards(state, actor) > 0
+    ? weights.blockedDeploymentPenalty
+    : 0;
+  return base + urgency + doctrineBonus + actions.length * weights.action - emergencyPenalty;
 };
 
 const recordSelection = (budget: Budget, stats: ReturnType<typeof selectCandidateActions>['stats'], retained: AiAction[]): void => {
@@ -420,15 +414,25 @@ const doctrineActions = (
   actor: PlayerId,
   doctrine: PlannerV3Doctrine,
   budget: Budget,
+  profile: PortfolioPlannerProfile,
 ): AiAction[] => {
   const selection = selectCandidateActions(state, actor, true);
   const ranked = [...selection.actions].sort((left, right) =>
     commonActionScore(state, actor, right) + doctrineActionBias(state, actor, right, doctrine)
     - commonActionScore(state, actor, left) - doctrineActionBias(state, actor, left, doctrine));
-  const retained = ranked.slice(0, 8);
+  const retained = ranked.slice(0, profile.search.retainedActions);
+  if (profile.search.representActionKinds) {
+    const representedKinds = new Set(retained.map((action) => action.kind));
+    for (const action of ranked) {
+      if (retained.length >= profile.search.maxRetainedActions) break;
+      if (representedKinds.has(action.kind)) continue;
+      retained.push(action);
+      representedKinds.add(action.kind);
+    }
+  }
   const representedUnits = new Set(retained.filter((action) => action.kind === 'move').map((action) => action.unitId));
   for (const action of ranked) {
-    if (retained.length >= 11) break;
+    if (retained.length >= profile.search.maxRetainedActions) break;
     if (action.kind !== 'move' || representedUnits.has(action.unitId)) continue;
     retained.push(action);
     representedUnits.add(action.unitId);
@@ -443,45 +447,59 @@ const finishTurn = (state: GameState, actor: PlayerId): GameState => {
   return ended;
 };
 
-const buildDoctrineCandidate = (
+const buildDoctrineCandidates = (
   initial: GameState,
   actor: PlayerId,
   doctrine: PlannerV3Doctrine,
   options: Required<AiSearchOptions>,
   budget: Budget,
-): DoctrineCandidate => {
+  profile: PortfolioPlannerProfile,
+): DoctrineCandidate[] => {
   const root = cloneState(initial);
-  let beam: DoctrineNode[] = [{ state: root, actions: [], score: doctrineStateScore(initial, root, actor, doctrine, []) }];
+  let beam: DoctrineNode[] = [{ state: root, actions: [], score: doctrineStateScore(initial, root, actor, doctrine, [], profile) }];
   let best: DoctrineNode = beam[0];
+  let alternatives: DoctrineNode[] = [best];
   for (let depth = 0; depth < options.maxDepth && beam.length > 0 && !exhausted(budget); depth += 1) {
     const next: DoctrineNode[] = [];
     for (const node of beam) {
       if (exhausted(budget)) break;
-      const actions = doctrineActions(node.state, actor, doctrine, budget);
-      for (const action of actions.slice(0, 5)) {
+      const actions = doctrineActions(node.state, actor, doctrine, budget, profile);
+      for (const action of actions.slice(0, profile.search.expandedActionsPerNode)) {
         if (exhausted(budget)) break;
         const child = cloneState(node.state);
         const result = applyAiAction(child, action);
         if (!result.ok) continue;
         budget.nodes += 1;
         const childActions = [...node.actions, action];
-        const score = doctrineStateScore(initial, child, actor, doctrine, childActions);
+        const score = doctrineStateScore(initial, child, actor, doctrine, childActions, profile);
         const candidate = { state: child, actions: childActions, score };
         next.push(candidate);
         if (score > best.score) best = candidate;
       }
     }
     next.sort((left, right) => right.score - left.score);
+    if (profile.search.candidatesPerDoctrine > 1) {
+      const unique = new Map<string, DoctrineNode>();
+      for (const candidate of [...alternatives, ...next].sort((left, right) => right.score - left.score)) {
+        const key = JSON.stringify(candidate.actions);
+        if (!unique.has(key)) unique.set(key, candidate);
+      }
+      alternatives = [...unique.values()].slice(0, profile.search.candidatesPerDoctrine * 6);
+    }
     beam = next.slice(0, Math.max(1, Math.min(3, options.beamWidth)));
   }
-  const endedState = finishTurn(best.state, actor);
-  return {
-    ...best,
-    doctrine,
-    endedState,
-    strategic: evaluateStrategicPosition(endedState, actor),
-    score: doctrineStateScore(initial, endedState, actor, doctrine, best.actions),
-  };
+  const finalists = profile.search.candidatesPerDoctrine === 1 ? [best] : alternatives;
+  return finalists.map((candidate) => {
+    const endedState = finishTurn(candidate.state, actor);
+    return {
+      ...candidate,
+      doctrine,
+      endedState,
+      strategic: evaluateStrategicPosition(endedState, actor),
+      score: doctrineStateScore(initial, endedState, actor, doctrine, candidate.actions, profile),
+    };
+  }).sort((left, right) => right.score - left.score)
+    .slice(0, profile.search.candidatesPerDoctrine);
 };
 
 const tacticalRank = (assessment: TacticalAssessment): number => assessment.tier === 'forced-win' ? 3
@@ -498,13 +516,19 @@ const strengthenMaterialLoss = (
   afterResponse: GameState,
   perspective: PlayerId,
   assessment: TacticalAssessment,
+  profile: PortfolioPlannerProfile,
 ): TacticalAssessment => {
   if (assessment.tier !== 'safe') return assessment;
   const lost = material(beforeResponse, perspective) - material(afterResponse, perspective);
   const deploymentLost = freeDeploymentSites(beforeResponse, perspective) > 0
     && freeDeploymentSites(afterResponse, perspective) === 0;
-  if (lost < 240 && !deploymentLost) return assessment;
-  return { ...assessment, tier: 'unsafe', score: Math.min(-20, assessment.score - lost / 25 - (deploymentLost ? 25 : 0)) };
+  if (lost < profile.scoring.materialLossThreshold && !deploymentLost) return assessment;
+  return {
+    ...assessment,
+    tier: 'unsafe',
+    score: Math.min(-20, assessment.score - lost / profile.scoring.materialLossDivisor
+      - (deploymentLost ? profile.scoring.deploymentLossPenalty : 0)),
+  };
 };
 
 const applyResponseSequence = (
@@ -525,6 +549,7 @@ const auditCandidate = (
   candidate: DoctrineCandidate,
   perspective: PlayerId,
   budget: Budget,
+  profile: PortfolioPlannerProfile,
 ): AuditedCandidate => {
   const responder = opponentOf(perspective);
   if (candidate.endedState.winner || candidate.endedState.currentPlayer !== responder) {
@@ -552,7 +577,7 @@ const auditCandidate = (
     const followup = selectCandidateActions(afterSetup, responder, false);
     const attacks = followup.actions.filter((action) => action.kind === 'attack')
       .sort((left, right) => commonActionScore(afterSetup, responder, right) - commonActionScore(afterSetup, responder, left))
-      .slice(0, 4);
+      .slice(0, profile.search.responseActionsPerNode);
     recordSelection(budget, followup.stats, attacks);
     for (const attack of attacks) sequences.push([setup, attack]);
   }
@@ -570,6 +595,7 @@ const auditCandidate = (
       after,
       perspective,
       assessTacticalOutcome(initial, after, perspective, sequence),
+      profile,
     );
     if (!worst
       || tacticalRank(assessment) < tacticalRank(worst)
@@ -580,6 +606,121 @@ const auditCandidate = (
   }
 
   const rootHadResponses = rootSelection.actions.length > 0;
+  const assessed = checked > 0 || !rootHadResponses;
+  return {
+    ...candidate,
+    tactical: worst ?? (assessed
+      ? assessTacticalOutcome(initial, candidate.endedState, perspective, [])
+      : conservativeAssessment(candidate.endedState, perspective)),
+    responseSequencesChecked: checked,
+    assessed,
+  };
+};
+
+interface ResponseNode {
+  state: GameState;
+  actions: AiAction[];
+  score: number;
+}
+
+const diverseResponseActions = (
+  state: GameState,
+  responder: PlayerId,
+  actions: AiAction[],
+  limit: number,
+): AiAction[] => {
+  const ranked = [...actions].sort((left, right) =>
+    commonActionScore(state, responder, right) - commonActionScore(state, responder, left));
+  const primaryCount = Math.max(1, limit - 3);
+  const retained = ranked.slice(0, primaryCount);
+  const representedKinds = new Set(retained.map((action) => action.kind));
+  for (const action of ranked) {
+    if (retained.length >= limit) break;
+    if (representedKinds.has(action.kind)) continue;
+    retained.push(action);
+    representedKinds.add(action.kind);
+  }
+  for (const action of ranked) {
+    if (retained.length >= limit) break;
+    if (retained.includes(action)) continue;
+    retained.push(action);
+  }
+  return retained;
+};
+
+const auditCandidateWithResponseBeam = (
+  initial: GameState,
+  candidate: DoctrineCandidate,
+  perspective: PlayerId,
+  options: Required<AiSearchOptions>,
+  budget: Budget,
+  profile: PortfolioPlannerProfile,
+): AuditedCandidate => {
+  const responder = opponentOf(perspective);
+  if (candidate.endedState.winner || candidate.endedState.currentPlayer !== responder) {
+    return { ...candidate, tactical: assessTacticalOutcome(initial, candidate.endedState, perspective, []), responseSequencesChecked: 0, assessed: true };
+  }
+
+  let frontier: ResponseNode[] = [{ state: cloneState(candidate.endedState), actions: [], score: 0 }];
+  let worst: TacticalAssessment | undefined;
+  let checked = 0;
+  let rootHadResponses = false;
+
+  for (let depth = 0; depth < options.responseDepth && frontier.length > 0 && !exhausted(budget); depth += 1) {
+    const next: ResponseNode[] = [];
+    for (const node of frontier) {
+      if (exhausted(budget)) break;
+      const selection = selectCandidateActions(node.state, responder, false);
+      if (depth === 0 && node.actions.length === 0) rootHadResponses = selection.actions.length > 0;
+      const retained = diverseResponseActions(
+        node.state,
+        responder,
+        selection.actions,
+        profile.search.responseActionsPerNode,
+      );
+      recordSelection(budget, selection.stats, retained);
+      for (const action of retained) {
+        if (exhausted(budget)) break;
+        const child = cloneState(node.state);
+        const result = applyAiAction(child, action);
+        if (!result.ok) continue;
+        budget.nodes += 1;
+        const actions = [...node.actions, action];
+        const ended = finishTurn(child, responder);
+        const assessment = strengthenMaterialLoss(
+          candidate.endedState,
+          ended,
+          perspective,
+          assessTacticalOutcome(initial, ended, perspective, actions),
+          profile,
+        );
+        checked += 1;
+        if (!worst
+          || tacticalRank(assessment) < tacticalRank(worst)
+          || (tacticalRank(assessment) === tacticalRank(worst)
+            && assessment.worstResponseStrategicOutlook < worst.worstResponseStrategicOutlook)
+          || (tacticalRank(assessment) === tacticalRank(worst)
+            && assessment.worstResponseStrategicOutlook === worst.worstResponseStrategicOutlook
+            && assessment.score < worst.score)) {
+          worst = assessment;
+        }
+        if (!child.winner && child.currentPlayer === responder) {
+          next.push({
+            state: child,
+            actions,
+            score: evaluateStrategicPosition(child, responder).outlook,
+          });
+        }
+      }
+    }
+    const unique = new Map<string, ResponseNode>();
+    for (const node of next.sort((left, right) => right.score - left.score)) {
+      const key = JSON.stringify(node.state);
+      if (!unique.has(key)) unique.set(key, node);
+    }
+    frontier = [...unique.values()].slice(0, Math.max(1, options.responseBeamWidth));
+  }
+
   const assessed = checked > 0 || !rootHadResponses;
   return {
     ...candidate,
@@ -603,9 +744,63 @@ const compareAuditedCandidates = (left: AuditedCandidate, right: AuditedCandidat
   return right.actions.length - left.actions.length;
 };
 
-export const planAiTurnV3 = (state: GameState, overrides: AiSearchOptions = {}): AiPlan => {
+const compareV4Candidates = (
+  left: AuditedCandidate,
+  right: AuditedCandidate,
+  profile: PortfolioPlannerProfile,
+): number => {
+  const tactical = tacticalRank(right.tactical) - tacticalRank(left.tactical);
+  if (tactical !== 0) return tactical;
+  const assessed = Number(right.assessed) - Number(left.assessed);
+  if (assessed !== 0) return assessed;
+  const response = right.tactical.worstResponseStrategicOutlook - left.tactical.worstResponseStrategicOutlook;
+  if (response !== 0) return response;
+  const combined = right.score + right.tactical.score * profile.scoring.tacticalScore
+    - left.score - left.tactical.score * profile.scoring.tacticalScore;
+  return combined !== 0 ? combined : right.actions.length - left.actions.length;
+};
+
+const proportionalBudgets = (total: number, weights: number[], minimum: number): number[] => {
+  const count = Math.max(1, weights.length);
+  const base = Math.min(minimum, Math.floor(total / count));
+  const remaining = Math.max(0, total - base * count);
+  const weightTotal = weights.reduce((sum, weight) => sum + Math.max(1, weight), 0);
+  const budgets = weights.map((weight) => base + Math.floor(remaining * Math.max(1, weight) / weightTotal));
+  let unallocated = Math.max(0, Math.floor(total - budgets.reduce((sum, budget) => sum + budget, 0)));
+  for (let index = 0; unallocated > 0; index = (index + 1) % budgets.length) {
+    budgets[index] += 1;
+    unallocated -= 1;
+  }
+  return budgets;
+};
+
+const candidateFingerprint = (candidate: DoctrineCandidate): string => JSON.stringify(candidate.endedState);
+
+const diverseCandidates = (candidates: DoctrineCandidate[]): DoctrineCandidate[] => {
+  const bestByDoctrine = PORTFOLIO_DOCTRINES.flatMap((doctrine) => {
+    const matches = candidates.filter((candidate) => candidate.doctrine === doctrine)
+      .sort((left, right) => right.score - left.score);
+    return matches.slice(0, 1);
+  });
+  const ordered = [...bestByDoctrine, ...[...candidates].sort((left, right) => right.score - left.score)];
+  const seen = new Set<string>();
+  const unique: DoctrineCandidate[] = [];
+  for (const candidate of ordered) {
+    const fingerprint = candidateFingerprint(candidate);
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    unique.push(candidate);
+  }
+  return unique;
+};
+
+export const planPortfolioAiTurn = (
+  state: GameState,
+  profile: PortfolioPlannerProfile,
+  overrides: AiSearchOptions = {},
+): AiPlan => {
   const actor = state.currentPlayer;
-  const options: Required<AiSearchOptions> = { ...LIVE_AI_OPTIONS_V3, ...overrides };
+  const options: Required<AiSearchOptions> = { ...profile.liveOptions, ...overrides };
   if (state.winner) {
     const strategic = evaluateStrategicPosition(state, actor);
     return { actions: [], strategic, tactical: assessTacticalOutcome(state, state, actor), diagnostics: { strategy: emptyDiagnostics(), tactical: emptyDiagnostics() } };
@@ -614,40 +809,56 @@ export const planAiTurnV3 = (state: GameState, overrides: AiSearchOptions = {}):
   const strategyDiagnostics = emptyDiagnostics();
   const doctrineScores: Partial<Record<PlannerV3Doctrine, number>> = {};
   const candidates: DoctrineCandidate[] = [];
-  const perDoctrineNodes = Math.max(40, Math.floor(options.strategyMaxNodes / DOCTRINES.length));
-  const perDoctrineMs = Math.max(8, options.strategyMaxPlanningMs / DOCTRINES.length);
+  const urgencies = PORTFOLIO_DOCTRINES.map((doctrine) =>
+    Math.sqrt(Math.max(1, doctrineUrgency(state, actor, doctrine))));
+  const nodeBudgets = profile.search.adaptiveDoctrineBudgets
+    ? proportionalBudgets(options.strategyMaxNodes, urgencies, 12)
+    : PORTFOLIO_DOCTRINES.map(() => Math.max(40, Math.floor(options.strategyMaxNodes / PORTFOLIO_DOCTRINES.length)));
+  const timeBudgets = profile.search.adaptiveDoctrineBudgets
+    ? proportionalBudgets(options.strategyMaxPlanningMs, urgencies, 4)
+    : PORTFOLIO_DOCTRINES.map(() => Math.max(8, options.strategyMaxPlanningMs / PORTFOLIO_DOCTRINES.length));
   let doctrinesCompleted = 0;
 
-  for (const doctrine of DOCTRINES) {
-    const budget = createBudget(perDoctrineNodes, perDoctrineMs);
-    const candidate = buildDoctrineCandidate(state, actor, doctrine, options, budget);
-    doctrineScores[doctrine] = Math.round(candidate.score);
-    candidates.push(candidate);
+  for (const [index, doctrine] of PORTFOLIO_DOCTRINES.entries()) {
+    const budget = createBudget(nodeBudgets[index], timeBudgets[index]);
+    const doctrineCandidates = buildDoctrineCandidates(state, actor, doctrine, options, budget, profile);
+    doctrineScores[doctrine] = Math.round(doctrineCandidates[0]?.score ?? -100_000);
+    candidates.push(...doctrineCandidates);
     mergeDiagnostics(strategyDiagnostics, diagnosticsOf(budget));
     if (budget.stopReason === 'complete') doctrinesCompleted += 1;
   }
 
+  const deduplicated = profile.search.candidatesPerDoctrine === 1 ? candidates : diverseCandidates(candidates);
+  const candidatesToAudit = deduplicated.slice(0, profile.search.maxAuditedCandidates);
   const tacticalDiagnostics = emptyDiagnostics();
   const audited: AuditedCandidate[] = [];
-  const perCandidateNodes = Math.max(35, Math.floor(options.tacticalMaxNodes / Math.max(1, candidates.length)));
-  const perCandidateMs = Math.max(8, options.tacticalMaxPlanningMs / Math.max(1, candidates.length));
+  const minimumCandidateNodes = profile.search.responseMode === 'setups' ? 35 : 1;
+  const minimumCandidateMs = profile.search.responseMode === 'setups' ? 8 : 1;
+  const perCandidateNodes = Math.max(minimumCandidateNodes, Math.floor(options.tacticalMaxNodes / Math.max(1, candidatesToAudit.length)));
+  const perCandidateMs = Math.max(minimumCandidateMs, options.tacticalMaxPlanningMs / Math.max(1, candidatesToAudit.length));
   let responseSequencesChecked = 0;
-  for (const candidate of candidates) {
+  for (const candidate of candidatesToAudit) {
     const budget = createBudget(perCandidateNodes, perCandidateMs);
-    const result = auditCandidate(state, candidate, actor, budget);
+    const result = profile.search.responseMode === 'beam'
+      ? auditCandidateWithResponseBeam(state, candidate, actor, options, budget, profile)
+      : auditCandidate(state, candidate, actor, budget, profile);
     audited.push(result);
     responseSequencesChecked += result.responseSequencesChecked;
     mergeDiagnostics(tacticalDiagnostics, diagnosticsOf(budget));
   }
-  audited.sort(compareAuditedCandidates);
+  audited.sort(profile.id === 'v4-portfolio'
+    ? (left, right) => compareV4Candidates(left, right, profile)
+    : compareAuditedCandidates);
   const best = audited[0];
-  const diagnostics: V3Diagnostics = {
+  const diagnostics: PortfolioDiagnostics = {
     strategy: strategyDiagnostics,
     tactical: tacticalDiagnostics,
-    planner: 'v3-portfolio',
+    planner: profile.id,
     selectedDoctrine: best?.doctrine ?? 'balanced',
     doctrineScores,
     doctrinesCompleted,
+    candidatesGenerated: candidates.length,
+    candidatesAfterDeduplication: deduplicated.length,
     tacticalCandidatesAssessed: audited.filter((candidate) => candidate.assessed).length,
     responseSequencesChecked,
   };
@@ -658,3 +869,6 @@ export const planAiTurnV3 = (state: GameState, overrides: AiSearchOptions = {}):
     diagnostics,
   };
 };
+
+export const planAiTurnV3 = (state: GameState, overrides: AiSearchOptions = {}): AiPlan =>
+  planPortfolioAiTurn(state, PLANNER_V3_PROFILE, overrides);

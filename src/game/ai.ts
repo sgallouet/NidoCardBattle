@@ -121,7 +121,7 @@ export interface AiSearchOptions {
   tacticalMaxPlanningMs?: number;
 }
 
-/** One common mobile-safe intelligence budget for every live-game device. */
+/** Default search budget for the original beam planner in `planAiTurn`. Live games use Planner V4. */
 export const COMMON_AI_OPTIONS: Required<AiSearchOptions> = {
   beamWidth: 9,
   maxDepth: 7,
@@ -140,8 +140,6 @@ export const SIMULATION_AI_OPTIONS: Required<AiSearchOptions> = {
   strategyMaxPlanningMs: 60_000,
   tacticalMaxPlanningMs: 60_000,
 };
-
-export const getBrowserAiSearchOptions = (): Required<AiSearchOptions> => COMMON_AI_OPTIONS;
 
 const nowMs = (): number => typeof performance !== 'undefined' ? performance.now() : Date.now();
 

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Coord } from '../data/types';
 import type { AiPlan } from './ai';
-import { LIVE_AI_OPTIONS_V2, planSmartAiTurnV2 } from './aiPlannerV2';
+import { LIVE_AI_OPTIONS_V4, planAiTurnV4 } from './aiPlannerV4';
 import {
   CelShadedRiverSurface,
   type CelShadedRiverSceneInternals,
@@ -55,8 +55,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
 
     super.create();
 
-    // Modern browsers use ai.worker.ts, but keep the rare no-Worker/error fallback on the same
-    // repaired planner rather than silently reverting to the broken one-action legacy search.
+    // Production and the shared AiGameScene both plan with V4. Keep this override so a
+    // no-Worker/error fallback cannot silently revert to an older planner.
     const ai = this as unknown as AiFallbackInternals;
     ai.fallbackToMainThread = () => {
       if (!ai.aiTurnInProgress || game.state.winner || game.state.currentPlayer !== 2) {
@@ -66,9 +66,9 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       ai.aiWorker?.terminate();
       ai.aiWorker = null;
       ai.stopAiHeartbeat();
-      setDebugStatus('AI: Worker unavailable; using repaired V2 planner on main thread.', 'warning');
+      setDebugStatus('AI: Worker unavailable; using V4 planner on main thread.', 'warning');
       try {
-        const plan = planSmartAiTurnV2(game.state, LIVE_AI_OPTIONS_V2);
+        const plan = planAiTurnV4(game.state, LIVE_AI_OPTIONS_V4);
         void ai.playAiPlan(game, plan).catch((error: unknown) => ai.reportAiFailure(error));
       } catch (error) {
         ai.reportAiFailure(error);

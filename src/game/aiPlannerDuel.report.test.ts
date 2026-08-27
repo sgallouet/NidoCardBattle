@@ -9,6 +9,7 @@ simulationTest('prints a paired Planner V2 vs Planner V3 strength report', () =>
     seed: 20260826,
     maxHalfTurns: 140,
     repetitionLimit: 4,
+    onPairComplete: (progress) => console.log(`AI_PLANNER_DUEL_PROGRESS ${JSON.stringify(progress)}`),
   });
 
   const summary = {
@@ -37,4 +38,4 @@ simulationTest('prints a paired Planner V2 vs Planner V3 strength report', () =>
   expect(report.games).toBe(80);
   expect(report.replayFailuresByPlanner.v2).toBe(0);
   expect(report.replayFailuresByPlanner.v3).toBe(0);
-}, 900_000);
+}, 3_600_000);

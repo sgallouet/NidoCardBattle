@@ -476,7 +476,9 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
 
   let assisted = 0;
   const survivingDefender = findUnit(state, defenderId);
-  if (survivingDefender) {
+  if (survivingDefender
+    && !attackerDef.traits.includes('Ranged')
+    && hexDistance(attacker.coord, defenderCoord) === 1) {
     const bonus = assistDamage(state, attacker, survivingDefender);
     if (bonus > 0) assisted = dealDamage(state, survivingDefender, bonus, false, attacker.owner);
   }
@@ -623,6 +625,7 @@ export const getInvokeDestinations = (state: GameState, actorId: string): Coord[
     || actor.exhausted
     || actor.attacked
     || !unitDefinition(actor).traits.includes('Invoker')) return [];
+  if (actor.invokedPetId && findUnit(state, actor.invokedPetId)) return [];
   return neighbors(actor.coord).filter((coord) => isPassableInState(state, coord)
     && !isGraveLocked(state, coord)
     && !unitAt(state, coord));
@@ -630,11 +633,15 @@ export const getInvokeDestinations = (state: GameState, actorId: string): Coord[
 
 export const invokeBeast = (state: GameState, actorId: string, destination: Coord): ActionResult => {
   const actor = findUnit(state, actorId);
+  if (actor?.invokedPetId && findUnit(state, actor.invokedPetId)) {
+    return { ok: false, message: 'This Invoker already has a living Invoked Beast.' };
+  }
   if (!actor || !getInvokeDestinations(state, actorId).some((coord) => sameCoord(coord, destination))) {
     return { ok: false, message: 'Choose a free adjacent hex for the Invoked Beast.' };
   }
   actor.attacked = true;
   const summoned = createUnit(state, 'invokedBeast', actor.owner, destination, true);
+  actor.invokedPetId = summoned.id;
   state.units.push(summoned);
   return {
     ok: true,

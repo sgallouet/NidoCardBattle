@@ -73,7 +73,7 @@ const nowMs = (): number => typeof performance !== 'undefined' ? performance.now
 const cloneState = (state: GameState): GameState => structuredClone(state);
 const opponentOf = (player: PlayerId): PlayerId => player === 1 ? 2 : 1;
 const sameCoord = (left: Coord, right: Coord): boolean => left.q === right.q && left.r === right.r;
-const emptyCounts = (): ActionKindCounts => ({ summon: 0, tactic: 0, move: 0, attack: 0, displace: 0, rally: 0, soulLink: 0, curse: 0, invoke: 0 });
+const emptyCounts = (): ActionKindCounts => ({ summon: 0, tactic: 0, move: 0, attack: 0, displace: 0, rally: 0, soulLink: 0, curse: 0, thunder: 0, invoke: 0 });
 const emptyDiagnostics = (): SearchPhaseDiagnostics => ({ nodes: 0, stopReason: 'complete', legalActions: 0, retainedActions: 0, legalByKind: emptyCounts(), retainedByKind: emptyCounts() });
 const createBudget = (maxNodes: number, maxMs: number): Budget => ({ deadline: nowMs() + maxMs, maxNodes, nodes: 0, stopReason: 'complete', legalActions: 0, retainedActions: 0, legalByKind: emptyCounts(), retainedByKind: emptyCounts() });
 const exhausted = (budget: Budget): boolean => {
@@ -304,6 +304,16 @@ const commonActionScore = (
       ? 8_000 + habits.curseCommanderAction
       : 3_500 + (target ? strategicUnitValue(target) : 0);
   }
+  if (action.kind === 'thunder') {
+    const affected = state.units.filter((unit) => hexDistance(unit.coord, action.destination) <= 1);
+    const enemyValue = affected
+      .filter((unit) => unit.owner !== actor)
+      .reduce((score, unit) => score + 850 + strategicUnitValue(unit), 0);
+    const friendlyValue = affected
+      .filter((unit) => unit.owner === actor)
+      .reduce((score, unit) => score + 1_000 + strategicUnitValue(unit), 0);
+    return 2_500 + enemyValue - friendlyValue;
+  }
   if (action.kind === 'displace') {
     const target = findUnit(state, action.targetId);
     const targetSite = target && state.sites.some((site) => site.owner === target.owner && sameCoord(site.coord, target.coord));
@@ -406,7 +416,7 @@ const doctrineActionBias = (state: GameState, actor: PlayerId, action: AiAction,
       return 0;
     case 'ability-combo':
       if (action.kind === 'curse' || action.kind === 'displace' || action.kind === 'rally'
-        || action.kind === 'soulLink' || action.kind === 'invoke') return 10_000;
+        || action.kind === 'soulLink' || action.kind === 'thunder' || action.kind === 'invoke') return 10_000;
       if (action.kind === 'tactic') return 6_000;
       return action.kind === 'attack' ? 3_000 : 0;
     case 'balanced':
@@ -442,7 +452,7 @@ const doctrineStateScore = (
   const deployGain = freeDeploymentSites(state, actor) - freeDeploymentSites(initial, actor);
   const exposureImprovement = lethalExposureValue(initial, actor) - lethalExposureValue(state, actor);
   const abilityActions = actions.filter((action) => action.kind === 'curse' || action.kind === 'displace'
-    || action.kind === 'rally' || action.kind === 'soulLink' || action.kind === 'invoke').length;
+    || action.kind === 'rally' || action.kind === 'soulLink' || action.kind === 'thunder' || action.kind === 'invoke').length;
   const tacticActions = actions.filter((action) => action.kind === 'tactic').length;
   const urgency = doctrineUrgency(initial, actor, doctrine, profile) * weights.urgency;
   let doctrineBonus = 0;

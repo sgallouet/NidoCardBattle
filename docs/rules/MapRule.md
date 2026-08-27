@@ -14,12 +14,17 @@ This file owns map geometry, capture, and terrain rules.
 - **MPL4** - Layout should be deliberately asymmetric while giving both players comparable access to objectives and flanking routes.
 - **MPL5** - Each neutral Fort has 3 adjacent Garrisons that provide the additional spawn sources defined by `CRU3`.
 - **MPL6** - At New Game, the local player's starting army and Home Keep are randomly assigned to either the bottom-left or upper-right start; the AI receives the opposite start, independent of faction.
+- **MPL7** - Villages and Ruins are non-capturable special locations. Their benefits depend only on a unit physically occupying their hex; they never gain persistent ownership.
 
 ## Capture
 - **MPC1** - Captures resolve only at the end of the active player's full turn.
 - **MPC2** - At capture resolution, every capturable location occupied by one of the active player's units becomes owned by that player.
 - **MPC3** - A captured location remains owned until ownership changes through `MPC2`.
 - **MPC4** - A Garrison cannot be captured directly; it always shares the owner of its linked Fort.
+
+## Special Locations
+- **MPL8** - **Village:** at the start of a player's turn, each of that player's units standing on a Village restores **1 HP**, up to its maximum HP. Leaving the Village removes the benefit.
+- **MPL9** - **Ruin:** its occupied mana benefit is defined by `ECM6`.
 
 ## Terrain
 - **MPT1** - Plain hexes have no modifier and cost 1 movement point to enter.

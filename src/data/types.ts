@@ -62,6 +62,7 @@ export interface UnitState {
   postAttackMoved?: boolean;
   moveBonus?: number;
   soulLinkTargetId?: string;
+  invokedPetId?: string;
   curses?: CurseStatus[];
 }
 

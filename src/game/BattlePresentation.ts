@@ -2,6 +2,30 @@ import type Phaser from 'phaser';
 import type { Coord, GameState, PlayerId, VictoryCountdown } from '../data/types';
 import './BattlePresentation.css';
 
+export const describeBattleFinale = (
+  winner: PlayerId,
+  localPlayer: PlayerId,
+  cause: 'elimination' | 'countdown',
+): { localVictory: boolean; title: string; subtitle: string } => {
+  const localVictory = winner === localPlayer;
+  if (cause === 'elimination') {
+    return {
+      localVictory,
+      title: localVictory ? 'Victory' : 'Defeat',
+      subtitle: localVictory
+        ? 'The opposing army was eliminated.'
+        : 'Your army was eliminated.',
+    };
+  }
+  return {
+    localVictory,
+    title: localVictory ? 'Victory' : 'Defeat',
+    subtitle: localVictory
+      ? 'The enemy commander fell and the three-turn survival hold is complete.'
+      : 'Your commander fell. The enemy survived the three-turn hold.',
+  };
+};
+
 interface Snapshot {
   currentPlayer: PlayerId;
   countdown: VictoryCountdown | null;
@@ -101,7 +125,12 @@ export class BattlePresentation {
     const winner = next.winner;
     const defeated: PlayerId = winner === 1 ? 2 : 1;
     const winnerFaction = state.players[winner].faction;
-    const localVictory = winner === 1;
+    const eliminated = next.unitsRemaining[defeated] === 0;
+    const { localVictory, title: titleText, subtitle: subtitleText } = describeBattleFinale(
+      winner,
+      1,
+      eliminated ? 'elimination' : 'countdown',
+    );
     const accent = winnerFaction === 'undead' ? '#b56cff' : '#67d9ff';
     const light = winnerFaction === 'undead' ? '#f0d9ff' : '#ddf8ff';
     const focusCoord = next.commanderCoords[winner]
@@ -142,12 +171,21 @@ export class BattlePresentation {
     eyebrow.textContent = `${winnerFaction === 'undead' ? 'Undead' : 'Human'} ${localVictory ? 'triumph' : 'victory'}`;
 
     const title = document.createElement('h2');
-    title.textContent = localVictory ? 'Victory' : 'Defeat';
+    title.textContent = titleText;
 
     const subtitle = document.createElement('p');
-    subtitle.textContent = localVictory
-      ? 'The enemy commander fell and the three-turn survival hold is complete.'
-      : 'Your commander fell. The enemy survived the three-turn hold.';
+    subtitle.textContent = subtitleText;
+
+    const actions = document.createElement('div');
+    actions.className = 'battle-finale-actions';
+
+    const download = document.createElement('button');
+    download.className = 'battle-finale-download';
+    download.type = 'button';
+    download.textContent = 'Download Battle Log';
+    download.addEventListener('click', () => {
+      document.querySelector<HTMLButtonElement>('#battle-log-download-button')?.click();
+    });
 
     const playAgain = document.createElement('button');
     playAgain.className = 'battle-finale-play-again';
@@ -158,7 +196,8 @@ export class BattlePresentation {
       existingNewGame?.click();
     });
 
-    panel.append(crest, eyebrow, title, subtitle, playAgain);
+    actions.append(download, playAgain);
+    panel.append(crest, eyebrow, title, subtitle, actions);
     finale.append(vignette, panel);
     app.append(finale);
     this.finale = finale;

@@ -747,25 +747,6 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     }
     for (const unit of this.state.units) this.addUnit(unit);
     this.boardLayer.sort('depth');
-
-    if (this.state.winner) {
-      const defeatedPlayer: PlayerId = this.state.winner === 1 ? 2 : 1;
-      const eliminated = !this.state.units.some((unit) => unit.owner === defeatedPlayer);
-      const shade = this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 780, 250, 0x090d0a, 0.92)
-        .setStrokeStyle(3, 0xd8b967);
-      const title = this.add.text(WORLD_WIDTH / 2, WORLD_HEIGHT / 2 - 25, `PLAYER ${this.state.winner} WINS`, {
-        fontFamily: 'Georgia, serif', fontSize: '50px', color: '#f5d58e', fontStyle: 'bold',
-      }).setOrigin(0.5);
-      const copy = this.add.text(
-        WORLD_WIDTH / 2,
-        WORLD_HEIGHT / 2 + 42,
-        eliminated ? 'The opposing army was eliminated.' : 'The Commander survived all three checkpoints.',
-        {
-        fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#f4eee4',
-        },
-      ).setOrigin(0.5);
-      this.boardLayer.add([shade, title, copy]);
-    }
   }
 
   private clearSelectionHexFx(): void {

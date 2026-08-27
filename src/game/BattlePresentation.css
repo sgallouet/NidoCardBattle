@@ -177,6 +177,14 @@
   line-height: 1.45;
 }
 
+.battle-finale-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.battle-finale-download,
 .battle-finale-play-again {
   min-width: 158px;
   min-height: 44px;
@@ -198,6 +206,16 @@
   transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease;
 }
 
+.battle-finale-download {
+  border-color: color-mix(in srgb, var(--finale-light) 28%, rgba(255,255,255,.16));
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--finale-light) 12%, #1a222c),
+      color-mix(in srgb, var(--finale-accent) 10%, #10161d));
+}
+
+.battle-finale-download:hover,
+.battle-finale-download:focus-visible,
 .battle-finale-play-again:hover,
 .battle-finale-play-again:focus-visible {
   filter: brightness(1.12);
@@ -208,6 +226,7 @@
   outline: none;
 }
 
+.battle-finale-download:active,
 .battle-finale-play-again:active {
   transform: scale(.97);
 }
@@ -234,6 +253,7 @@
   .battle-banner { transform: translate(-50%, 0); }
   .battle-finale,
   .battle-finale-panel,
+  .battle-finale-download,
   .battle-finale-play-again {
     transition: none;
   }

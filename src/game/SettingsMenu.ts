@@ -68,12 +68,6 @@ export class SettingsMenu {
     this.moveControl('#new-game-button', match, 'New match');
 
     const developer = this.createSection(panel, 'Developer');
-    const battleLog = document.querySelector<HTMLElement>('#victory-log-actions');
-    if (battleLog) {
-      this.remember(battleLog);
-      battleLog.classList.add('settings-menu-battle-log');
-      developer.append(battleLog);
-    }
     const debugStatus = document.querySelector<HTMLElement>('#debug-status');
     if (debugStatus) {
       this.remember(debugStatus);
@@ -109,7 +103,7 @@ export class SettingsMenu {
       } else {
         placement.parent.appendChild(placement.element);
       }
-      placement.element.classList.remove('settings-menu-battle-log', 'settings-menu-debug-status');
+      placement.element.classList.remove('settings-menu-debug-status');
     }
     this.placements = [];
 

@@ -45,8 +45,8 @@ export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
     traits: ['Flying', 'AgileAssault'], mark: 'S',
   },
   lightMage: {
-    id: 'lightMage', name: 'Light Mage', faction: 'human', cost: 4, maxHp: 3, attack: 2, move: 2, range: 2,
-    traits: [], ability: 'Restore', mark: 'M',
+    id: 'lightMage', name: 'Thunder Mage', faction: 'human', cost: 4, maxHp: 3, attack: 2, move: 2, range: 2,
+    traits: [], ability: 'Thunder', mark: 'M',
   },
   bannerCaptain: {
     id: 'bannerCaptain', name: 'Banner Captain', faction: 'human', cost: 4, maxHp: 4, attack: 2, move: 2, range: 1,

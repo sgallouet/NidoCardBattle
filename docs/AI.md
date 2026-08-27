@@ -11,7 +11,7 @@ This document describes AI architecture only. Gameplay rules remain authoritativ
 - **AI-006** - Never use the opponent's hidden hand when evaluating positions or simulating responses.
 - **AI-007** - Run a shallow visible-board opponent response search over the best end-of-turn plans. Rank `forced-win`, `safe`, `unsafe`, and `forced-loss` before strategic outlook so an immediate win is not missed and an avoidable Commander loss is rejected.
 - **AI-008** - Run live-game planning in a Web Worker so search does not block Phaser rendering or touch input.
-- **AI-009** - Use one common mobile-safe search profile for every player device; PC does not receive a stronger AI search budget.
+- **AI-009** - Use one common live search profile for every player device. Each live think is capped at **1 second** and is presented as part of the enemy turn (focus the enemy Commander, think, act, think, next act).
 - **AI-010** - Run the same planner for either faction and support reproducible headless AI-vs-AI match batches for balance, regression, stalemate detection, and dominant-strategy analysis.
 - **AI-014** - Passive traits and triggered effects are evaluated by simulating the real engine action, so Assist, Agile Assault, Dark Reflection, Necromancy, Phase, Blood Drain, Cleave, retaliation, terrain effects, and future passive mechanics need no AI-specific implementation.
 - **AI-015** - A new active ability is added to the engine legal-action/resolver layer once; the AI automatically receives and searches it without adding an AI-specific action handler.
@@ -36,8 +36,9 @@ The live opponent uses Planner V4's nine-doctrine portfolio. V4 was promoted aft
 - Simulation action counters use the same canonical action-kind list, so adding an action cannot silently break telemetry.
 
 ## Common Performance Budget
-- Every live device uses the same V4 two-phase profile: strategic planning gets **2,600 nodes / 160 ms**, and tactical opponent response gets **1,200 nodes / 120 ms** across the doctrine portfolio.
-- Each phase's node budget is its intelligence limit; its wall-clock limit is a safety valve for slow phones.
+- Every live device uses the same V4 two-phase think: strategic planning gets **7,200 nodes / 700 ms**, and tactical opponent response gets **3,000 nodes / 300 ms** (**1 second** together) before each committed action.
+- Live play replans after each committed action so the visible think is part of enemy-turn pacing. Headless simulation still plans a whole turn under relaxed clocks.
+- Each phase's node budget is its intelligence limit; its wall-clock limit is a safety valve if a device cannot finish the node budget in time.
 - Headless simulation uses the same node/search-width limits but relaxes the wall-clock cap so benchmark results do not depend on the machine running them.
 - Search uses a correctness-first serializable GameState clone so newly added state fields are preserved automatically.
 - Exact threat maps are used only for high-value Commander checks; the inner evaluator uses cheaper approximations.
@@ -61,7 +62,7 @@ The live opponent uses Planner V4's nine-doctrine portfolio. V4 was promoted aft
 - Opponent response search models visible board actions only and deliberately does not guess hidden cards yet.
 - A very slow live device can hit either wall-clock safety cap before its node cap, so exact cross-device move parity is not guaranteed even though every device uses the same limits.
 - Search quality still depends on evaluation weights and finite beam width; rules are simulated correctly, but a bounded search can still miss a stronger long sequence.
-- AI actions are applied as a completed plan; simulation records any replay failure so future abilities/cards cannot silently invalidate planned sequences.
+- Headless simulation still applies a completed whole-turn plan and records replay failures. Live play commits one action, then thinks again.
 - Current faction/map-side balance is still partly coupled because each faction keeps its current starting side; first-move bias is measured separately, but map-side mirroring can be added later if needed.
 
 ## Next

@@ -9,7 +9,7 @@ import {
   planAiTurnV4,
   type PlannerV4Doctrine,
 } from './aiPlannerV4';
-import { createGameState } from './engine';
+import { createGameState, terrainAt } from './engine';
 
 const fixedRandom = () => 0.25;
 const QUICK_OPTIONS = {
@@ -96,16 +96,56 @@ describe('Planner V4 portfolio', () => {
       action.kind === 'attack' && action.targetId === 'human-threat')).toBe(true);
   });
 
-  it('uses the same total live node budget as V3', () => {
-    expect(LIVE_AI_OPTIONS_V4.strategyMaxNodes).toBe(PLANNER_V3_PROFILE.liveOptions.strategyMaxNodes);
-    expect(LIVE_AI_OPTIONS_V4.tacticalMaxNodes).toBe(PLANNER_V3_PROFILE.liveOptions.tacticalMaxNodes);
+  it('uses a larger live node budget than the V3 baseline so a 1s think can search', () => {
+    expect(LIVE_AI_OPTIONS_V4.strategyMaxNodes).toBeGreaterThan(PLANNER_V3_PROFILE.liveOptions.strategyMaxNodes);
+    expect(LIVE_AI_OPTIONS_V4.tacticalMaxNodes).toBeGreaterThan(PLANNER_V3_PROFILE.liveOptions.tacticalMaxNodes);
   });
 
-  it('uses one common mobile-safe V4 profile on every browser', () => {
+  it('uses one common live profile with a 1s think budget on every browser', () => {
     expect(getBrowserAiSearchOptions()).toBe(LIVE_AI_OPTIONS_V4);
-    expect(LIVE_AI_OPTIONS_V4.strategyMaxNodes).toBe(2_600);
-    expect(LIVE_AI_OPTIONS_V4.strategyMaxPlanningMs).toBe(160);
-    expect(LIVE_AI_OPTIONS_V4.tacticalMaxNodes).toBe(1_200);
-    expect(LIVE_AI_OPTIONS_V4.tacticalMaxPlanningMs).toBe(120);
+    expect(LIVE_AI_OPTIONS_V4.strategyMaxPlanningMs + LIVE_AI_OPTIONS_V4.tacticalMaxPlanningMs).toBe(1_000);
+    expect(LIVE_AI_OPTIONS_V4.strategyMaxPlanningMs).toBe(700);
+    expect(LIVE_AI_OPTIONS_V4.tacticalMaxPlanningMs).toBe(300);
+  });
+
+  it('moves a ranger onto a hill for the extra range', () => {
+    const state = createGameState(fixedRandom);
+    state.currentPlayer = 2;
+    state.players[2].mana = 0;
+    state.players[2].hand = [];
+    state.players[2].deck = [];
+    state.players[2].discard = [];
+    state.sites = [];
+    state.units = [
+      makeUnit('human-commander', 'commander', 1, { q: 15, r: 5 }),
+      makeUnit('undead-archer', 'boneArcher', 2, { q: 13, r: 5 }),
+    ];
+
+    const plan = planAiTurnV4(state, { ...QUICK_OPTIONS, beamWidth: 4, maxDepth: 4, strategyMaxNodes: 700 });
+    expect(plan.actions.some((action) =>
+      action.kind === 'move'
+      && action.unitId === 'undead-archer'
+      && terrainAt(action.destination) === 'hill')).toBe(true);
+  });
+
+  it('walks a nearby unit onto an unowned mana well', () => {
+    const state = createGameState(fixedRandom);
+    state.currentPlayer = 2;
+    state.players[2].mana = 0;
+    state.players[2].hand = [];
+    state.players[2].deck = [];
+    state.players[2].discard = [];
+    state.units = [
+      makeUnit('human-commander', 'commander', 1, { q: 2, r: 8 }),
+      makeUnit('undead-commander', 'commander', 2, { q: 15, r: 4 }),
+      makeUnit('undead-skirmisher', 'skeletalInfantry', 2, { q: 14, r: 4 }),
+    ];
+
+    const plan = planAiTurnV4(state, { ...QUICK_OPTIONS, beamWidth: 4, maxDepth: 4, strategyMaxNodes: 700 });
+    expect(plan.actions.some((action) =>
+      action.kind === 'move'
+      && action.destination.q === 13
+      && action.destination.r === 4)).toBe(true);
   });
 });
+

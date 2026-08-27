@@ -56,6 +56,8 @@ interface GameSceneInternals {
   playUnitDeath: (owner: PlayerId, commander?: boolean) => void;
   playVictoryCountdown: () => void;
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
+  presentAiThinking?: () => void;
+  center: (coord: Coord) => { x: number; y: number };
   recordAiPlan: (plan: AiPlan) => void;
   beginAiAction: () => void;
   recordAiAction: (actor: PlayerId, action: AiAction | { kind: 'endTurn' }, result: ActionResult) => void;
@@ -66,11 +68,15 @@ interface AiWorkerResponse {
   plan: AiPlan;
 }
 
+const MAX_LIVE_AI_STEPS = 8;
+
 export class AiGameScene extends GameScene {
   private aiTurnInProgress = false;
   private aiWorker: Worker | null = null;
   private aiRequestId = 0;
   private aiStartedAt = 0;
+  private aiThinkStartedAt = 0;
+  private aiStepCount = 0;
   private aiHeartbeat: number | null = null;
 
   create(): void {
@@ -278,21 +284,28 @@ export class AiGameScene extends GameScene {
 
     this.aiTurnInProgress = true;
     this.aiStartedAt = performance.now();
+    this.aiStepCount = 0;
     scene.animationInProgress = true;
     scene.clearInteraction();
-    scene.message = 'Enemy thinking…';
-    scene.renderAll();
     this.hideAiHand();
-    this.startAiHeartbeat();
+    this.requestAiPlan(scene);
+  }
 
+  private requestAiPlan(scene: GameSceneInternals): void {
+    if (!this.aiTurnInProgress || scene.state.winner || scene.state.currentPlayer !== 2) {
+      this.finishAiUi(scene);
+      return;
+    }
+    this.presentThinking(scene);
     if (!this.aiWorker) {
       setDebugStatus('AI: Web Worker unavailable; planning on the main thread.', 'warning');
       this.fallbackToMainThread();
       return;
     }
-
     this.aiRequestId += 1;
-    setDebugStatus(`AI: request ${this.aiRequestId} sent to worker; thinking…`, 'active');
+    this.aiThinkStartedAt = performance.now();
+    this.startAiHeartbeat();
+    setDebugStatus(`AI: thinking up to 1s for action ${this.aiStepCount + 1} (request ${this.aiRequestId}).`, 'active');
     this.aiWorker.postMessage({
       requestId: this.aiRequestId,
       state: scene.state,
@@ -300,21 +313,22 @@ export class AiGameScene extends GameScene {
     });
   }
 
+  private presentThinking(scene: GameSceneInternals): void {
+    scene.presentAiThinking?.();
+    const commander = scene.state.units.find((unit) => unit.owner === 2 && unit.definitionId === 'commander');
+    if (commander && !scene.presentAiThinking) {
+      const point = scene.center(commander.coord);
+      this.cameras.main.pan(point.x, point.y, 220, 'Sine.easeInOut');
+    }
+    scene.message = 'Enemy thinking…';
+    scene.renderAll();
+    this.hideAiHand();
+  }
+
   private async finishWorkerPlan(response: AiWorkerResponse): Promise<void> {
     if (response.requestId !== this.aiRequestId) return;
     this.stopAiHeartbeat();
     const scene = this as unknown as GameSceneInternals;
-    if (scene.state.winner || scene.state.currentPlayer !== 2) {
-      this.finishAiUi(scene);
-      return;
-    }
-    const totalNodes = response.plan.diagnostics.strategy.nodes + response.plan.diagnostics.tactical.nodes;
-    const budgetReached = response.plan.diagnostics.strategy.stopReason !== 'complete'
-      || response.plan.diagnostics.tactical.stopReason !== 'complete';
-    setDebugStatus(
-      `AI: plan received in ${elapsedSince(this.aiStartedAt)} — ${response.plan.actions.length} actions, ${totalNodes} states${budgetReached ? ', budget reached' : ''}.`,
-      budgetReached ? 'warning' : 'active',
-    );
     await this.playAiPlan(scene, response.plan);
   }
 
@@ -330,40 +344,56 @@ export class AiGameScene extends GameScene {
     this.stopAiHeartbeat();
     const planningStartedAt = performance.now();
     const plan = planAiTurnV4(scene.state, LIVE_AI_OPTIONS_V4);
-    const totalNodes = plan.diagnostics.strategy.nodes + plan.diagnostics.tactical.nodes;
-    const budgetReached = plan.diagnostics.strategy.stopReason !== 'complete'
-      || plan.diagnostics.tactical.stopReason !== 'complete';
     setDebugStatus(
-      `AI: main-thread plan finished in ${elapsedSince(planningStartedAt)} — ${plan.actions.length} actions, ${totalNodes} states.`,
-      budgetReached ? 'warning' : 'active',
+      `AI: main-thread plan finished in ${elapsedSince(planningStartedAt)} — ${plan.actions.length} actions.`,
+      'warning',
     );
     void this.playAiPlan(scene, plan).catch((error: unknown) => this.reportAiFailure(error));
   }
 
   private async playAiPlan(scene: GameSceneInternals, plan: AiPlan): Promise<void> {
-    const messages: string[] = [];
-    scene.recordAiPlan(plan);
-    for (const [index, action] of plan.actions.entries()) {
-      if (scene.state.winner || scene.state.currentPlayer !== 2) break;
-      const actor = scene.state.currentPlayer;
-      scene.beginAiAction();
-      setDebugStatus(`AI: running action ${index + 1}/${plan.actions.length} (${action.kind}).`, 'active');
-      const result = scene.playAiAction
-        ? await scene.playAiAction(action)
-        : applyAiAction(scene.state, action);
-      scene.recordAiAction(actor, action, result);
-      if (!result.ok) {
-        messages.push(`AI plan stopped: ${result.message}`);
-        setDebugStatus(`AI replay stopped on action ${index + 1}: ${result.message}`, 'error');
-        break;
-      }
-      messages.push(result.message);
-      scene.message = result.message;
-      scene.renderAll();
-      this.hideAiHand();
-      await this.waitForAiAction(75);
+    if (scene.state.winner || scene.state.currentPlayer !== 2) {
+      this.finishAiUi(scene);
+      return;
     }
 
+    scene.recordAiPlan(plan);
+    const action = plan.actions[0];
+    if (!action || this.aiStepCount >= MAX_LIVE_AI_STEPS) {
+      await this.endEnemyTurn(scene, []);
+      return;
+    }
+
+    const actor = scene.state.currentPlayer;
+    scene.beginAiAction();
+    this.aiStepCount += 1;
+    const totalNodes = plan.diagnostics.strategy.nodes + plan.diagnostics.tactical.nodes;
+    setDebugStatus(
+      `AI: playing step ${this.aiStepCount} (${action.kind}) after ${totalNodes} states.`,
+      'active',
+    );
+    const result = scene.playAiAction
+      ? await scene.playAiAction(action)
+      : applyAiAction(scene.state, action);
+    scene.recordAiAction(actor, action, result);
+    if (!result.ok) {
+      setDebugStatus(`AI replay stopped on step ${this.aiStepCount}: ${result.message}`, 'error');
+      await this.endEnemyTurn(scene, [`AI plan stopped: ${result.message}`]);
+      return;
+    }
+    scene.message = result.message;
+    scene.renderAll();
+    this.hideAiHand();
+    await this.waitForAiAction(75);
+
+    if (scene.state.winner || scene.state.currentPlayer !== 2) {
+      await this.endEnemyTurn(scene, [result.message]);
+      return;
+    }
+    this.requestAiPlan(scene);
+  }
+
+  private async endEnemyTurn(scene: GameSceneInternals, messages: string[]): Promise<void> {
     if (!scene.state.winner && scene.state.currentPlayer === 2) {
       setDebugStatus('AI: actions complete; ending Player 2 turn.', 'active');
       const endingPlayer = scene.state.currentPlayer;
@@ -428,9 +458,9 @@ export class AiGameScene extends GameScene {
   private startAiHeartbeat(): void {
     this.stopAiHeartbeat();
     this.aiHeartbeat = window.setInterval(() => {
-      const elapsed = elapsedSince(this.aiStartedAt);
-      setDebugStatus(`AI: worker still thinking after ${elapsed}; no plan received yet.`, 'warning');
-    }, 500);
+      const elapsed = elapsedSince(this.aiThinkStartedAt);
+      setDebugStatus(`AI: still thinking after ${elapsed} (up to 1s).`, 'warning');
+    }, 1_100);
   }
 
   private stopAiHeartbeat(): void {

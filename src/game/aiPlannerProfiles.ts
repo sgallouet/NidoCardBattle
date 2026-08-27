@@ -49,6 +49,11 @@ export interface PortfolioHabitWeights {
   expensiveSummonBonus: number;
   selfDisplaceCommanderPenalty: number;
   profaneWellInHandUrgency: number;
+  captureWell: number;
+  captureFort: number;
+  hillRanged: number;
+  villageHeal: number;
+  siteApproach: number;
 }
 
 export interface PortfolioScoringProfile {
@@ -97,6 +102,11 @@ const ZERO_HABITS: PortfolioHabitWeights = {
   expensiveSummonBonus: 0,
   selfDisplaceCommanderPenalty: 0,
   profaneWellInHandUrgency: 0,
+  captureWell: 0,
+  captureFort: 0,
+  hillRanged: 0,
+  villageHeal: 0,
+  siteApproach: 0,
 };
 
 const V3_SCORING: PortfolioScoringProfile = {
@@ -154,6 +164,11 @@ export const PLANNER_V4_PROFILE: PortfolioPlannerProfile = {
   id: 'v4-portfolio',
   liveOptions: {
     ...PLANNER_V3_PROFILE.liveOptions,
+    maxDepth: 7,
+    strategyMaxNodes: 7_200,
+    strategyMaxPlanningMs: 700,
+    tacticalMaxNodes: 3_000,
+    tacticalMaxPlanningMs: 300,
     responseDepth: 3,
   },
   search: {
@@ -179,15 +194,23 @@ export const PLANNER_V4_PROFILE: PortfolioPlannerProfile = {
     doctrines: {
       assassinate: { enemyCommanderDamage: 250, ownCommanderDamage: 180 },
       deploymentTempo: { manaSpent: 85, deploymentGain: 330, unitGain: 180 },
-      objectiveRush: { siteSwing: 230, threatenedCapture: 115 },
+      objectiveRush: { siteSwing: 340, threatenedCapture: 180 },
       attrition: { materialSwing: 0.24, exposureImprovement: 0.16 },
       fortress: { ownCommanderDamage: 200, incomingDamage: 85, commanderScreen: 60 },
-      manaEngine: { wellGain: 370, pendingWell: 165, manaSpent: 28 },
+      manaEngine: { wellGain: 480, pendingWell: 210, manaSpent: 22 },
       mobilityFlank: { siteSwing: 120, moveAction: 38 },
       abilityCombo: { abilityAction: 155, tacticAction: 95 },
       balanced: { materialSwing: 0.13, siteSwing: 105, manaSpent: 30, action: 22 },
     },
-    habits: ZERO_HABITS,
+    habits: {
+      ...ZERO_HABITS,
+      captureWell: 12_000,
+      captureFort: 9_500,
+      hillRanged: 7_500,
+      villageHeal: 4_500,
+      siteApproach: 1_400,
+      invokeOnObjectiveBonus: 8_000,
+    },
   },
 };
 
@@ -223,6 +246,11 @@ export const PLANNER_V5_PROFILE: PortfolioPlannerProfile = {
       expensiveSummonBonus: 900,
       selfDisplaceCommanderPenalty: 9_000,
       profaneWellInHandUrgency: 18,
+      captureWell: 12_000,
+      captureFort: 9_500,
+      hillRanged: 7_500,
+      villageHeal: 4_500,
+      siteApproach: 1_400,
     },
   },
 };

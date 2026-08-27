@@ -26,6 +26,7 @@ interface EnemyPresentationInternals {
   renderAll: () => void;
   center: (coord: Coord) => { x: number; y: number };
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
+  presentAiThinking?: () => void;
   waitForAiAction: (duration: number) => Promise<void>;
   finishAiUi: (scene: EnemyPresentationInternals) => void;
 }
@@ -47,6 +48,15 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
     this.forceInstant = this.isSimulationMode();
     this.enemyAnimationsEnabled = this.forceInstant ? false : this.loadAnimationPreference();
     this.installPresentationUi();
+
+    game.presentAiThinking = () => {
+      const commander = game.state.units.find((unit) =>
+        unit.owner === 2 && unit.definitionId === 'commander');
+      this.showEnemyAction('Enemy thinking…');
+      if (!this.enemyAnimationsEnabled || !commander) return;
+      const point = game.center(commander.coord);
+      this.cameras.main.pan(point.x, point.y, CAMERA_FOCUS_MS, 'Sine.easeInOut');
+    };
 
     game.waitForAiAction = (duration) => {
       if (!this.enemyAnimationsEnabled) return Promise.resolve();

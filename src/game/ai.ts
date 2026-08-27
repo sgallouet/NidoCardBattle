@@ -306,13 +306,19 @@ const actionPriority = (state: GameState, action: AiAction, actor: PlayerId): nu
       ? unitDefinition(enemyCommander).maxHp - enemyCommander.hp
       : 0;
     const pursuitValue = unit.definitionId === 'commander' ? 220 : 420 + commanderDamage * 70;
-    const siteBonus = state.sites.some((site) => site.owner !== actor
+    const occupiedSite = state.sites.find((site) => site.owner !== actor
       && site.coord.q === action.destination.q
-      && site.coord.r === action.destination.r) ? 1_100 : 0;
+      && site.coord.r === action.destination.r);
+    const siteBonus = occupiedSite
+      ? 1_100 + (occupiedSite.type === 'well' ? 2_400 : occupiedSite.type === 'fort' ? 1_800 : 0)
+      : 0;
+    const definition = unitDefinition(unit);
+    const hillBonus = (definition.range >= 2 || definition.traits.includes('Ranged'))
+      && terrainAt(action.destination) === 'hill' ? 2_800 : 0;
     const commanderSafety = unit.definitionId === 'commander'
       ? -approximateAttackPressure(state, opponent, action.destination) * 1_400
       : 0;
-    return (before - after) * pursuitValue + siteBonus + commanderSafety;
+    return (before - after) * pursuitValue + siteBonus + hillBonus + commanderSafety;
   }
 
   if (action.kind === 'tactic' && 'destination' in action) {

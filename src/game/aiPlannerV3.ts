@@ -1,4 +1,5 @@
 import { CARD_DEFINITIONS } from '../data/cards';
+import { MAP_DECORATIONS } from '../data/map';
 import type { Coord, GameState, PlayerId, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS } from '../data/units';
 import { GAME_ACTION_KINDS } from './actions';
@@ -181,6 +182,37 @@ const nearestObjectiveDistance = (state: GameState, player: PlayerId, unit: Unit
     .map((site) => hexDistance(unit.coord, site.coord));
   return distances.length > 0 ? Math.min(...distances) : 12;
 };
+const contestedSiteDistance = (state: GameState, player: PlayerId, coord: Coord): number => {
+  const distances = state.sites
+    .filter((site) => site.owner !== player && (site.type === 'well' || site.type === 'fort'))
+    .map((site) => hexDistance(coord, site.coord));
+  return distances.length > 0 ? Math.min(...distances) : 12;
+};
+const isRangedUnit = (definition: { range: number; traits: string[] }): boolean =>
+  definition.range >= 2 || definition.traits.includes('Ranged');
+const isVillage = (coord: Coord): boolean =>
+  MAP_DECORATIONS.some((decoration) => decoration.type === 'village' && sameCoord(decoration.coord, coord));
+const captureSiteBonus = (
+  state: GameState,
+  actor: PlayerId,
+  destination: Coord,
+  habits: PortfolioPlannerProfile['scoring']['habits'],
+): number => {
+  const site = state.sites.find((candidate) => candidate.owner !== actor && sameCoord(candidate.coord, destination));
+  if (!site) return 0;
+  const kindBonus = site.type === 'well' ? habits.captureWell : site.type === 'fort' ? habits.captureFort : 0;
+  return 8_000 + kindBonus;
+};
+const terrainPostureBonus = (
+  definition: { range: number; traits: string[]; maxHp: number },
+  destination: Coord,
+  hp: number,
+  habits: PortfolioPlannerProfile['scoring']['habits'],
+): number => {
+  const hillBonus = isRangedUnit(definition) && terrainAt(destination) === 'hill' ? habits.hillRanged : 0;
+  const villageBonus = hp < definition.maxHp && isVillage(destination) ? habits.villageHeal : 0;
+  return hillBonus + villageBonus;
+};
 
 const doctrineUrgency = (
   state: GameState,
@@ -232,14 +264,20 @@ const commonActionScore = (
     if (!unit) return -100_000;
     const freesDeployment = controlledDeploymentSites(state, actor).some((site) => sameCoord(site.coord, unit.coord))
       && playableUnitCards(state, actor) > 0;
-    const capture = state.sites.some((site) => site.owner !== actor && sameCoord(site.coord, action.destination));
     const danger = approximateThreatCount(state, enemy, action.destination);
     const objectiveAfter = state.sites.filter((site) => site.owner !== actor)
       .map((site) => hexDistance(action.destination, site.coord));
     const retreat = unit.definitionId === 'commander'
       && objectiveAfter.length > 0
       && Math.min(...objectiveAfter) > nearestObjectiveDistance(state, actor, unit);
-    return (freesDeployment ? 14_000 : 0) + (capture ? 8_000 : 0) - danger * 450
+    const definition = unitDefinition(unit);
+    const approach = Math.max(0, contestedSiteDistance(state, actor, unit.coord)
+      - contestedSiteDistance(state, actor, action.destination));
+    return (freesDeployment ? 14_000 : 0)
+      + captureSiteBonus(state, actor, action.destination, habits)
+      + terrainPostureBonus(definition, action.destination, unit.hp, habits)
+      + approach * habits.siteApproach
+      - danger * 450
       - (retreat ? habits.commanderRetreatPenalty * 80 : 0);
   }
   if (action.kind === 'summon') {
@@ -255,6 +293,8 @@ const commonActionScore = (
     });
     return 4_000 + card.cost * 550
       + (card.cost >= 4 ? habits.expensiveSummonBonus * card.cost : 0)
+      + (definition ? terrainPostureBonus(definition, action.destination, definition.maxHp, habits) : 0)
+      + captureSiteBonus(state, actor, action.destination, habits)
       + (enemyCommander ? Math.max(0, 12 - hexDistance(action.destination, enemyCommander.coord)) * 120 : 0)
       - danger * 500 - (lethalDanger ? 12_000 : 0);
   }
@@ -287,6 +327,7 @@ const commonActionScore = (
     const beastCount = state.units.filter((unit) => unit.owner === actor && unit.definitionId === 'invokedBeast').length;
     return 4_500 - approximateThreatCount(state, enemy, action.destination) * 350
       + (onObjective ? habits.invokeOnObjectiveBonus : 0)
+      + captureSiteBonus(state, actor, action.destination, habits)
       - beastCount * habits.extraBeastPenalty * 80;
   }
   if (action.kind === 'tactic') {
@@ -467,8 +508,12 @@ const doctrineStateScore = (
     ? Math.max(0, nearestObjectiveDistance(state, actor, ownCommanderAfter)
       - nearestObjectiveDistance(initial, actor, ownCommanderBefore)) * habits.commanderRetreatPenalty
     : 0;
+  const posture = state.units.reduce((score, unit) => {
+    if (unit.owner !== actor) return score;
+    return score + terrainPostureBonus(unitDefinition(unit), unit.coord, unit.hp, habits) * 0.08;
+  }, 0);
   return base + urgency + doctrineBonus + actions.length * weights.action - emergencyPenalty
-    + pendingWellGain - unusedProfaneWell - unusedCurse - unusedMana - unthreatenedSoulLink - commanderRetreat;
+    + pendingWellGain + posture - unusedProfaneWell - unusedCurse - unusedMana - unthreatenedSoulLink - commanderRetreat;
 };
 
 const recordSelection = (budget: Budget, stats: ReturnType<typeof selectCandidateActions>['stats'], retained: AiAction[]): void => {

@@ -5,7 +5,9 @@ import {
   attackUnit,
   createGameState,
   getInvokeDestinations,
+  getThunderTargetCoords,
   invokeBeast,
+  thunderAtCoord,
 } from './engine';
 
 const fixedRandom = () => 0.25;
@@ -66,5 +68,26 @@ describe('UnitRule regressions', () => {
 
     state.units = state.units.filter((unit) => unit.id !== first.summonedUnitId);
     expect(getInvokeDestinations(state, invoker.id).length).toBeGreaterThan(0);
+  });
+
+  it('makes UNB6 Thunder damage its target hex and every adjacent unit, including allies and the caster', () => {
+    const state = freshState();
+    const mage = makeUnit('mage', 'lightMage', 1, { q: 5, r: 6 });
+    const enemyCenter = makeUnit('enemy-center', 'necromancer', 2, { q: 6, r: 6 });
+    const enemyAdjacent = makeUnit('enemy-adjacent', 'vampire', 2, { q: 6, r: 5 });
+    const allyAdjacent = makeUnit('ally-adjacent', 'royalGuard', 1, { q: 7, r: 6 });
+    const outside = makeUnit('outside', 'graveKnight', 2, { q: 9, r: 6 });
+    state.units = [mage, enemyCenter, enemyAdjacent, allyAdjacent, outside];
+
+    const target = { q: 6, r: 6 };
+    expect(getThunderTargetCoords(state, mage.id)).toContainEqual(target);
+    expect(thunderAtCoord(state, mage.id, target).ok).toBe(true);
+
+    expect(mage.hp).toBe(2);
+    expect(enemyCenter.hp).toBe(3);
+    expect(enemyAdjacent.hp).toBe(3);
+    expect(allyAdjacent.hp).toBe(2);
+    expect(outside.hp).toBe(5);
+    expect(mage.attacked).toBe(true);
   });
 });

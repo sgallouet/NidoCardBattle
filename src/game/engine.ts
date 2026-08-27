@@ -546,6 +546,52 @@ export const restoreAdjacentAlly = (state: GameState, sourceId: string, targetId
   return { ok: true, message: `${unitDefinition(source).name} restored 2 HP to ${unitDefinition(target).name}.` };
 };
 
+export const getThunderTargetCoords = (state: GameState, actorId: string): Coord[] => {
+  const actor = findUnit(state, actorId);
+  if (!actor
+    || state.winner
+    || actor.owner !== state.currentPlayer
+    || actor.exhausted
+    || actor.attacked
+    || unitDefinition(actor).ability !== 'Thunder') return [];
+  const targets: Coord[] = [];
+  const range = effectiveRange(actor);
+  for (let r = 0; r < MAP_HEIGHT; r += 1) {
+    for (let q = 0; q < MAP_WIDTH; q += 1) {
+      const coord = { q, r };
+      if (hexDistance(actor.coord, coord) <= range) targets.push(coord);
+    }
+  }
+  return targets;
+};
+
+export const thunderAtCoord = (state: GameState, actorId: string, destination: Coord): ActionResult => {
+  const actor = findUnit(state, actorId);
+  if (!actor || !getThunderTargetCoords(state, actorId).some((coord) => sameCoord(coord, destination))) {
+    return { ok: false, message: 'Choose a battlefield hex within Thunder range.' };
+  }
+
+  const sourcePlayer = actor.owner;
+  const affectedCoords = [destination, ...neighbors(destination)];
+  const targetIds = state.units
+    .filter((unit) => affectedCoords.some((coord) => sameCoord(coord, unit.coord)))
+    .map((unit) => unit.id);
+  actor.attacked = true;
+
+  let damaged = 0;
+  for (const targetId of targetIds) {
+    const target = findUnit(state, targetId);
+    if (!target) continue;
+    if (dealDamage(state, target, 1, false, sourcePlayer, { sourceUnitId: actorId }) > 0) damaged += 1;
+  }
+
+  const victoryText = state.winner ? ` Player ${state.winner} wins the match.` : '';
+  return {
+    ok: true,
+    message: `${unitDefinition(actor).name} called Thunder on ${damaged} ${damaged === 1 ? 'unit' : 'units'} for 1 damage.${victoryText}`,
+  };
+};
+
 export const getDisplaceDestinations = (state: GameState, actorId: string, targetId: string): Coord[] => {
   const actor = findUnit(state, actorId);
   const target = findUnit(state, targetId);

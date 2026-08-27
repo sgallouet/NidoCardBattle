@@ -78,6 +78,7 @@ export interface ActionKindCounts {
   rally: number;
   soulLink: number;
   curse: number;
+  thunder: number;
   invoke: number;
 }
 
@@ -296,6 +297,17 @@ const actionPriority = (state: GameState, action: AiAction, actor: PlayerId): nu
     return 1_800 + proximity * 30;
   }
 
+  if (action.kind === 'thunder') {
+    const affected = state.units.filter((unit) => hexDistance(unit.coord, action.destination) <= 1);
+    const enemyValue = affected
+      .filter((unit) => unit.owner !== actor)
+      .reduce((score, unit) => score + 700 + strategicUnitValue(unit), 0);
+    const friendlyValue = affected
+      .filter((unit) => unit.owner === actor)
+      .reduce((score, unit) => score + 850 + strategicUnitValue(unit), 0);
+    return 2_000 + enemyValue - friendlyValue;
+  }
+
   if (action.kind === 'move') {
     const unit = findUnit(state, action.unitId);
     if (!unit) return -100_000;
@@ -359,10 +371,11 @@ const emptyActionKindCounts = (): ActionKindCounts => ({
   rally: 0,
   soulLink: 0,
   curse: 0,
+  thunder: 0,
   invoke: 0,
 });
 
-const abilityKinds = new Set<AiAction['kind']>(['displace', 'rally', 'soulLink', 'curse', 'invoke']);
+const abilityKinds = new Set<AiAction['kind']>(['displace', 'rally', 'soulLink', 'curse', 'thunder', 'invoke']);
 type ActionFamily = 'attacks' | 'abilities' | 'summons' | 'tactics' | 'moves';
 const actionFamily = (action: AiAction): ActionFamily => {
   if (action.kind === 'attack') return 'attacks';

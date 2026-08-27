@@ -82,7 +82,7 @@ const cloneState = (state: GameState): GameState => typeof structuredClone === '
 const opponentOf = (player: PlayerId): PlayerId => player === 1 ? 2 : 1;
 const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 const sameCoord = (a: { q: number; r: number }, b: { q: number; r: number }): boolean => a.q === b.q && a.r === b.r;
-const emptyCounts = (): ActionKindCounts => ({ summon: 0, tactic: 0, move: 0, attack: 0, displace: 0, rally: 0, soulLink: 0, curse: 0, invoke: 0 });
+const emptyCounts = (): ActionKindCounts => ({ summon: 0, tactic: 0, move: 0, attack: 0, displace: 0, rally: 0, soulLink: 0, curse: 0, thunder: 0, invoke: 0 });
 const emptyDiagnostics = (): SearchPhaseDiagnostics => ({ nodes: 0, stopReason: 'complete', legalActions: 0, retainedActions: 0, legalByKind: emptyCounts(), retainedByKind: emptyCounts() });
 const createBudget = (maxNodes: number, maxMs: number): SearchBudget => ({ deadline: nowMs() + maxMs, maxNodes, nodes: 0, stopReason: 'complete', legalActions: 0, retainedActions: 0, legalByKind: emptyCounts(), retainedByKind: emptyCounts() });
 const budgetExhausted = (budget: SearchBudget): boolean => {
@@ -178,7 +178,7 @@ const actionSequenceUtility = (initial: GameState, state: GameState, actions: Ai
   const manaSpent = Math.max(0, initial.players[actor].mana - state.players[actor].mana);
   const freedDeployment = Math.max(0, freeDeploymentSites(state, actor) - freeDeploymentSites(initial, actor));
   const capturesThreatened = state.sites.filter((site) => site.owner !== actor && state.units.some((unit) => unit.owner === actor && sameCoord(unit.coord, site.coord))).length;
-  const meaningful = actions.reduce((total, action) => total + (action.kind === 'attack' ? 1.5 : 0) + (action.kind === 'summon' ? 1.1 : 0) + (action.kind === 'tactic' ? 0.6 : 0) + (action.kind === 'invoke' ? 0.8 : 0), 0);
+  const meaningful = actions.reduce((total, action) => total + (action.kind === 'attack' ? 1.5 : 0) + (action.kind === 'summon' ? 1.1 : 0) + (action.kind === 'tactic' ? 0.6 : 0) + (action.kind === 'invoke' ? 0.8 : 0) + (action.kind === 'thunder' ? 1 : 0), 0);
   return Math.min(8, actions.length * 0.65 + manaSpent * 0.8 + meaningful + freedDeployment * 3 + capturesThreatened * 1.5);
 };
 const actionPriority = (state: GameState, actor: PlayerId, action: AiAction): number => {
@@ -209,6 +209,12 @@ const actionPriority = (state: GameState, actor: PlayerId, action: AiAction): nu
   }
   if (action.kind === 'tactic') return 2_300;
   if (action.kind === 'invoke') return 2_500;
+  if (action.kind === 'thunder') {
+    const affected = state.units.filter((unit) => hexDistance(unit.coord, action.destination) <= 1);
+    return 2_500
+      + affected.filter((unit) => unit.owner !== actor).length * 1_200
+      - affected.filter((unit) => unit.owner === actor).length * 1_400;
+  }
   return 1_900;
 };
 const selectV2Actions = (state: GameState, actor: PlayerId, includeCards: boolean, budget: SearchBudget): AiAction[] => {
@@ -216,7 +222,7 @@ const selectV2Actions = (state: GameState, actor: PlayerId, includeCards: boolea
   budget.legalActions += selection.stats.legalActions;
   for (const kind of GAME_ACTION_KINDS) budget.legalByKind[kind] += selection.stats.legalByKind[kind];
   const ranked = [...selection.actions].sort((a, b) => actionPriority(state, actor, b) - actionPriority(state, actor, a));
-  const caps: Record<AiAction['kind'], number> = { attack: 10, move: 10, summon: 6, tactic: 4, displace: 3, rally: 2, soulLink: 2, curse: 3, invoke: 3 };
+  const caps: Record<AiAction['kind'], number> = { attack: 10, move: 10, summon: 6, tactic: 4, displace: 3, rally: 2, soulLink: 2, curse: 3, thunder: 4, invoke: 3 };
   const counts = emptyCounts();
   const retained: AiAction[] = [];
   for (const action of ranked) {
@@ -267,7 +273,7 @@ const iterativeTurnSearch = (initialState: GameState, actor: PlayerId, perspecti
         const childActions = [...node.actions, action];
         const utility = actionSequenceUtility(initialState, child, childActions, actor);
         const score = evaluateV2(child, perspective).outlook + (actor === perspective ? utility : -utility);
-        const signature = stateSignature(child, includeCards);
+        const signature = stateSignature(child, includeHand);
         const previous = visited.get(signature);
         if (previous !== undefined && !(maximize ? score > previous : score < previous)) continue;
         visited.set(signature, score);

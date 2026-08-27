@@ -1,9 +1,10 @@
+import thunder from '../../assets/game/cards/light-mage.webp?url';
 import curse from '../../assets/game/ui/spells/curse.webp?url';
 import displace from '../../assets/game/ui/spells/displace.webp?url';
 import rally from '../../assets/game/ui/spells/rally.webp?url';
 import soulLink from '../../assets/game/ui/spells/soul-link.webp?url';
 
-export type ActiveSpellId = 'Curse' | 'Displace' | 'Rally' | 'SoulLink';
+export type ActiveSpellId = 'Curse' | 'Displace' | 'Rally' | 'SoulLink' | 'Thunder';
 
 export interface SpellUiDefinition {
   id: ActiveSpellId;
@@ -42,7 +43,18 @@ export const SPELL_UI: Record<ActiveSpellId, SpellUiDefinition> = {
     art: soulLink,
     accent: '#c16cff',
   },
+  Thunder: {
+    id: 'Thunder',
+    name: 'Thunder',
+    description: 'Deal 1 damage on a chosen hex and every adjacent hex, allies included.',
+    art: thunder,
+    accent: '#79c8ff',
+  },
 };
 
 export const isActiveSpellId = (ability: string | undefined): ability is ActiveSpellId =>
-  ability === 'Curse' || ability === 'Displace' || ability === 'Rally' || ability === 'SoulLink';
+  ability === 'Curse'
+  || ability === 'Displace'
+  || ability === 'Rally'
+  || ability === 'SoulLink'
+  || ability === 'Thunder';

@@ -17,6 +17,7 @@ const ACTION_PACING: Record<AiAction['kind'], { leadIn: number; settle: number }
   rally: { leadIn: 240, settle: 320 },
   soulLink: { leadIn: 260, settle: 340 },
   curse: { leadIn: 260, settle: 340 },
+  thunder: { leadIn: 260, settle: 380 },
   invoke: { leadIn: 260, settle: 380 },
 };
 
@@ -185,6 +186,7 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
     switch (action.kind) {
       case 'summon':
       case 'move':
+      case 'thunder':
       case 'invoke':
         return action.destination;
       case 'tactic':
@@ -226,6 +228,8 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
         return `Enemy ${unitName(action.unitId)} links with ${unitName(action.targetId)}`;
       case 'curse':
         return `Enemy ${unitName(action.unitId)} curses ${unitName(action.targetId)}`;
+      case 'thunder':
+        return `Enemy ${unitName(action.unitId)} calls Thunder`;
       case 'invoke':
         return `Enemy ${unitName(action.unitId)} invokes a beast`;
       default: {

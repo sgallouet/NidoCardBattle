@@ -2,7 +2,7 @@
 
 This file is the runtime audio contract, acceptance registry, and **master audio work checklist**. Generated candidates remain outside the repository until accepted.
 
-Audit snapshot: **2026-08-27**.
+Audit snapshot: **2026-08-28**.
 
 ## Status legend
 
@@ -24,8 +24,8 @@ Audit snapshot: **2026-08-27**.
 - [x] `site-capture` — asset ✅ `sfx/site-capture.mp3`; runtime ✅ end-turn capture resolution. See duplicate-cue cleanup below.
 - [x] `unit-death-human` — asset ✅ `sfx/unit-death-human.mp3`; runtime ✅ Human unit death.
 - [x] `unit-death-undead` — asset ✅ `sfx/unit-death-undead.mp3`; runtime ✅ Undead unit death.
-- [x] `unit-summon-human` — asset ✅ `sfx/unit-summon-human.mp3`; runtime ✅ Human card summon.
-- [x] `unit-summon-undead` — asset ✅ `sfx/unit-summon-undead.mp3`; runtime ✅ Undead card summon and `UNT3` Invoked Beast summon.
+- [x] `unit-summon-human` — asset ✅ `sfx/unit-summon-human.mp3`; runtime ✅ Human card summon and `UNT3` Invoked Beast summon from Thunder Mage.
+- [x] `unit-summon-undead` — asset ✅ `sfx/unit-summon-undead.mp3`; runtime ✅ Undead card summon.
 - [x] `turn-end` — asset ✅ `sfx/turn-end.mp3`; runtime ✅ successful turn handoff.
 - [x] `ui-card-draw` — asset ✅ `sfx/ui-card-draw.mp3`; runtime ✅ successful start-turn card draw.
 - [x] `ui-card-play` — asset ✅ `sfx/ui-card-play.mp3`; runtime ✅ successful unit/tactic card play.
@@ -45,7 +45,7 @@ Audit snapshot: **2026-08-27**.
 - [x] `ui-rejected-action` — runtime ✅ synthesized rejection cue when the status message reports an invalid/rejected action.
 - [x] `turn-start` — runtime ✅ Human/Undead synthesized turn-transition tones.
 - [x] `mana-gain` / `mana-spend` — runtime ✅ synthesized mana feedback. This currently also covers the new `ECM6` Ruin +1 mana reward, so a separate Ruin MP3 is **not required** unless playtesting shows the source is unclear.
-- [x] `invoke-beast` — covered by the accepted Undead summon cue rather than a separate file.
+- [x] `invoke-beast` — covered by the accepted Human summon cue rather than a separate file.
 
 ### P0 — work left for core match readability
 
@@ -58,8 +58,10 @@ Audit snapshot: **2026-08-27**.
 ### P1 — unit abilities and traits
 
 - [ ] `ability-displace` — asset ❌; runtime audio ❌. Trigger when Displace successfully moves its target. Air displacement / magical shove.
-- [ ] `ability-restore` — asset ❌; runtime audio ❌. Trigger when Restore actually heals its chosen adjacent ally. Warm clean restorative chime.
+- [ ] `ability-restore` — asset ❌; runtime audio ❌. Legacy Restore event; remove from this checklist if no remaining gameplay path references Restore after cleanup.
 - [ ] `ability-rally` — asset ❌; runtime audio ❌. Trigger when Rally successfully resolves. Short banner/command accent, no spoken dialogue.
+- [ ] `ability-thunder` — asset ❌; runtime audio ❌. Trigger when Thunder successfully resolves on its selected hex. Sharp magical lightning impact with enough body to read as a seven-hex danger zone.
+- [ ] `trait-healing-aura` — asset ❌; runtime audio ❌. Trigger at turn start when Banner Captain's `UNT13` actually restores at least 1 HP to one or more adjacent allies. Warm compact formation-heal cue; pool/group multiple healed allies into one cue per Banner Captain.
 - [ ] `ability-soul-link` — asset ❌; runtime audio ❌. Trigger when Soul Link successfully attaches. Dark tether / spectral bond.
 - [ ] `ability-curse` — asset ❌; runtime audio ❌. Trigger when Curse is successfully applied. Thin dark whisper/rune sting without intelligible speech.
 - [ ] `ability-curse-tick` — asset ❌; runtime audio ❌. Trigger when Curse deals periodic damage. Tiny dry dark pulse; cooldown/pooling for multiple ticks.
@@ -92,8 +94,8 @@ Audit snapshot: **2026-08-27**.
 | `site-capture` | `sfx/site-capture.mp3` | One or more existing site owners change during the active player's end-turn `MPC1`–`MPC3` capture resolution. | sting | 0.68 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `build-place.mp3`; one cue per capture group; user approved 2026-08-26. |
 | `unit-death-human` | `sfx/unit-death-human.mp3` | A Human unit's zero-HP removal reaches its death animation. | impact | 0.70 | Animation-serialized / pool 1 | De-clipped and converted from WorldXplore runtime `heavy-stomp.wav`; user approved 2026-08-23. |
 | `unit-death-undead` | `sfx/unit-death-undead.mp3` | An Undead unit's zero-HP removal reaches its death animation. | impact | 0.74 | Animation-serialized / pool 1 | Converted from WorldXplore runtime `bone-break.wav`; user approved 2026-08-23. |
-| `unit-summon-human` | `sfx/unit-summon-human.mp3` | A Human unit is successfully created from a unit card. | sting | 0.72 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-confirm.mp3`; user approved 2026-08-23. |
-| `unit-summon-undead` | `sfx/unit-summon-undead.mp3` | An Undead unit is successfully created from a unit card or by `UNT3`. | sting | 0.62 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-fail.mp3`; user approved 2026-08-23. |
+| `unit-summon-human` | `sfx/unit-summon-human.mp3` | A Human unit is successfully created from a unit card or Thunder Mage creates an Invoked Beast under `UNT3`. | sting | 0.72 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-confirm.mp3`; user approved 2026-08-23. |
+| `unit-summon-undead` | `sfx/unit-summon-undead.mp3` | An Undead unit is successfully created from a unit card. | sting | 0.62 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-fail.mp3`; user approved 2026-08-23. |
 | `turn-end` | `sfx/turn-end.mp3` | End Turn succeeds and control is handed to the other player. | ui | 0.52 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-select.mp3`; user approved 2026-08-23. |
 | `ui-card-draw` | `sfx/ui-card-draw.mp3` | A card is successfully added to the newly active player's hand. | ui | 0.58 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `ui-paper-slide.wav`; user approved 2026-08-23. |
 | `ui-card-play` | `sfx/ui-card-play.mp3` | A successful card play removes its card from the active player's hand. | ui | 0.62 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-paper-full.mp3`; user approved 2026-08-23. |

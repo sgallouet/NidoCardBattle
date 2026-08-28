@@ -58,7 +58,7 @@ Human identity: formation, mobility, ranged support, sustain, and controlled rep
 | **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates, Assist | — | ✅ Implemented. |
 | **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
 | **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
-| **HUR5** | Thunder Mage | 4 | 3 | 2 | 2 | 2 | Invoker | Thunder | ✅ Implemented; Thunder and Invoke Beast both replace its attack. Existing Light Mage art remains temporary until replacement art is accepted. |
+| **HUR5** | Thunder Mage | 4 | 3 | 2 | 2 | 2 | Invoker | Thunder | ✅ Implemented; Thunder and Invoke Beast both replace its attack. |
 | **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | Healing Aura | — | ✅ Implemented. |
 | **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | ✅ Implemented. |
 | **HUR8** | Invoked Beast | — | 2 | 1 | 2 | 1 | — | — | ✅ Implemented as the free token created by Thunder Mage through `UNT3`. |

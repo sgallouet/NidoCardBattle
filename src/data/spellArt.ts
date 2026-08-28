@@ -1,20 +1,22 @@
-import thunder from '../../assets/game/cards/light-mage.webp?url';
+import invokeBeast from '../../assets/game/ui/spells/invoke-beast.webp?url';
+import thunder from '../../assets/game/ui/spells/thunder.webp?url';
 import curse from '../../assets/game/ui/spells/curse.webp?url';
 import displace from '../../assets/game/ui/spells/displace.webp?url';
 import rally from '../../assets/game/ui/spells/rally.webp?url';
 import soulLink from '../../assets/game/ui/spells/soul-link.webp?url';
 
 export type ActiveSpellId = 'Curse' | 'Displace' | 'Rally' | 'SoulLink' | 'Thunder';
+export type SpellUiId = ActiveSpellId | 'InvokeBeast';
 
 export interface SpellUiDefinition {
-  id: ActiveSpellId;
+  id: SpellUiId;
   name: string;
   description: string;
   art: string;
   accent: string;
 }
 
-export const SPELL_UI: Record<ActiveSpellId, SpellUiDefinition> = {
+export const SPELL_UI: Record<SpellUiId, SpellUiDefinition> = {
   Curse: {
     id: 'Curse',
     name: 'Curse',
@@ -49,6 +51,13 @@ export const SPELL_UI: Record<ActiveSpellId, SpellUiDefinition> = {
     description: 'Deal 1 damage on a chosen hex and every adjacent hex, allies included.',
     art: thunder,
     accent: '#79c8ff',
+  },
+  InvokeBeast: {
+    id: 'InvokeBeast',
+    name: 'Invoke Beast',
+    description: 'Summon an Invoked Beast on a free adjacent hex.',
+    art: invokeBeast,
+    accent: '#ffd36f',
   },
 };
 

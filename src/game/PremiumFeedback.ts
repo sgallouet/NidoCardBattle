@@ -12,7 +12,6 @@ export interface PremiumFeedbackSceneInternals {
 interface FeedbackSnapshot {
   currentPlayer: PlayerId;
   mana: Record<PlayerId, number>;
-  siteOwners: Map<string, PlayerId | null>;
   message: string;
 }
 
@@ -22,7 +21,6 @@ const snapshot = (state: GameState, message: string): FeedbackSnapshot => ({
     1: state.players[1].mana,
     2: state.players[2].mana,
   },
-  siteOwners: new Map(state.sites.map((site) => [site.id, site.owner])),
   message,
 });
 
@@ -63,15 +61,6 @@ export class PremiumFeedback {
         this.presentManaChange(player, this.previous.mana[player], next.mana[player], delta, state);
       }
     }
-
-    let captured = false;
-    for (const site of state.sites) {
-      const previousOwner = this.previous.siteOwners.get(site.id);
-      if (previousOwner !== undefined && previousOwner !== site.owner && site.owner !== null) {
-        captured = true;
-      }
-    }
-    if (captured) this.playCaptureChime();
 
     if (next.message !== this.previous.message && this.isRejectedMessage(next.message)) {
       this.playRejectedCue();
@@ -323,11 +312,6 @@ export class PremiumFeedback {
 
   private playManaSpend(): void {
     this.playUiTone(410, 250, 0.1, 0.018);
-  }
-
-  private playCaptureChime(): void {
-    this.playUiTone(460, 690, 0.14, 0.018);
-    window.setTimeout(() => this.playUiTone(620, 930, 0.16, 0.014), 75);
   }
 
   private playRejectedCue(): void {

@@ -137,6 +137,20 @@
   display: none;
 }
 
+.invoke-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.invoke-action-button img {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  object-fit: cover;
+  pointer-events: none;
+}
+
 @keyframes spell-border-orbit {
   to { transform: rotate(360deg); }
 }

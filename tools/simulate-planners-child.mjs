@@ -33,7 +33,7 @@ const positiveInteger = (name, fallback) => {
 
 const plannerId = (name, fallback) => {
   const value = valueAfter(name) ?? fallback;
-  if (!['v2', 'v3', 'v4', 'v5'].includes(value)) throw new Error(`${name} must be v2, v3, v4, or v5.`);
+  if (!['v2', 'v3', 'v4', 'v5', 'v6'].includes(value)) throw new Error(`${name} must be v2, v3, v4, v5, or v6.`);
   return value;
 };
 

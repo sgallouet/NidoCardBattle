@@ -21,7 +21,9 @@ Audit snapshot: **2026-08-28**.
 - [x] `combat-hit-melee` — asset ✅ `sfx/combat-hit-melee.mp3`; runtime ✅ melee attack/retaliation impact.
 - [x] `combat-hit-ranged` — asset ✅ `sfx/combat-hit-ranged.mp3`; runtime ✅ ranged attack/retaliation impact.
 - [x] `combat-retaliation` — asset ✅ `sfx/combat-retaliation.mp3`; runtime ✅ retaliation start.
-- [x] `site-capture` — asset ✅ `sfx/site-capture.mp3`; runtime ✅ end-turn capture resolution. See duplicate-cue cleanup below.
+- [x] `match-victory` — asset ✅ `sfx/match-victory.mp3`; runtime ✅ local-player victory commit.
+- [x] `site-capture` — asset ✅ `sfx/site-capture.mp3`; runtime ✅ end-turn capture resolution with the duplicate synthesized cue removed.
+- [x] `trait-healing-aura` — asset ✅ `sfx/trait-healing-aura.mp3`; runtime ✅ grouped `UNT13` start-turn healing.
 - [x] `unit-death-human` — asset ✅ `sfx/unit-death-human.mp3`; runtime ✅ Human unit death.
 - [x] `unit-death-undead` — asset ✅ `sfx/unit-death-undead.mp3`; runtime ✅ Undead unit death.
 - [x] `unit-summon-human` — asset ✅ `sfx/unit-summon-human.mp3`; runtime ✅ Human card summon and `UNT3` Invoked Beast summon from Thunder Mage.
@@ -50,18 +52,14 @@ Audit snapshot: **2026-08-28**.
 ### P0 — work left for core match readability
 
 - [ ] `unit-move-step` — asset ❌; runtime ❌. Trigger when a rendered unit reaches each movement path hex after leaving its source. Soft, compact, terrain-neutral step; low volume with cooldown/pooling.
-- [ ] `match-victory` — asset ❌; runtime ❌. Trigger when the local player becomes the winner. Short triumphant finale sting; separate from later victory music.
 - [ ] `match-defeat` — asset ❌; runtime ❌. Trigger when the opposing player becomes the winner. Short restrained defeat/failure finale sting.
 - [ ] `location-village-heal` — asset ❌; runtime ❌. Trigger at `MPL8` only when a unit actually restores HP at turn start. Small warm restorative cue; may intentionally share the eventual Restore sonic family.
-- [ ] `site-capture duplicate cue cleanup` — the accepted `site-capture.mp3` is wired, but `PremiumFeedback` also emits a synthesized capture chime from the same ownership change. Decide whether the synth is a deliberate layer; otherwise remove it so capture has one clear cue.
 
 ### P1 — unit abilities and traits
 
 - [ ] `ability-displace` — asset ❌; runtime audio ❌. Trigger when Displace successfully moves its target. Air displacement / magical shove.
-- [ ] `ability-restore` — asset ❌; runtime audio ❌. Legacy Restore event; remove from this checklist if no remaining gameplay path references Restore after cleanup.
 - [ ] `ability-rally` — asset ❌; runtime audio ❌. Trigger when Rally successfully resolves. Short banner/command accent, no spoken dialogue.
 - [ ] `ability-thunder` — asset ❌; runtime audio ❌. Trigger when Thunder successfully resolves on its selected hex. Sharp magical lightning impact with enough body to read as a seven-hex danger zone.
-- [ ] `trait-healing-aura` — asset ❌; runtime audio ❌. Trigger at turn start when Banner Captain's `UNT13` actually restores at least 1 HP to one or more adjacent allies. Warm compact formation-heal cue; pool/group multiple healed allies into one cue per Banner Captain.
 - [ ] `ability-soul-link` — asset ❌; runtime audio ❌. Trigger when Soul Link successfully attaches. Dark tether / spectral bond.
 - [ ] `ability-curse` — asset ❌; runtime audio ❌. Trigger when Curse is successfully applied. Thin dark whisper/rune sting without intelligible speech.
 - [ ] `ability-curse-tick` — asset ❌; runtime audio ❌. Trigger when Curse deals periodic damage. Tiny dry dark pulse; cooldown/pooling for multiple ticks.
@@ -91,7 +89,9 @@ Audit snapshot: **2026-08-28**.
 | `combat-hit-melee` | `sfx/combat-hit-melee.mp3` | A close-range attack or retaliation reaches its visual impact after successfully dealing damage. | impact | 0.85 | Animation-serialized / pool 1 | Adapted from WorldXplore `crit-crack.mp3`; user approved 2026-08-23. |
 | `combat-hit-ranged` | `sfx/combat-hit-ranged.mp3` | A ranged attack or retaliation reaches its visual impact after successfully dealing damage. | impact | 0.78 | Animation-serialized / pool 1 | Stable Audio candidate A; user approved 2026-08-23. |
 | `combat-retaliation` | `sfx/combat-retaliation.mp3` | A defender begins a valid retaliation after the initiating attack successfully deals damage. | impact | 0.58 | Animation-serialized / pool 1 | Adapted from WorldXplore `sword-draw.mp3`; user approved 2026-08-23. |
+| `match-victory` | `sfx/match-victory.mp3` | `winner` changes to local Player 1 under `GRV1`; opposing-player wins use the separate defeat cue. | sting | 0.78 | Match-serialized / pool 1 | Five-second excerpt from WorldXplore runtime `reward-chime.mp3`; user approved 2026-08-28. |
 | `site-capture` | `sfx/site-capture.mp3` | One or more existing site owners change during the active player's end-turn `MPC1`–`MPC3` capture resolution. | sting | 0.68 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `build-place.mp3`; one cue per capture group; user approved 2026-08-26. |
+| `trait-healing-aura` | `sfx/trait-healing-aura.mp3` | At least one adjacent ally actually gains HP from `UNT13` at start of turn. | sting | 0.64 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `respawn-chime.mp3`; grouped once per start-turn healing resolution; user approved 2026-08-28. |
 | `unit-death-human` | `sfx/unit-death-human.mp3` | A Human unit's zero-HP removal reaches its death animation. | impact | 0.70 | Animation-serialized / pool 1 | De-clipped and converted from WorldXplore runtime `heavy-stomp.wav`; user approved 2026-08-23. |
 | `unit-death-undead` | `sfx/unit-death-undead.mp3` | An Undead unit's zero-HP removal reaches its death animation. | impact | 0.74 | Animation-serialized / pool 1 | Converted from WorldXplore runtime `bone-break.wav`; user approved 2026-08-23. |
 | `unit-summon-human` | `sfx/unit-summon-human.mp3` | A Human unit is successfully created from a unit card or Thunder Mage creates an Invoked Beast under `UNT3`. | sting | 0.72 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-confirm.mp3`; user approved 2026-08-23. |
@@ -99,7 +99,7 @@ Audit snapshot: **2026-08-28**.
 | `turn-end` | `sfx/turn-end.mp3` | End Turn succeeds and control is handed to the other player. | ui | 0.52 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-select.mp3`; user approved 2026-08-23. |
 | `ui-card-draw` | `sfx/ui-card-draw.mp3` | A card is successfully added to the newly active player's hand. | ui | 0.58 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `ui-paper-slide.wav`; user approved 2026-08-23. |
 | `ui-card-play` | `sfx/ui-card-play.mp3` | A successful card play removes its card from the active player's hand. | ui | 0.62 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-paper-full.mp3`; user approved 2026-08-23. |
-| `victory-countdown` | `sfx/victory-countdown.mp3` | An existing `GRV2` countdown advances by one end-turn checkpoint. | ui | 0.72 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `thunder-distant.mp3`; user approved 2026-08-26. |
+| `victory-countdown` | `sfx/victory-countdown.mp3` | An existing `GRV2` countdown advances by one nonfinal end-turn checkpoint; the final checkpoint uses the result sting. | ui | 0.72 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `thunder-distant.mp3`; user approved 2026-08-26. |
 | `tactic-build-bridge` | `sfx/tactic-build-bridge.mp3` | Build Bridge successfully adds a built bridge. | sting | 0.66 | Action-serialized / pool 1 | Converted from WorldXplore runtime `tree-fall.wav`; user approved 2026-08-23. |
 | `tactic-grave-lock` | `sfx/tactic-grave-lock.mp3` | Grave Lock successfully creates its tile effect. | ui | 0.68 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-click-sharp-full.mp3`; user approved 2026-08-23. |
 | `tactic-profane-well-complete` | `sfx/tactic-profane-well-complete.mp3` | A pending Profane Well becomes an actual Mana Well under `CRC8`. | sting | 0.72 | Turn-serialized / pool 1 | Stable Audio candidate B; user approved 2026-08-23. |
@@ -110,10 +110,22 @@ Audit snapshot: **2026-08-28**.
 
 ## Recommended work order
 
-1. Fix the duplicate site-capture cue.
-2. Generate/integrate `unit-move-step`, `match-victory`, `match-defeat`, and `location-village-heal`.
-3. Generate/integrate ability and trait sounds in the order players encounter them most often.
-4. Add ambience and authored music after the SFX language is coherent.
+1. Generate/integrate `unit-move-step`, `match-defeat`, and `location-village-heal`.
+2. Generate/integrate ability and trait sounds in the order players encounter them most often.
+3. Add ambience and authored music after the SFX language is coherent.
+
+## Remaining work by expected trigger count
+
+Directional baseline: two deterministic 60-half-turn AI matches on 2026-08-28. Both reached the turn limit, so this sample is useful for repeated-action frequency but not end-match frequency.
+
+1. `unit-move-step` — 167 movement actions total, or 83.5 per match, with one cue required for each traversed path hex; this is the clear highest-frequency missing sound.
+2. `ability-displace` — 7 successful action selections total, or 3.5 per match.
+3. `ability-thunder` — 6 successful action selections total, or 3 per match.
+4. `trait-dark-reflection`, `ability-blood-drain`, and `ability-cleave` — attack-linked and potentially repeated. The sample summoned 1.5 Vampires and 2 Grave Knights per match; exact passive proc counts are not yet instrumented.
+5. `location-village-heal` — conditional start-turn event; expected zero to a few times per match depending on occupation and missing HP.
+6. `match-defeat` — at most once per match and only on a local loss; low count but high presentation importance.
+7. `ability-rally`, `ability-soul-link`, `ability-curse`, `ability-curse-tick`, and `trait-necromancy` — zero active uses in this small sample; the Necromancer was summoned 0.5 times per match, so its conditional cues are expected to be comparatively rare.
+8. `ambience-battlefield`, `music-match`, and `music-victory` — one lifecycle trigger each, but ambience and match music have full-session exposure and should be prioritized by listening impact rather than trigger count.
 
 ## Integration rules
 

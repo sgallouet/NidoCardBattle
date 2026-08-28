@@ -1,6 +1,6 @@
 import bannerCaptain from '../../assets/game/units/shadows/banner-captain.webp?url';
 import humanCommander from '../../assets/game/units/shadows/human-commander.webp?url';
-import lightMage from '../../assets/game/units/shadows/light-mage.webp?url';
+import thunderMage from '../../assets/game/units/shadows/thunder-mage.webp?url';
 import longbowRanger from '../../assets/game/units/shadows/longbow-ranger.webp?url';
 import royalGuard from '../../assets/game/units/shadows/royal-guard.webp?url';
 import silverwingCavalry from '../../assets/game/units/shadows/silverwing-cavalry.webp?url';
@@ -95,7 +95,7 @@ export const UNIT_ART: Partial<Record<UnitDefinitionId, UnitArtDefinition>> = {
   royalGuard: staticUnitArt(royalGuard, 'royal-guard', 0.27),
   longbowRanger: staticUnitArt(longbowRanger, 'longbow-ranger', 0.27),
   silverwingCavalry: staticUnitArt(silverwingCavalry, 'silverwing-cavalry', 0.31),
-  lightMage: staticUnitArt(lightMage, 'light-mage', 0.28),
+  lightMage: staticUnitArt(thunderMage, 'thunder-mage', 0.28),
   bannerCaptain: staticUnitArt(bannerCaptain, 'banner-captain', 0.28),
   windAdept: staticUnitArt(windAdept, 'wind-adept', 0.28),
   skeletalInfantry: {

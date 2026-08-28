@@ -213,6 +213,17 @@ const terrainPostureBonus = (
   const villageBonus = hp < definition.maxHp && isVillage(destination) ? habits.villageHeal : 0;
   return hillBonus + villageBonus;
 };
+const mapControlPressure = (state: GameState, actor: PlayerId): number => {
+  const units = state.units.filter((unit) => unit.owner === actor);
+  if (units.length === 0) return 0;
+  return state.sites.reduce((score, site) => {
+    if (site.type !== 'well' && site.type !== 'fort') return score;
+    if (site.owner === actor) return score + 12;
+    const distance = Math.min(...units.map((unit) => hexDistance(unit.coord, site.coord)));
+    const siteWeight = site.type === 'well' ? 1.25 : 1;
+    return score + Math.max(0, 10 - distance) * siteWeight;
+  }, 0);
+};
 
 const doctrineUrgency = (
   state: GameState,
@@ -522,8 +533,11 @@ const doctrineStateScore = (
     if (unit.owner !== actor) return score;
     return score + terrainPostureBonus(unitDefinition(unit), unit.coord, unit.hp, habits) * 0.08;
   }, 0);
+  const controlPressure = (mapControlPressure(state, actor) - mapControlPressure(initial, actor))
+    * habits.mapControlPressure;
   return base + urgency + doctrineBonus + actions.length * weights.action - emergencyPenalty
-    + pendingWellGain + posture - unusedProfaneWell - unusedCurse - unusedMana - unthreatenedSoulLink - commanderRetreat;
+    + pendingWellGain + posture + controlPressure
+    - unusedProfaneWell - unusedCurse - unusedMana - unthreatenedSoulLink - commanderRetreat;
 };
 
 const recordSelection = (budget: Budget, stats: ReturnType<typeof selectCandidateActions>['stats'], retained: AiAction[]): void => {
@@ -888,6 +902,24 @@ const compareV4Candidates = (
   return combined !== 0 ? combined : right.actions.length - left.actions.length;
 };
 
+const compareV6Candidates = (
+  left: AuditedCandidate,
+  right: AuditedCandidate,
+  profile: PortfolioPlannerProfile,
+): number => {
+  const tactical = tacticalRank(right.tactical) - tacticalRank(left.tactical);
+  if (tactical !== 0) return tactical;
+  const assessed = Number(right.assessed) - Number(left.assessed);
+  if (assessed !== 0) return assessed;
+  const combined = right.score
+    + right.tactical.score * profile.scoring.tacticalScore
+    + right.tactical.worstResponseStrategicOutlook * profile.scoring.responseOutlook
+    - left.score
+    - left.tactical.score * profile.scoring.tacticalScore
+    - left.tactical.worstResponseStrategicOutlook * profile.scoring.responseOutlook;
+  return combined !== 0 ? combined : right.actions.length - left.actions.length;
+};
+
 const proportionalBudgets = (total: number, weights: number[], minimum: number): number[] => {
   const count = Math.max(1, weights.length);
   const base = Math.min(minimum, Math.floor(total / count));
@@ -976,7 +1008,9 @@ export const planPortfolioAiTurn = (
   }
   audited.sort(profile.id === 'v3-portfolio'
     ? compareAuditedCandidates
-    : (left, right) => compareV4Candidates(left, right, profile));
+    : profile.id === 'v6-portfolio'
+      ? (left, right) => compareV6Candidates(left, right, profile)
+      : (left, right) => compareV4Candidates(left, right, profile));
   const best = audited[0];
   const diagnostics: PortfolioDiagnostics = {
     strategy: strategyDiagnostics,

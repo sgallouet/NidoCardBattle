@@ -4,7 +4,9 @@ import combatAssistUrl from '../../assets/game/audio/sfx/combat-assist.mp3?url';
 import combatHitMeleeUrl from '../../assets/game/audio/sfx/combat-hit-melee.mp3?url';
 import combatHitRangedUrl from '../../assets/game/audio/sfx/combat-hit-ranged.mp3?url';
 import combatRetaliationUrl from '../../assets/game/audio/sfx/combat-retaliation.mp3?url';
+import matchVictoryUrl from '../../assets/game/audio/sfx/match-victory.mp3?url';
 import siteCaptureUrl from '../../assets/game/audio/sfx/site-capture.mp3?url';
+import traitHealingAuraUrl from '../../assets/game/audio/sfx/trait-healing-aura.mp3?url';
 import unitDeathHumanUrl from '../../assets/game/audio/sfx/unit-death-human.mp3?url';
 import unitDeathUndeadUrl from '../../assets/game/audio/sfx/unit-death-undead.mp3?url';
 import unitSummonHumanUrl from '../../assets/game/audio/sfx/unit-summon-human.mp3?url';
@@ -44,6 +46,7 @@ import {
   type UnitFacing,
 } from '../data/unitArt';
 import type { UnitDefinitionId } from '../data/units';
+import type { AbilityVfxEvent } from './AbilityVfxAnimator';
 import { setDebugStatus } from './DebugStatus';
 import type { AiAction, AiPlan } from './ai';
 import { downloadLiveBattleLog, LiveBattleLogRecorder } from './liveBattleLog';
@@ -115,8 +118,12 @@ const COMBAT_HIT_RANGED_AUDIO_KEY = 'combat-hit-ranged';
 const COMBAT_HIT_RANGED_VOLUME = 0.78;
 const COMBAT_RETALIATION_AUDIO_KEY = 'combat-retaliation';
 const COMBAT_RETALIATION_VOLUME = 0.58;
+const MATCH_VICTORY_AUDIO_KEY = 'match-victory';
+const MATCH_VICTORY_VOLUME = 0.78;
 const SITE_CAPTURE_AUDIO_KEY = 'site-capture';
 const SITE_CAPTURE_VOLUME = 0.68;
+const TRAIT_HEALING_AURA_AUDIO_KEY = 'trait-healing-aura';
+const TRAIT_HEALING_AURA_VOLUME = 0.64;
 const UNIT_DEATH_HUMAN_AUDIO_KEY = 'unit-death-human';
 const UNIT_DEATH_HUMAN_VOLUME = 0.7;
 const UNIT_DEATH_UNDEAD_AUDIO_KEY = 'unit-death-undead';
@@ -191,6 +198,7 @@ export class GameScene extends Phaser.Scene {
   private selectionFxMode: SelectionFxMode = 'premium';
   private unitFacings = new Map<string, UnitFacing>();
   private message = 'Player 1 begins. Move a unit or play a card.';
+  private announcedWinner: PlayerId | null = null;
   private liveBattleLog?: LiveBattleLogRecorder;
   private readonly handleBattleLogDownload = (): void => {
     if (!this.state.winner || !this.liveBattleLog) return;
@@ -236,7 +244,9 @@ export class GameScene extends Phaser.Scene {
     this.load.audio(COMBAT_HIT_MELEE_AUDIO_KEY, combatHitMeleeUrl);
     this.load.audio(COMBAT_HIT_RANGED_AUDIO_KEY, combatHitRangedUrl);
     this.load.audio(COMBAT_RETALIATION_AUDIO_KEY, combatRetaliationUrl);
+    this.load.audio(MATCH_VICTORY_AUDIO_KEY, matchVictoryUrl);
     this.load.audio(SITE_CAPTURE_AUDIO_KEY, siteCaptureUrl);
+    this.load.audio(TRAIT_HEALING_AURA_AUDIO_KEY, traitHealingAuraUrl);
     this.load.audio(UNIT_DEATH_HUMAN_AUDIO_KEY, unitDeathHumanUrl);
     this.load.audio(UNIT_DEATH_UNDEAD_AUDIO_KEY, unitDeathUndeadUrl);
     this.load.audio(UNIT_SUMMON_HUMAN_AUDIO_KEY, unitSummonHumanUrl);
@@ -593,7 +603,13 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
   private renderAll(): void {
     this.renderBoard();
     this.renderHud();
+    this.syncMatchResultAudio();
     this.liveBattleLog?.recordState(this.state, this.message);
+  }
+
+  private syncMatchResultAudio(): void {
+    if (this.state.winner === 1 && this.announcedWinner !== 1) this.playMatchVictory();
+    this.announcedWinner = this.state.winner;
   }
 
   private renderBoard(): void {
@@ -1112,7 +1128,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     });
   }
 
-  private setAnimationLock(locked: boolean): void {
+  setAnimationLock(locked: boolean): void {
     this.animationInProgress = locked;
     this.renderHud();
   }
@@ -1214,10 +1230,23 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.sound.play(key, { volume });
   }
 
+  async presentAbilityVfx(_event: AbilityVfxEvent): Promise<void> {}
+
   private async presentInvokedUnit(unitId: string): Promise<void> {
     this.renderAll();
     const unit = findUnit(this.state, unitId);
-    if (unit) this.playUnitSummon(unit.owner);
+    if (!unit) return;
+    this.playUnitSummon(unit.owner);
+    const invoker = this.state.units.find((candidate) => candidate.invokedPetId === unitId);
+    if (invoker) {
+      await this.presentAbilityVfx({
+        kind: 'invokeBeast',
+        source: { ...invoker.coord },
+        destination: { ...unit.coord },
+        unitId,
+        owner: unit.owner,
+      });
+    }
   }
 
   playUnitDeath(owner: PlayerId, commander = false): void {
@@ -1249,6 +1278,14 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 
   playVictoryCountdown(): void {
     this.sound.play(VICTORY_COUNTDOWN_AUDIO_KEY, { volume: VICTORY_COUNTDOWN_VOLUME });
+  }
+
+  playMatchVictory(): void {
+    this.sound.play(MATCH_VICTORY_AUDIO_KEY, { volume: MATCH_VICTORY_VOLUME });
+  }
+
+  playHealingAura(): void {
+    this.sound.play(TRAIT_HEALING_AURA_AUDIO_KEY, { volume: TRAIT_HEALING_AURA_VOLUME });
   }
 
   playTacticSound(cardId: CardDefinitionId): void {
@@ -1453,11 +1490,26 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     }
 
     if (this.mode === 'displace-destination' && selected && this.displaceTargetId) {
-      const result = displaceUnit(this.state, selected.id, this.displaceTargetId, coord);
+      const targetId = this.displaceTargetId;
+      const source = { ...selected.coord };
+      const result = displaceUnit(this.state, selected.id, targetId, coord);
       this.message = result.message;
       if (result.ok) {
         this.displaceTargetId = null;
         this.mode = 'unit';
+        this.setAnimationLock(true);
+        try {
+          await this.presentAbilityVfx({
+            kind: 'displace',
+            source,
+            targetId,
+            destination: { ...coord },
+          });
+        } finally {
+          this.renderAll();
+          this.setAnimationLock(false);
+        }
+        return;
       }
       return this.renderAll();
     }
@@ -1573,6 +1625,18 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     const commandersBefore = this.state.units.filter((unit) => unit.definitionId === 'commander');
     const siteOwnersBefore = new Map(this.state.sites.map((site) => [site.id, site.owner]));
     const countdownBefore = this.state.countdown ? { ...this.state.countdown } : null;
+    const healingAuraSources = this.state.units
+      .filter((unit) => unit.owner === nextPlayer && unitDefinition(unit).traits.includes('HealingAura'))
+      .map((unit) => ({ id: unit.id, coord: { ...unit.coord } }));
+    const healingAuraTargetHpBefore = new Map(this.state.units
+      .filter((target) => target.owner === nextPlayer
+        && target.hp < unitDefinition(target).maxHp
+        && this.state.units.some((source) => source.owner === nextPlayer
+          && source.id !== target.id
+          && unitDefinition(source).traits.includes('HealingAura')
+          && hexDistance(source.coord, target.coord) === 1))
+      .map((target) => [target.id, target.hp]));
+    let healingAuraVfx: AbilityVfxEvent | undefined;
     const result = endTurn(this.state);
     if (result.ok) {
       const siteCaptured = this.state.sites.some(
@@ -1592,15 +1656,31 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       const countdownAdvanced = countdownBefore
         && this.state.countdown?.player === countdownBefore.player
         && this.state.countdown.checkpoints > countdownBefore.checkpoints;
-      if (countdownAdvanced) this.playVictoryCountdown();
+      if (countdownAdvanced && !this.state.winner) this.playVictoryCountdown();
       if (this.state.currentPlayer !== endingPlayer) {
         this.playTurnEnd();
+        const healedTargets = this.state.units.filter(
+          (unit) => unit.hp > (healingAuraTargetHpBefore.get(unit.id) ?? unit.hp),
+        );
+        if (healedTargets.length > 0) {
+          this.playHealingAura();
+          const healedIds = new Set(healedTargets.map((unit) => unit.id));
+          healingAuraVfx = {
+            kind: 'healingAura',
+            sources: healingAuraSources
+              .filter((source) => this.state.units.some((target) => healedIds.has(target.id)
+                && hexDistance(source.coord, target.coord) === 1))
+              .map((source) => source.coord),
+            targets: healedTargets.map((unit) => ({ ...unit.coord })),
+          };
+        }
         if (this.state.players[nextPlayer].hand.length > nextHandSize) this.playCardDraw();
       }
     }
     this.clearInteraction();
     this.message = result.message;
     this.renderAll();
+    if (healingAuraVfx) void this.presentAbilityVfx(healingAuraVfx);
     setDebugStatus(
       result.ok
         ? `Turn advanced to Player ${this.state.currentPlayer}; waiting for the AI loop.`

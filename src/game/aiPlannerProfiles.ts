@@ -54,6 +54,7 @@ export interface PortfolioHabitWeights {
   hillRanged: number;
   villageHeal: number;
   siteApproach: number;
+  mapControlPressure: number;
 }
 
 export interface PortfolioScoringProfile {
@@ -61,6 +62,7 @@ export interface PortfolioScoringProfile {
   urgency: number;
   action: number;
   tacticalScore: number;
+  responseOutlook: number;
   blockedDeploymentPenalty: number;
   materialLossThreshold: number;
   materialLossDivisor: number;
@@ -82,7 +84,7 @@ export interface PortfolioSearchProfile {
 }
 
 export interface PortfolioPlannerProfile {
-  id: 'v3-portfolio' | 'v4-portfolio' | 'v5-portfolio';
+  id: 'v3-portfolio' | 'v4-portfolio' | 'v5-portfolio' | 'v6-portfolio';
   liveOptions: Required<AiSearchOptions>;
   search: PortfolioSearchProfile;
   scoring: PortfolioScoringProfile;
@@ -107,6 +109,7 @@ const ZERO_HABITS: PortfolioHabitWeights = {
   hillRanged: 0,
   villageHeal: 0,
   siteApproach: 0,
+  mapControlPressure: 0,
 };
 
 const V3_SCORING: PortfolioScoringProfile = {
@@ -114,6 +117,7 @@ const V3_SCORING: PortfolioScoringProfile = {
   urgency: 10,
   action: 18,
   tacticalScore: 0,
+  responseOutlook: 0,
   blockedDeploymentPenalty: 260,
   materialLossThreshold: 240,
   materialLossDivisor: 25,
@@ -187,6 +191,7 @@ export const PLANNER_V4_PROFILE: PortfolioPlannerProfile = {
     urgency: 9,
     action: 16,
     tacticalScore: 4,
+    responseOutlook: 0,
     blockedDeploymentPenalty: 340,
     materialLossThreshold: 180,
     materialLossDivisor: 22,
@@ -209,6 +214,7 @@ export const PLANNER_V4_PROFILE: PortfolioPlannerProfile = {
       hillRanged: 7_500,
       villageHeal: 4_500,
       siteApproach: 1_400,
+      mapControlPressure: 0,
       invokeOnObjectiveBonus: 8_000,
     },
   },
@@ -251,6 +257,37 @@ export const PLANNER_V5_PROFILE: PortfolioPlannerProfile = {
       hillRanged: 7_500,
       villageHeal: 4_500,
       siteApproach: 1_400,
+      mapControlPressure: 0,
+    },
+  },
+};
+
+export const PLANNER_V6_PROFILE: PortfolioPlannerProfile = {
+  id: 'v6-portfolio',
+  liveOptions: {
+    ...PLANNER_V5_PROFILE.liveOptions,
+  },
+  search: {
+    ...PLANNER_V5_PROFILE.search,
+  },
+  scoring: {
+    ...PLANNER_V5_PROFILE.scoring,
+    responseOutlook: 300,
+    doctrines: {
+      ...PLANNER_V5_PROFILE.scoring.doctrines,
+      objectiveRush: { siteSwing: 520, threatenedCapture: 280 },
+      manaEngine: { wellGain: 650, pendingWell: 220, manaSpent: 20 },
+      mobilityFlank: { siteSwing: 180, moveAction: 38 },
+      balanced: { materialSwing: 0.13, siteSwing: 160, manaSpent: 28, action: 22 },
+    },
+    habits: {
+      ...PLANNER_V5_PROFILE.scoring.habits,
+      captureWell: 18_000,
+      captureFort: 15_000,
+      hillRanged: 9_000,
+      villageHeal: 40_000,
+      siteApproach: 2_400,
+      mapControlPressure: 650,
     },
   },
 };

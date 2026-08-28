@@ -4,7 +4,7 @@ import boneArcher from '../../assets/game/cards/bone-archer.webp?url';
 import buildBridge from '../../assets/game/cards/build-bridge.webp?url';
 import graveLock from '../../assets/game/cards/grave-lock.webp?url';
 import graveKnight from '../../assets/game/cards/grave-knight.webp?url';
-import lightMage from '../../assets/game/cards/light-mage.webp?url';
+import thunderMage from '../../assets/game/cards/thunder-mage.webp?url';
 import longbowRanger from '../../assets/game/cards/longbow-ranger.webp?url';
 import necromancer from '../../assets/game/cards/necromancer.webp?url';
 import profaneWell from '../../assets/game/cards/profane-well.webp?url';
@@ -22,7 +22,7 @@ export const CARD_ART = {
   royalGuard,
   longbowRanger,
   silverwingCavalry,
-  lightMage,
+  lightMage: thunderMage,
   bannerCaptain,
   windAdept,
   skeletalInfantry,

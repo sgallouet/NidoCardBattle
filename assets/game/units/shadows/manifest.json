@@ -37,8 +37,8 @@
     },
     {
       "id": "lightMage",
-      "source": "assets/game/units/human/light-mage.webp",
-      "output": "assets/game/units/shadows/light-mage.webp"
+      "source": "assets/game/units/human/thunder-mage.webp",
+      "output": "assets/game/units/shadows/thunder-mage.webp"
     },
     {
       "id": "bannerCaptain",
@@ -91,7 +91,7 @@
     },
     {
       "id": "invokedBeast",
-      "source": "assets/game/units/undead/invoked-beast.webp",
+      "source": "assets/game/units/human/invoked-beast.webp",
       "output": "assets/game/units/shadows/invoked-beast.webp"
     }
   ]

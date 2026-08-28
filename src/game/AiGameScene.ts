@@ -1,11 +1,12 @@
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import type { ActionResult, Coord, GameState, PlayerId } from '../data/types';
+import type { AbilityVfxEvent } from './AbilityVfxAnimator';
 import {
   applyAiAction,
   type AiAction,
   type AiPlan,
 } from './ai';
-import { LIVE_AI_OPTIONS_V4, planAiTurnV4 } from './aiPlannerV4';
+import { LIVE_AI_OPTIONS_V6, planAiTurnV6 } from './aiPlannerV6';
 import {
   coordKey,
   curseUnit,
@@ -15,6 +16,7 @@ import {
   getSoulLinkTargets,
   getTacticTargetCoords,
   getTacticTargets,
+  hexDistance,
   playTacticCard,
   playTacticCardAtCoord,
   rallyAdjacentAllies,
@@ -51,10 +53,12 @@ interface GameSceneInternals {
   playTacticSound: (cardId: CardDefinitionId) => void;
   playProfaneWellComplete: () => void;
   playProfaneWellTick: () => void;
+  playHealingAura: () => void;
   playSiteCapture: () => void;
   playTurnEnd: () => void;
   playUnitDeath: (owner: PlayerId, commander?: boolean) => void;
   playVictoryCountdown: () => void;
+  presentAbilityVfx: (event: AbilityVfxEvent) => Promise<void>;
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
   presentAiThinking?: () => void;
   center: (coord: Coord) => { x: number; y: number };
@@ -309,7 +313,7 @@ export class AiGameScene extends GameScene {
     this.aiWorker.postMessage({
       requestId: this.aiRequestId,
       state: scene.state,
-      options: LIVE_AI_OPTIONS_V4,
+      options: LIVE_AI_OPTIONS_V6,
     });
   }
 
@@ -343,7 +347,7 @@ export class AiGameScene extends GameScene {
     this.aiWorker = null;
     this.stopAiHeartbeat();
     const planningStartedAt = performance.now();
-    const plan = planAiTurnV4(scene.state, LIVE_AI_OPTIONS_V4);
+    const plan = planAiTurnV6(scene.state, LIVE_AI_OPTIONS_V6);
     setDebugStatus(
       `AI: main-thread plan finished in ${elapsedSince(planningStartedAt)} — ${plan.actions.length} actions.`,
       'warning',
@@ -403,7 +407,19 @@ export class AiGameScene extends GameScene {
       const commandersBefore = scene.state.units.filter((unit) => unit.definitionId === 'commander');
       const siteOwnersBefore = new Map(scene.state.sites.map((site) => [site.id, site.owner]));
       const countdownBefore = scene.state.countdown ? { ...scene.state.countdown } : null;
+      const healingAuraSources = scene.state.units
+        .filter((unit) => unit.owner === nextPlayer && unitDefinition(unit).traits.includes('HealingAura'))
+        .map((unit) => ({ id: unit.id, coord: { ...unit.coord } }));
+      const healingAuraTargetHpBefore = new Map(scene.state.units
+        .filter((target) => target.owner === nextPlayer
+          && target.hp < unitDefinition(target).maxHp
+          && scene.state.units.some((source) => source.owner === nextPlayer
+            && source.id !== target.id
+            && unitDefinition(source).traits.includes('HealingAura')
+            && hexDistance(source.coord, target.coord) === 1))
+        .map((target) => [target.id, target.hp]));
       scene.beginAiAction();
+      let healingAuraVfx: AbilityVfxEvent | undefined;
       const result = endTurn(scene.state);
       scene.recordAiAction(endingPlayer, { kind: 'endTurn' }, result);
       if (result.ok) {
@@ -424,15 +440,31 @@ export class AiGameScene extends GameScene {
         const countdownAdvanced = countdownBefore
           && scene.state.countdown?.player === countdownBefore.player
           && scene.state.countdown.checkpoints > countdownBefore.checkpoints;
-        if (countdownAdvanced) scene.playVictoryCountdown();
+        if (countdownAdvanced && !scene.state.winner) scene.playVictoryCountdown();
         if (scene.state.currentPlayer !== endingPlayer) {
           scene.playTurnEnd();
+          const healedTargets = scene.state.units.filter(
+            (unit) => unit.hp > (healingAuraTargetHpBefore.get(unit.id) ?? unit.hp),
+          );
+          if (healedTargets.length > 0) {
+            scene.playHealingAura();
+            const healedIds = new Set(healedTargets.map((unit) => unit.id));
+            healingAuraVfx = {
+              kind: 'healingAura',
+              sources: healingAuraSources
+                .filter((source) => scene.state.units.some((target) => healedIds.has(target.id)
+                  && hexDistance(source.coord, target.coord) === 1))
+                .map((source) => source.coord),
+              targets: healedTargets.map((unit) => ({ ...unit.coord })),
+            };
+          }
           if (scene.state.players[nextPlayer].hand.length > nextHandSize) scene.playCardDraw();
         }
       }
       messages.push(result.message);
       scene.message = result.message;
       scene.renderAll();
+      if (healingAuraVfx) await scene.presentAbilityVfx(healingAuraVfx);
       this.hideAiHand();
       await this.waitForAiAction(90);
     }

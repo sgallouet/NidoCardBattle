@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { CardDefinitionId } from '../data/cards';
 import type { ActionResult, Coord, GameState, PlayerId, UnitState } from '../data/types';
+import { AbilityVfxAnimator, type AbilityVfxEvent } from './AbilityVfxAnimator';
 import { ActionFxAnimator } from './ActionFxAnimator';
 import { applyAiAction, type AiAction } from './ai';
 import { BattlePresentation } from './BattlePresentation';
@@ -12,6 +13,7 @@ import {
   attackUnit,
   findUnit,
   getRallyTargets,
+  neighbors,
   sameCoord,
   unitDefinition,
 } from './engine';
@@ -36,6 +38,7 @@ interface AnimatedSceneInternals {
   playUnitDeath: (owner: PlayerId, commander?: boolean) => void;
   playUnitSummon: (owner: PlayerId) => void;
   presentInvokedUnit: (unitId: string) => Promise<void>;
+  presentAbilityVfx: (event: AbilityVfxEvent) => Promise<void>;
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
 }
 
@@ -48,6 +51,7 @@ interface DamageEvent {
 export class AnimatedPrototypeGameScene extends PrototypeGameScene {
   private motion?: UnitMotionAnimator;
   private actionFx?: ActionFxAnimator;
+  private abilityVfx?: AbilityVfxAnimator;
   private battlePresentation?: BattlePresentation;
 
   create(): void {
@@ -56,10 +60,10 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
     const originalMovement = game.animateMovement.bind(this);
     const originalAttack = game.resolveAnimatedAttack.bind(this);
     const originalRenderAll = game.renderAll.bind(this);
-    const originalPresentInvokedUnit = game.presentInvokedUnit.bind(this);
 
     this.motion = new UnitMotionAnimator(this, () => game.boardLayer);
     this.actionFx = new ActionFxAnimator(this, () => game.boardLayer, game.center.bind(this));
+    this.abilityVfx = new AbilityVfxAnimator(this, () => game.boardLayer, game.center.bind(this));
     this.battlePresentation = new BattlePresentation(this, game.state);
 
     game.renderAll = () => {
@@ -88,18 +92,14 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       game.message = result.message;
     };
 
-    game.presentInvokedUnit = async (unitId) => {
-      await originalPresentInvokedUnit(unitId);
-      const summoned = findUnit(game.state, unitId);
-      const view = game.renderedUnits.get(unitId);
-      if (summoned && view && this.actionFx) await this.actionFx.summon(view, summoned.owner);
-    };
+    game.presentAbilityVfx = async (event) => this.abilityVfx?.play(event, game.renderedUnits);
 
     game.playAiAction = async (action) => this.playAnimatedAiAction(game, action, originalAttack);
 
     this.events.once('shutdown', () => {
       this.motion = undefined;
       this.actionFx = undefined;
+      this.abilityVfx = undefined;
       this.battlePresentation = undefined;
     });
   }
@@ -134,9 +134,16 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
     }
 
     if (action.kind === 'displace') {
-      const targetView = game.renderedUnits.get(action.targetId);
+      const actor = findUnit(game.state, action.unitId);
       const result = applyAiAction(game.state, action);
-      if (result.ok && targetView && fx) await fx.displace(targetView, action.destination);
+      if (result.ok && actor) {
+        await game.presentAbilityVfx({
+          kind: 'displace',
+          source: { ...actor.coord },
+          targetId: action.targetId,
+          destination: { ...action.destination },
+        });
+      }
       return result;
     }
 
@@ -144,7 +151,14 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       const actor = findUnit(game.state, action.unitId);
       const targets = actor ? getRallyTargets(game.state, actor.id).map((unit) => ({ ...unit.coord })) : [];
       const result = applyAiAction(game.state, action);
-      if (result.ok && actor && fx) await fx.rally(actor.coord, targets, actor.owner);
+      if (result.ok && actor) {
+        await game.presentAbilityVfx({
+          kind: 'rally',
+          source: { ...actor.coord },
+          targets,
+          owner: actor.owner,
+        });
+      }
       return result;
     }
 
@@ -152,14 +166,42 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       const actor = findUnit(game.state, action.unitId);
       const target = findUnit(game.state, action.targetId);
       const result = applyAiAction(game.state, action);
-      if (result.ok && actor && target && fx) await fx.soulLink(actor.coord, target.coord);
+      if (result.ok && actor && target) {
+        await game.presentAbilityVfx({
+          kind: 'soulLink',
+          source: { ...actor.coord },
+          target: { ...target.coord },
+        });
+      }
       return result;
     }
 
     if (action.kind === 'curse') {
+      const actor = findUnit(game.state, action.unitId);
       const target = findUnit(game.state, action.targetId);
       const result = applyAiAction(game.state, action);
-      if (result.ok && target && fx) await fx.curse(target.coord);
+      if (result.ok && actor && target) {
+        await game.presentAbilityVfx({
+          kind: 'curse',
+          source: { ...actor.coord },
+          target: { ...target.coord },
+        });
+      }
+      return result;
+    }
+
+    if (action.kind === 'thunder') {
+      const result = applyAiAction(game.state, action);
+      if (result.ok) {
+        await game.presentAbilityVfx({
+          kind: 'thunder',
+          destination: { ...action.destination },
+          affected: [
+            { ...action.destination },
+            ...neighbors(action.destination).map((coord) => ({ ...coord })),
+          ],
+        });
+      }
       return result;
     }
 

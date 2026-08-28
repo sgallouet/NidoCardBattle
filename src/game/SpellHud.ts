@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { SPELL_UI, isActiveSpellId, type ActiveSpellId } from '../data/spellArt';
 import type { Coord, GameState, UnitState } from '../data/types';
+import type { AbilityVfxEvent } from './AbilityVfxAnimator';
 import {
   coordKey,
   curseUnit,
@@ -11,6 +12,7 @@ import {
   getRallyTargets,
   getSoulLinkTargets,
   getThunderTargetCoords,
+  neighbors,
   rallyAdjacentAllies,
   sameCoord,
   soulLinkUnit,
@@ -39,6 +41,8 @@ export interface SpellHudSceneInternals {
   highlights: () => HighlightSets;
   handleHexClick: (coord: Coord) => Promise<void>;
   beginDisplace: () => void;
+  presentAbilityVfx: (event: AbilityVfxEvent) => Promise<void>;
+  setAnimationLock: (locked: boolean) => void;
 }
 
 export class SpellHud {
@@ -48,6 +52,7 @@ export class SpellHud {
   private description?: HTMLSpanElement;
   private cooldown?: HTMLDivElement;
   private button?: HTMLButtonElement;
+  private invokeButton?: HTMLButtonElement;
   private originalButtonParent?: HTMLElement;
   private currentSpell?: ActiveSpellId;
 
@@ -59,10 +64,24 @@ export class SpellHud {
   install(): void {
     const app = document.querySelector<HTMLElement>('#app');
     const button = document.querySelector<HTMLButtonElement>('#ability-button');
+    const invokeButton = document.querySelector<HTMLButtonElement>('#invoke-button');
     if (!app || !button) return;
 
     this.originalButtonParent = button.parentElement ?? undefined;
     this.button = button;
+    this.invokeButton = invokeButton ?? undefined;
+    if (invokeButton) {
+      const image = document.createElement('img');
+      image.src = SPELL_UI.InvokeBeast.art;
+      image.alt = '';
+      image.draggable = false;
+      const label = document.createElement('span');
+      label.textContent = SPELL_UI.InvokeBeast.name;
+      invokeButton.classList.add('invoke-action-button');
+      invokeButton.replaceChildren(image, label);
+      invokeButton.setAttribute('aria-label', `${SPELL_UI.InvokeBeast.name}. ${SPELL_UI.InvokeBeast.description}`);
+      invokeButton.title = `${SPELL_UI.InvokeBeast.name} — ${SPELL_UI.InvokeBeast.description}`;
+    }
     this.buildDock(app, button);
 
     const originalBeginAbility = this.game.beginDisplace.bind(this.scene);
@@ -101,7 +120,7 @@ export class SpellHud {
         const occupant = unitAt(this.game.state, coord);
         const valid = occupant
           && getRallyTargets(this.game.state, selected.id).some((target) => target.id === occupant.id);
-        if (valid) this.castRally(selected.id);
+        if (valid) await this.castRally(selected.id);
         else {
           this.game.message = 'Choose a highlighted ally, or tap Rally again to cast.';
           this.game.renderAll();
@@ -110,22 +129,28 @@ export class SpellHud {
       }
       if (this.game.mode === 'soul-link-target' && selected) {
         const occupant = unitAt(this.game.state, coord);
+        const source = { ...selected.coord };
+        const target = occupant ? { ...occupant.coord } : undefined;
         const result = occupant
           ? soulLinkUnit(this.game.state, selected.id, occupant.id)
           : { ok: false, message: 'Choose a highlighted adjacent Undead ally.' };
         this.game.message = result.message;
         if (result.ok) this.game.mode = 'unit';
-        this.game.renderAll();
+        if (result.ok && target) await this.present({ kind: 'soulLink', source, target });
+        else this.game.renderAll();
         return;
       }
       if (this.game.mode === 'curse-target' && selected) {
         const occupant = unitAt(this.game.state, coord);
+        const source = { ...selected.coord };
+        const target = occupant ? { ...occupant.coord } : undefined;
         const result = occupant
           ? curseUnit(this.game.state, selected.id, occupant.id)
           : { ok: false, message: 'Choose a highlighted enemy within Curse range.' };
         this.game.message = result.message;
         if (result.ok) this.game.mode = 'unit';
-        this.game.renderAll();
+        if (result.ok && target) await this.present({ kind: 'curse', source, target });
+        else this.game.renderAll();
         return;
       }
       if (this.game.mode === 'thunder-target' && selected) {
@@ -136,7 +161,13 @@ export class SpellHud {
           : { ok: false, message: 'Choose a highlighted battlefield hex within Thunder range.' };
         this.game.message = result.message;
         if (result.ok) this.game.mode = 'unit';
-        this.game.renderAll();
+        if (result.ok) {
+          await this.present({
+            kind: 'thunder',
+            destination: { ...coord },
+            affected: [{ ...coord }, ...neighbors(coord).map((neighbor) => ({ ...neighbor }))],
+          });
+        } else this.game.renderAll();
         return;
       }
       await originalHandleHexClick(coord);
@@ -193,7 +224,7 @@ export class SpellHud {
 
     if (this.isTargeting(ability)) {
       if (ability === 'Rally' && this.game.mode === 'rally-target') {
-        this.castRally(selected.id);
+        void this.castRally(selected.id);
         return;
       }
       this.game.displaceTargetId = null;
@@ -258,11 +289,30 @@ export class SpellHud {
     originalBeginAbility();
   }
 
-  private castRally(actorId: string): void {
+  private async castRally(actorId: string): Promise<void> {
+    const actor = findUnit(this.game.state, actorId);
+    const targets = actor ? getRallyTargets(this.game.state, actorId).map((unit) => ({ ...unit.coord })) : [];
     const result = rallyAdjacentAllies(this.game.state, actorId);
     this.game.message = result.message;
     if (result.ok) this.game.mode = 'unit';
-    this.game.renderAll();
+    if (result.ok && actor) {
+      await this.present({
+        kind: 'rally',
+        source: { ...actor.coord },
+        targets,
+        owner: actor.owner,
+      });
+    } else this.game.renderAll();
+  }
+
+  private async present(event: AbilityVfxEvent): Promise<void> {
+    this.game.setAnimationLock(true);
+    try {
+      await this.game.presentAbilityVfx(event);
+    } finally {
+      this.game.renderAll();
+      this.game.setAnimationLock(false);
+    }
   }
 
   private isTargeting(ability: ActiveSpellId): boolean {
@@ -341,7 +391,13 @@ export class SpellHud {
       this.originalButtonParent.append(this.button);
     }
     this.dock?.remove();
+    if (this.invokeButton) {
+      this.invokeButton.classList.remove('invoke-action-button');
+      this.invokeButton.textContent = 'Invoke Beast';
+      this.invokeButton.removeAttribute('title');
+    }
     this.dock = undefined;
     this.button = undefined;
+    this.invokeButton = undefined;
   }
 }

@@ -46,11 +46,11 @@ export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
   },
   lightMage: {
     id: 'lightMage', name: 'Thunder Mage', faction: 'human', cost: 4, maxHp: 3, attack: 2, move: 2, range: 2,
-    traits: [], ability: 'Thunder', mark: 'M',
+    traits: ['Invoker'], ability: 'Thunder', mark: 'M',
   },
   bannerCaptain: {
     id: 'bannerCaptain', name: 'Banner Captain', faction: 'human', cost: 4, maxHp: 4, attack: 2, move: 2, range: 1,
-    traits: [], mark: 'B',
+    traits: ['HealingAura'], mark: 'B',
   },
   windAdept: {
     id: 'windAdept', name: 'Wind Adept', faction: 'human', cost: 3, maxHp: 2, attack: 1, move: 3, range: 2,
@@ -66,7 +66,7 @@ export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
   },
   necromancer: {
     id: 'necromancer', name: 'Necromancer', faction: 'undead', cost: 5, maxHp: 4, attack: 1, move: 2, range: 3,
-    traits: ['Ranged', 'Necromancy', 'Invoker'], ability: 'Curse', mark: 'N',
+    traits: ['Ranged', 'Necromancy'], ability: 'Curse', mark: 'N',
   },
   banshee: {
     id: 'banshee', name: 'Banshee', faction: 'undead', cost: 4, maxHp: 3, attack: 2, move: 3, range: 1,
@@ -85,7 +85,7 @@ export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
     traits: ['Blocking', 'Retaliates'], ability: 'Cleave', mark: 'K',
   },
   invokedBeast: {
-    id: 'invokedBeast', name: 'Invoked Beast', faction: 'undead', cost: 0, maxHp: 2, attack: 1, move: 2, range: 1,
+    id: 'invokedBeast', name: 'Invoked Beast', faction: 'human', cost: 0, maxHp: 2, attack: 1, move: 2, range: 1,
     traits: [], mark: 'I',
   },
 };

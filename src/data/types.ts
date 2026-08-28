@@ -8,6 +8,7 @@ export type Trait =
   | 'Blocking'
   | 'Retaliates'
   | 'Invoker'
+  | 'HealingAura'
   | 'Ranged'
   | 'SetShot'
   | 'Flying'

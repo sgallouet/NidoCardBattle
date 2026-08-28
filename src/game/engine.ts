@@ -153,6 +153,15 @@ const beginTurn = (state: GameState, random: () => number): void => {
     unit.moveBonus = 0;
   }
 
+  const healingBanners = state.units.filter((unit) =>
+    unit.owner === playerId && unitDefinition(unit).traits.includes('HealingAura'));
+  for (const banner of healingBanners) {
+    for (const ally of state.units) {
+      if (ally.id === banner.id || ally.owner !== playerId || hexDistance(banner.coord, ally.coord) !== 1) continue;
+      ally.hp = Math.min(unitDefinition(ally).maxHp, ally.hp + 1);
+    }
+  }
+
   for (const village of MAP_DECORATIONS.filter((decoration) => decoration.type === 'village')) {
     const occupant = unitAt(state, village.coord);
     if (!occupant || occupant.owner !== playerId) continue;

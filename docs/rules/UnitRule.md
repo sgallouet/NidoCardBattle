@@ -36,6 +36,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNT10** - **Assist:** when an allied unit makes a close normal attack, this unit immediately adds 1 damage to that same primary target if the target is within this unit's Range. A close attack must be made from an adjacent hex by a primary attacker that does not have the **Ranged** trait; ranged attacks and attacks made from farther than 1 hex never trigger Assist. If the assisting unit is positioned directly on the opposite side of the target from the primary attacker, forming a straight attacker-target-assister line across the hex grid, that Assist deals 2 damage instead. Assist does not consume Move or Attack, does not trigger retaliation, and may trigger even if the assisting unit has already acted this turn; Exhausted units cannot Assist.
 - **UNT11** - Each eligible assisting unit contributes its own Assist damage, so multiple Assist units may stack on the same attack. Assist damage cannot itself trigger Assist or other attack-triggered effects.
 - **UNT12** - **Set Shot:** after this unit spends any movement during its turn, it cannot make a normal attack that turn. Moving does not disable **Assist**; the unit may still contribute Assist damage while otherwise eligible.
+- **UNT13** - **Healing Aura:** at the start of this unit owner's turn, every adjacent allied unit restores 1 HP, up to its maximum HP. The Healing Aura bearer does not heal itself.
 
 ## Special Abilities / Spells
 - **UNB1** - **Displace:** instead of attacking, move one adjacent unit, allied or enemy, to another free hex adjacent to the Displacer.
@@ -49,7 +50,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 
 ## Human Army
 
-Human identity: formation, mobility, ranged support, and controlled repositioning.
+Human identity: formation, mobility, ranged support, sustain, and controlled repositioning.
 
 | Rule | Unit | Mana | HP | DMG | Move | Range | Traits | Spell / Ability | Implementation |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
@@ -57,22 +58,22 @@ Human identity: formation, mobility, ranged support, and controlled repositionin
 | **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates, Assist | — | ✅ Implemented. |
 | **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
 | **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
-| **HUR5** | Thunder Mage | 4 | 3 | 2 | 2 | 2 | — | Thunder | ✅ Implemented; existing Light Mage art remains temporary until replacement art is accepted. |
-| **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | — | — | ✅ Implemented. |
+| **HUR5** | Thunder Mage | 4 | 3 | 2 | 2 | 2 | Invoker | Thunder | ✅ Implemented; Thunder and Invoke Beast both replace its attack. Existing Light Mage art remains temporary until replacement art is accepted. |
+| **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | Healing Aura | — | ✅ Implemented. |
 | **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | ✅ Implemented. |
+| **HUR8** | Invoked Beast | — | 2 | 1 | 2 | 1 | — | — | ✅ Implemented as the free token created by Thunder Mage through `UNT3`. |
 
 ## Undead Army
 
-Undead identity: summoning, disruption, attrition, damage redirection, and punishing clustered enemies.
+Undead identity: disruption, attrition, damage redirection, necromancy, and punishing clustered enemies.
 
 | Rule | Unit | Mana | HP | DMG | Move | Range | Traits | Spell / Ability | Implementation |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
 | **UDR1** | Undead Commander | — | 10 | 3 | 2 | 1 | Blocking, Dark Reflection | Soul Link | ✅ Implemented. |
 | **UDR2** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking, Assist | — | ✅ Implemented. |
 | **UDR3** | Bone Archer | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
-| **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Ranged, Necromancy, Invoker | Curse | ✅ Implemented. |
+| **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Ranged, Necromancy | Curse | ✅ Implemented. |
 | **UDR5** | Banshee | 4 | 3 | 2 | 3 | 1 | — | Displace | ✅ Implemented. |
 | **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | Flying | Blood Drain | ✅ Implemented. |
 | **UDR7** | Wraith | 4 | 3 | 2 | 4 | 1 | Phase | — | ✅ Implemented. |
 | **UDR8** | Grave Knight | 5 | 5 | 3 | 2 | 1 | Blocking, Retaliates | Cleave | ✅ Implemented. |
-| **UDR9** | Invoked Beast | — | 2 | 1 | 2 | 1 | — | — | ✅ Implemented as the token created by `UNT3`. |

@@ -4,6 +4,7 @@ import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
 import {
   attackUnit,
   createGameState,
+  endTurn,
   getInvokeDestinations,
   getThunderTargetCoords,
   invokeBeast,
@@ -48,16 +49,17 @@ describe('UnitRule regressions', () => {
     expect(defender.hp).toBe(3);
   });
 
-  it('enforces UNT3 per Invoker and reopens Invoke after its Beast is removed', () => {
+  it('enforces UNT3 on Thunder Mage and reopens Invoke after its Beast is removed', () => {
     const state = freshState();
-    state.currentPlayer = 2;
-    const invoker = makeUnit('invoker', 'necromancer', 2, { q: 4, r: 6 });
+    state.currentPlayer = 1;
+    const invoker = makeUnit('invoker', 'lightMage', 1, { q: 4, r: 6 });
     state.units = [invoker];
     const firstDestination = getInvokeDestinations(state, invoker.id)[0];
 
     const first = invokeBeast(state, invoker.id, firstDestination);
     expect(first.ok).toBe(true);
     expect(invoker.invokedPetId).toBe(first.summonedUnitId);
+    expect(state.units.find((unit) => unit.id === first.summonedUnitId)?.owner).toBe(1);
 
     invoker.attacked = false;
     expect(getInvokeDestinations(state, invoker.id)).toEqual([]);
@@ -68,6 +70,15 @@ describe('UnitRule regressions', () => {
 
     state.units = state.units.filter((unit) => unit.id !== first.summonedUnitId);
     expect(getInvokeDestinations(state, invoker.id).length).toBeGreaterThan(0);
+  });
+
+  it('does not let Necromancer invoke a Beast anymore', () => {
+    const state = freshState();
+    state.currentPlayer = 2;
+    const necromancer = makeUnit('necromancer', 'necromancer', 2, { q: 4, r: 6 });
+    state.units = [necromancer];
+
+    expect(getInvokeDestinations(state, necromancer.id)).toEqual([]);
   });
 
   it('makes UNB6 Thunder damage its target hex and every adjacent unit, including allies and the caster', () => {
@@ -89,5 +100,25 @@ describe('UnitRule regressions', () => {
     expect(allyAdjacent.hp).toBe(2);
     expect(outside.hp).toBe(5);
     expect(mage.attacked).toBe(true);
+  });
+
+  it('heals every adjacent ally by 1 at the start of the Banner Captain owner turn', () => {
+    const state = freshState();
+    state.currentPlayer = 2;
+    state.turnNumber = 2;
+    const banner = makeUnit('banner', 'bannerCaptain', 1, { q: 5, r: 6 }, { hp: 2 });
+    const adjacentA = makeUnit('adjacent-a', 'royalGuard', 1, { q: 6, r: 6 }, { hp: 1 });
+    const adjacentB = makeUnit('adjacent-b', 'lightMage', 1, { q: 5, r: 5 }, { hp: 2 });
+    const enemy = makeUnit('enemy', 'skeletalInfantry', 2, { q: 4, r: 6 }, { hp: 1 });
+    const distant = makeUnit('distant', 'silverwingCavalry', 1, { q: 9, r: 6 }, { hp: 3 });
+    state.units = [banner, adjacentA, adjacentB, enemy, distant];
+
+    expect(endTurn(state, fixedRandom).ok).toBe(true);
+    expect(state.currentPlayer).toBe(1);
+    expect(banner.hp).toBe(2);
+    expect(adjacentA.hp).toBe(2);
+    expect(adjacentB.hp).toBe(3);
+    expect(enemy.hp).toBe(1);
+    expect(distant.hp).toBe(3);
   });
 });

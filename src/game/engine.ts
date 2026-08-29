@@ -139,7 +139,8 @@ const drawCard = (state: GameState, playerId: PlayerId, random: () => number): v
   else player.hand.push(drawn);
 };
 
-const beginTurn = (state: GameState, random: () => number): void => {
+const beginTurn = (state: GameState, random: () => number): { villageHealed: boolean } => {
+  let villageHealed = false;
   state.tileEffects = state.tileEffects.filter((effect) => effect.expiresAtTurn > state.turnNumber);
   const playerId = state.currentPlayer;
   for (const unit of state.units) {
@@ -165,7 +166,9 @@ const beginTurn = (state: GameState, random: () => number): void => {
   for (const village of MAP_DECORATIONS.filter((decoration) => decoration.type === 'village')) {
     const occupant = unitAt(state, village.coord);
     if (!occupant || occupant.owner !== playerId) continue;
+    const hpBeforeVillage = occupant.hp;
     occupant.hp = Math.min(unitDefinition(occupant).maxHp, occupant.hp + 1);
+    villageHealed ||= occupant.hp > hpBeforeVillage;
   }
 
   const occupiedRuins = MAP_DECORATIONS.filter((decoration) => {
@@ -182,6 +185,7 @@ const beginTurn = (state: GameState, random: () => number): void => {
   }
   state.players[playerId].mana = Math.min(MAX_MANA, state.players[playerId].mana + manaIncome);
   drawCard(state, playerId, random);
+  return { villageHealed };
 };
 
 export const createGameState = (random: () => number = Math.random): GameState => {
@@ -485,13 +489,15 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
     state.units.push(createUnit(state, 'skeletalInfantry', attacker.owner, defenderCoord, true));
   }
 
+  let cleaveDamaged = false;
   for (const targetId of cleaveTargetIds) {
     const target = findUnit(state, targetId);
     if (!target) continue;
-    dealDamage(state, target, attackerDef.attack, false, attacker.owner, {
+    const damage = dealDamage(state, target, attackerDef.attack, false, attacker.owner, {
       sourceUnitId: attacker.id,
       directAttack: true,
     });
+    if (damage > 0) cleaveDamaged = true;
   }
 
   let assisted = 0;
@@ -547,6 +553,7 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
     ok: true,
     message: `${attackerDef.name} attacked ${defenderDef.name} for ${dealt}${assistText}.${victoryText}`,
     ...(bloodDrainHealed ? { bloodDrainHealed: true } : {}),
+    ...(cleaveDamaged ? { cleaveDamaged: true } : {}),
     path: advancePath,
   };
 };
@@ -991,6 +998,10 @@ export const endTurn = (state: GameState, random: () => number = Math.random): A
 
   state.currentPlayer = endingPlayer === 1 ? 2 : 1;
   state.turnNumber += 1;
-  beginTurn(state, random);
-  return { ok: true, message: `Player ${state.currentPlayer}'s turn.` };
+  const startTurn = beginTurn(state, random);
+  return {
+    ok: true,
+    message: `Player ${state.currentPlayer}'s turn.`,
+    ...(startTurn.villageHealed ? { villageHealed: true } : {}),
+  };
 };

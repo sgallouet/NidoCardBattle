@@ -183,6 +183,8 @@ export interface ActionResult {
   ok: boolean;
   message: string;
   bloodDrainHealed?: boolean;
+  cleaveDamaged?: boolean;
+  villageHealed?: boolean;
   summonedUnitId?: string;
   path?: Coord[];
 }

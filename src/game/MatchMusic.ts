@@ -39,8 +39,28 @@ export interface MatchMusicAudio {
 
 export type MatchMusicAudioFactory = (src: string) => MatchMusicAudio;
 
-const MATCH_MUSIC_VOLUME = 0.25;
+export const DEFAULT_MATCH_MUSIC_VOLUME = 0.25;
+const MATCH_MUSIC_VOLUME_STORAGE_KEY = 'nidocardbattle.matchMusicVolume';
 const createAudio: MatchMusicAudioFactory = (src) => new Audio(src);
+
+const clampVolume = (volume: number): number => {
+  if (!Number.isFinite(volume)) throw new Error('Match music volume must be finite.');
+  return Math.min(1, Math.max(0, volume));
+};
+
+export const loadMatchMusicVolume = (storage: Pick<Storage, 'getItem'>): number => {
+  const stored = storage.getItem(MATCH_MUSIC_VOLUME_STORAGE_KEY);
+  if (stored === null) return DEFAULT_MATCH_MUSIC_VOLUME;
+  const parsed = Number(stored);
+  return Number.isFinite(parsed) ? clampVolume(parsed) : DEFAULT_MATCH_MUSIC_VOLUME;
+};
+
+export const saveMatchMusicVolume = (
+  storage: Pick<Storage, 'setItem'>,
+  volume: number,
+): void => {
+  storage.setItem(MATCH_MUSIC_VOLUME_STORAGE_KEY, `${clampVolume(volume)}`);
+};
 
 export const isMatchMusicEnabled = (search: string): boolean => (
   new URLSearchParams(search).get('music') !== 'off'
@@ -50,6 +70,7 @@ export class MatchMusicDirector {
   private audio: MatchMusicAudio | null = null;
   private started = false;
   private unlockArmed = false;
+  private volume = DEFAULT_MATCH_MUSIC_VOLUME;
 
   constructor(
     private readonly tracks: readonly string[] = MATCH_MUSIC_TRACKS,
@@ -69,8 +90,17 @@ export class MatchMusicDirector {
     this.audio = this.audioFactory(this.tracks[index]);
     this.audio.loop = true;
     this.audio.preload = 'auto';
-    this.audio.volume = MATCH_MUSIC_VOLUME;
+    this.audio.volume = this.volume;
     this.tryPlay();
+  }
+
+  setVolume(volume: number): void {
+    this.volume = clampVolume(volume);
+    if (this.audio) this.audio.volume = this.volume;
+  }
+
+  getVolume(): number {
+    return this.volume;
   }
 
   stop(): void {

@@ -1,7 +1,10 @@
 import Phaser from 'phaser';
 import abilityBloodDrainUrl from '../../assets/game/audio/sfx/ability-blood-drain.mp3?url';
+import abilityCleaveUrl from '../../assets/game/audio/sfx/ability-cleave.mp3?url';
+import abilityCurseUrl from '../../assets/game/audio/sfx/ability-curse.mp3?url';
 import abilityDisplaceUrl from '../../assets/game/audio/sfx/ability-displace.mp3?url';
 import abilityRallyUrl from '../../assets/game/audio/sfx/ability-rally.mp3?url';
+import abilitySoulLinkUrl from '../../assets/game/audio/sfx/ability-soul-link.mp3?url';
 import abilityThunderUrl from '../../assets/game/audio/sfx/ability-thunder.mp3?url';
 import commanderDeathUrl from '../../assets/game/audio/sfx/commander-death.mp3?url';
 import combatAssistUrl from '../../assets/game/audio/sfx/combat-assist.mp3?url';
@@ -9,6 +12,7 @@ import combatHitMeleeUrl from '../../assets/game/audio/sfx/combat-hit-melee.mp3?
 import combatHitRangedUrl from '../../assets/game/audio/sfx/combat-hit-ranged.mp3?url';
 import combatRetaliationUrl from '../../assets/game/audio/sfx/combat-retaliation.mp3?url';
 import matchVictoryUrl from '../../assets/game/audio/sfx/match-victory.mp3?url';
+import locationVillageHealUrl from '../../assets/game/audio/sfx/location-village-heal.mp3?url';
 import siteCaptureUrl from '../../assets/game/audio/sfx/site-capture.mp3?url';
 import traitHealingAuraUrl from '../../assets/game/audio/sfx/trait-healing-aura.mp3?url';
 import traitDarkReflectionUrl from '../../assets/game/audio/sfx/trait-dark-reflection.mp3?url';
@@ -116,10 +120,16 @@ const TOKEN_ATTACK_DURATION_MS = 500;
 const TOKEN_ATTACK_IMPACT_MS = 320;
 const ABILITY_BLOOD_DRAIN_AUDIO_KEY = 'ability-blood-drain';
 const ABILITY_BLOOD_DRAIN_VOLUME = 0.64;
+const ABILITY_CLEAVE_AUDIO_KEY = 'ability-cleave';
+const ABILITY_CLEAVE_VOLUME = 0.72;
+const ABILITY_CURSE_AUDIO_KEY = 'ability-curse';
+const ABILITY_CURSE_VOLUME = 0.62;
 const ABILITY_DISPLACE_AUDIO_KEY = 'ability-displace';
 const ABILITY_DISPLACE_VOLUME = 0.68;
 const ABILITY_RALLY_AUDIO_KEY = 'ability-rally';
 const ABILITY_RALLY_VOLUME = 0.66;
+const ABILITY_SOUL_LINK_AUDIO_KEY = 'ability-soul-link';
+const ABILITY_SOUL_LINK_VOLUME = 0.64;
 const ABILITY_THUNDER_AUDIO_KEY = 'ability-thunder';
 const ABILITY_THUNDER_VOLUME = 0.78;
 const COMMANDER_DEATH_AUDIO_KEY = 'commander-death';
@@ -134,6 +144,8 @@ const COMBAT_RETALIATION_AUDIO_KEY = 'combat-retaliation';
 const COMBAT_RETALIATION_VOLUME = 0.58;
 const MATCH_VICTORY_AUDIO_KEY = 'match-victory';
 const MATCH_VICTORY_VOLUME = 0.78;
+const LOCATION_VILLAGE_HEAL_AUDIO_KEY = 'location-village-heal';
+const LOCATION_VILLAGE_HEAL_VOLUME = 0.58;
 const SITE_CAPTURE_AUDIO_KEY = 'site-capture';
 const SITE_CAPTURE_VOLUME = 0.68;
 const TRAIT_HEALING_AURA_AUDIO_KEY = 'trait-healing-aura';
@@ -260,8 +272,11 @@ export class GameScene extends Phaser.Scene {
       loadingScreen.setProgress(0.96, 'Deploying the armies');
     });
     this.load.audio(ABILITY_BLOOD_DRAIN_AUDIO_KEY, abilityBloodDrainUrl);
+    this.load.audio(ABILITY_CLEAVE_AUDIO_KEY, abilityCleaveUrl);
+    this.load.audio(ABILITY_CURSE_AUDIO_KEY, abilityCurseUrl);
     this.load.audio(ABILITY_DISPLACE_AUDIO_KEY, abilityDisplaceUrl);
     this.load.audio(ABILITY_RALLY_AUDIO_KEY, abilityRallyUrl);
+    this.load.audio(ABILITY_SOUL_LINK_AUDIO_KEY, abilitySoulLinkUrl);
     this.load.audio(ABILITY_THUNDER_AUDIO_KEY, abilityThunderUrl);
     this.load.audio(COMMANDER_DEATH_AUDIO_KEY, commanderDeathUrl);
     this.load.audio(COMBAT_ASSIST_AUDIO_KEY, combatAssistUrl);
@@ -269,6 +284,7 @@ export class GameScene extends Phaser.Scene {
     this.load.audio(COMBAT_HIT_RANGED_AUDIO_KEY, combatHitRangedUrl);
     this.load.audio(COMBAT_RETALIATION_AUDIO_KEY, combatRetaliationUrl);
     this.load.audio(MATCH_VICTORY_AUDIO_KEY, matchVictoryUrl);
+    this.load.audio(LOCATION_VILLAGE_HEAL_AUDIO_KEY, locationVillageHealUrl);
     this.load.audio(SITE_CAPTURE_AUDIO_KEY, siteCaptureUrl);
     this.load.audio(TRAIT_HEALING_AURA_AUDIO_KEY, traitHealingAuraUrl);
     this.load.audio(TRAIT_DARK_REFLECTION_AUDIO_KEY, traitDarkReflectionUrl);
@@ -1328,6 +1344,10 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.sound.play(MATCH_VICTORY_AUDIO_KEY, { volume: MATCH_VICTORY_VOLUME });
   }
 
+  playVillageHeal(): void {
+    this.sound.play(LOCATION_VILLAGE_HEAL_AUDIO_KEY, { volume: LOCATION_VILLAGE_HEAL_VOLUME });
+  }
+
   playHealingAura(): void {
     this.sound.play(TRAIT_HEALING_AURA_AUDIO_KEY, { volume: TRAIT_HEALING_AURA_VOLUME });
   }
@@ -1342,6 +1362,18 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 
   playAbilityBloodDrain(): void {
     this.sound.play(ABILITY_BLOOD_DRAIN_AUDIO_KEY, { volume: ABILITY_BLOOD_DRAIN_VOLUME });
+  }
+
+  playAbilityCleave(): void {
+    this.sound.play(ABILITY_CLEAVE_AUDIO_KEY, { volume: ABILITY_CLEAVE_VOLUME });
+  }
+
+  playAbilityCurse(): void {
+    this.sound.play(ABILITY_CURSE_AUDIO_KEY, { volume: ABILITY_CURSE_VOLUME });
+  }
+
+  playAbilitySoulLink(): void {
+    this.sound.play(ABILITY_SOUL_LINK_AUDIO_KEY, { volume: ABILITY_SOUL_LINK_VOLUME });
   }
 
   playAbilityThunder(): void {
@@ -1468,6 +1500,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       result = attackUnit(this.state, attackerId, defenderId);
       if (result.ok) {
         if (result.bloodDrainHealed) this.playAbilityBloodDrain();
+        if (result.cleaveDamaged) this.playAbilityCleave();
         this.playCombatHit(unitDefinition(attacker).range > 1);
         if (!findUnit(this.state, defenderId)) this.playUnitDeath(defender.owner, defender.definitionId === 'commander');
         this.showHitFeedback(defenderId, Math.max(0, defenderHpBefore - defender.hp));
@@ -1736,6 +1769,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       );
       if (profaneWellTicked) this.playProfaneWellTick();
       if (profaneWellCompleted) this.playProfaneWellComplete();
+      if (result.villageHealed) this.playVillageHeal();
       const countdownAdvanced = countdownBefore
         && this.state.countdown?.player === countdownBefore.player
         && this.state.countdown.checkpoints > countdownBefore.checkpoints;

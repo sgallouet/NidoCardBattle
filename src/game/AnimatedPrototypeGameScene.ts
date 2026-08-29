@@ -34,8 +34,11 @@ interface AnimatedSceneInternals {
   playCombatHit: (ranged: boolean) => void;
   playCombatRetaliation: () => void;
   playAbilityBloodDrain: () => void;
+  playAbilityCleave: () => void;
+  playAbilityCurse: () => void;
   playAbilityDisplace: () => void;
   playAbilityRally: () => void;
+  playAbilitySoulLink: () => void;
   playAbilityThunder: () => void;
   playCardPlay: () => void;
   playTacticSound: (cardId: CardDefinitionId) => void;
@@ -177,6 +180,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       const target = findUnit(game.state, action.targetId);
       const result = applyAiAction(game.state, action);
       if (result.ok && actor && target) {
+        game.playAbilitySoulLink();
         await game.presentAbilityVfx({
           kind: 'soulLink',
           source: { ...actor.coord },
@@ -191,6 +195,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       const target = findUnit(game.state, action.targetId);
       const result = applyAiAction(game.state, action);
       if (result.ok && actor && target) {
+        game.playAbilityCurse();
         await game.presentAbilityVfx({
           kind: 'curse',
           source: { ...actor.coord },
@@ -298,6 +303,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
     }
 
     if (result.bloodDrainHealed) game.playAbilityBloodDrain();
+    if (result.cleaveDamaged) game.playAbilityCleave();
 
     for (const [unitId, view] of game.renderedUnits) {
       view.hpText?.setText(`${Math.max(0, findUnit(game.state, unitId)?.hp ?? 0)}`);

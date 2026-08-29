@@ -41,7 +41,9 @@ export interface SpellHudSceneInternals {
   highlights: () => HighlightSets;
   handleHexClick: (coord: Coord) => Promise<void>;
   beginDisplace: () => void;
+  playAbilityCurse: () => void;
   playAbilityRally: () => void;
+  playAbilitySoulLink: () => void;
   playAbilityThunder: () => void;
   presentAbilityVfx: (event: AbilityVfxEvent) => Promise<void>;
   setAnimationLock: (locked: boolean) => void;
@@ -140,7 +142,10 @@ export class SpellHud {
           : { ok: false, message: 'Choose a highlighted adjacent Undead ally.' };
         this.game.message = result.message;
         if (result.ok) this.game.mode = 'unit';
-        if (result.ok && target) await this.present({ kind: 'soulLink', source, target });
+        if (result.ok && target) {
+          this.game.playAbilitySoulLink();
+          await this.present({ kind: 'soulLink', source, target });
+        }
         else this.game.renderAll();
         return;
       }
@@ -153,7 +158,10 @@ export class SpellHud {
           : { ok: false, message: 'Choose a highlighted enemy within Curse range.' };
         this.game.message = result.message;
         if (result.ok) this.game.mode = 'unit';
-        if (result.ok && target) await this.present({ kind: 'curse', source, target });
+        if (result.ok && target) {
+          this.game.playAbilityCurse();
+          await this.present({ kind: 'curse', source, target });
+        }
         else this.game.renderAll();
         return;
       }

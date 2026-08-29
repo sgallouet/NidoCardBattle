@@ -26,6 +26,13 @@ interface EnemyPresentationInternals {
   message: string;
   renderAll: () => void;
   center: (coord: Coord) => { x: number; y: number };
+  playAbilityBloodDrain: () => void;
+  playAbilityCleave: () => void;
+  playAbilityCurse: () => void;
+  playAbilityDisplace: () => void;
+  playAbilityRally: () => void;
+  playAbilitySoulLink: () => void;
+  playAbilityThunder: () => void;
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
   presentAiThinking?: () => void;
   waitForAiAction: (duration: number) => Promise<void>;
@@ -73,7 +80,9 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
       game.playAiAction = async (action) => {
         if (!this.enemyAnimationsEnabled) {
           this.hideEnemyAction();
-          return applyAiAction(game.state, action);
+          const result = applyAiAction(game.state, action);
+          this.playInstantAbilityAudio(game, action, result);
+          return result;
         }
 
         const pacing = ACTION_PACING[action.kind];
@@ -98,6 +107,37 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
       this.enemyAnimationToggle = undefined;
       this.enemyActionBanner = undefined;
     });
+  }
+
+  private playInstantAbilityAudio(
+    game: EnemyPresentationInternals,
+    action: AiAction,
+    result: ActionResult,
+  ): void {
+    if (!result.ok) return;
+    switch (action.kind) {
+      case 'attack':
+        if (result.bloodDrainHealed) game.playAbilityBloodDrain();
+        if (result.cleaveDamaged) game.playAbilityCleave();
+        return;
+      case 'displace':
+        game.playAbilityDisplace();
+        return;
+      case 'rally':
+        game.playAbilityRally();
+        return;
+      case 'soulLink':
+        game.playAbilitySoulLink();
+        return;
+      case 'curse':
+        game.playAbilityCurse();
+        return;
+      case 'thunder':
+        game.playAbilityThunder();
+        return;
+      default:
+        return;
+    }
   }
 
   private readonly handleAnimationToggle = (): void => {

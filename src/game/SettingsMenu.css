@@ -130,6 +130,86 @@
   font-weight: 720;
 }
 
+.settings-menu-volume-row {
+  display: grid;
+  gap: 9px;
+  padding: 9px 10px 10px;
+}
+
+.settings-menu-volume-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-menu-volume-value {
+  min-width: 44px;
+  color: #e9c56e;
+  font: 800 11px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+  text-align: right;
+}
+
+.settings-menu-volume-slider {
+  --music-volume-progress: 25%;
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  appearance: none;
+  cursor: pointer;
+  background: transparent;
+}
+
+.settings-menu-volume-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border: 1px solid rgba(233, 197, 110, .24);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #d9aa4c 0 var(--music-volume-progress),
+    rgba(255, 255, 255, .09) var(--music-volume-progress) 100%
+  );
+}
+
+.settings-menu-volume-slider::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  appearance: none;
+  border: 2px solid #fff1c7;
+  border-radius: 50%;
+  background: #d9aa4c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .55), 0 0 10px rgba(233, 197, 110, .22);
+}
+
+.settings-menu-volume-slider::-moz-range-track {
+  height: 4px;
+  border: 1px solid rgba(233, 197, 110, .24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .09);
+}
+
+.settings-menu-volume-slider::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: #d9aa4c;
+}
+
+.settings-menu-volume-slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border: 2px solid #fff1c7;
+  border-radius: 50%;
+  background: #d9aa4c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .55), 0 0 10px rgba(233, 197, 110, .22);
+}
+
+.settings-menu-volume-slider:focus-visible {
+  outline: 2px solid #f2c978;
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+
 .settings-menu-row > button {
   position: static !important;
   inset: auto !important;

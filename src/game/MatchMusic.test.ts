@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   MATCH_MUSIC_TRACKS,
   MatchMusicDirector,
   isMatchMusicEnabled,
+  loadMatchMusicVolume,
+  saveMatchMusicVolume,
   type MatchMusicAudio,
 } from './MatchMusic';
 
@@ -77,6 +79,27 @@ describe('match music director', () => {
     director.stop();
     expect(audios[0].pauseCount).toBe(1);
     expect(audios[0].currentTime).toBe(0);
+  });
+
+  it('changes the current track volume immediately', () => {
+    const audio = new FakeAudio('battle.mp3');
+    const director = new MatchMusicDirector(['battle.mp3'], () => audio, null);
+    director.start();
+
+    director.setVolume(0.68);
+
+    expect(director.getVolume()).toBe(0.68);
+    expect(audio.volume).toBe(0.68);
+  });
+
+  it('loads and saves the persistent player volume', () => {
+    const setItem = vi.fn();
+
+    expect(loadMatchMusicVolume({ getItem: () => null })).toBe(0.25);
+    expect(loadMatchMusicVolume({ getItem: () => '0.72' })).toBe(0.72);
+    saveMatchMusicVolume({ setItem }, 0.42);
+
+    expect(setItem).toHaveBeenCalledWith('nidocardbattle.matchMusicVolume', '0.42');
   });
 
   it('retries playback on the first user gesture after autoplay is blocked', async () => {

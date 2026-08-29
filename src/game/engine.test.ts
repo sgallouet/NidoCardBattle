@@ -416,7 +416,8 @@ describe('Undead specialist attacks', () => {
     const adjacent = makeUnit('adjacent', 'lightMage', 1, { q: 5, r: 5 });
     const far = makeUnit('far', 'lightMage', 1, { q: 2, r: 6 });
     state.units = [knight, primary, adjacent, far];
-    attackUnit(state, knight.id, primary.id);
+    const result = attackUnit(state, knight.id, primary.id);
+    expect(result.cleaveDamaged).toBe(true);
     expect(state.units.some((unit) => unit.id === primary.id)).toBe(false);
     expect(state.units.some((unit) => unit.id === adjacent.id)).toBe(false);
     expect(far.hp).toBe(3);
@@ -542,6 +543,16 @@ describe('existing summon, restore, capture and victory rules', () => {
     expect(well.owner).toBe(null);
     endTurn(state, fixedRandom);
     expect(well.owner).toBe(1);
+  });
+
+  it('reports `MPL8` Village healing when a unit actually restores HP', () => {
+    const state = freshState();
+    state.units = [makeUnit('village-unit', 'royalGuard', 2, { q: 5, r: 10 }, { hp: 1 })];
+
+    const result = endTurn(state, fixedRandom);
+
+    expect(result.villageHealed).toBe(true);
+    expect(state.units[0].hp).toBe(2);
   });
 
   it('wins after three surviving Commander checkpoints', () => {

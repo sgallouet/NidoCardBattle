@@ -7,6 +7,8 @@ interface OriginalPlacement {
 }
 
 export interface SettingsMenuActions {
+  musicVolume?: number;
+  setMusicVolume?: (volume: number) => void;
   recordDemo?: () => void;
   recordingSupported?: boolean;
 }
@@ -65,6 +67,9 @@ export class SettingsMenu {
     this.moveControl('#player-camera-toggle', gameplay, 'Action camera');
     this.moveControl('#enemy-animation-toggle', gameplay, 'Enemy turn');
     this.moveControl('#fullscreen-button', gameplay, 'Display');
+
+    const audio = this.createSection(panel, 'Audio');
+    this.createMusicVolumeControl(audio);
 
     const playtest = this.createSection(panel, 'Playtest');
     this.moveControl('#tile-border-button', playtest, 'Hex borders');
@@ -185,6 +190,48 @@ export class SettingsMenu {
     label.className = 'settings-menu-row-label';
     label.textContent = labelText;
     row.append(label, control);
+    destination.append(row);
+  }
+
+  private createMusicVolumeControl(destination: HTMLElement): void {
+    const row = document.createElement('div');
+    row.className = 'settings-menu-row settings-menu-volume-row';
+
+    const header = document.createElement('div');
+    header.className = 'settings-menu-volume-header';
+    const label = document.createElement('label');
+    label.className = 'settings-menu-row-label';
+    label.htmlFor = 'music-volume-slider';
+    label.textContent = 'Music';
+    const value = document.createElement('output');
+    value.className = 'settings-menu-volume-value';
+    value.htmlFor = 'music-volume-slider';
+
+    const slider = document.createElement('input');
+    slider.id = 'music-volume-slider';
+    slider.className = 'settings-menu-volume-slider';
+    slider.type = 'range';
+    slider.min = '0';
+    slider.max = '100';
+    slider.step = '1';
+    slider.value = `${Math.round((this.actions.musicVolume ?? 0.25) * 100)}`;
+    slider.setAttribute('aria-label', 'Music volume');
+
+    const renderValue = (): void => {
+      const percent = Number(slider.value);
+      value.textContent = percent === 0 ? 'Muted' : `${percent}%`;
+      slider.setAttribute('aria-valuetext', value.textContent);
+      slider.style.setProperty('--music-volume-progress', `${percent}%`);
+    };
+    const update = (): void => {
+      renderValue();
+      this.actions.setMusicVolume?.(Number(slider.value) / 100);
+    };
+
+    renderValue();
+    slider.addEventListener('input', update);
+    header.append(label, value);
+    row.append(header, slider);
     destination.append(row);
   }
 

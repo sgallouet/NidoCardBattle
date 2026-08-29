@@ -54,6 +54,7 @@ interface GameSceneInternals {
   playProfaneWellComplete: () => void;
   playProfaneWellTick: () => void;
   playHealingAura: () => void;
+  playVillageHeal: () => void;
   playSiteCapture: () => void;
   playTurnEnd: () => void;
   playUnitDeath: (owner: PlayerId, commander?: boolean) => void;
@@ -437,6 +438,7 @@ export class AiGameScene extends GameScene {
         );
         if (profaneWellTicked) scene.playProfaneWellTick();
         if (profaneWellCompleted) scene.playProfaneWellComplete();
+        if (result.villageHealed) scene.playVillageHeal();
         const countdownAdvanced = countdownBefore
           && scene.state.countdown?.player === countdownBefore.player
           && scene.state.countdown.checkpoints > countdownBefore.checkpoints;

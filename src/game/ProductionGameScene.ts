@@ -16,8 +16,14 @@ import {
   PremiumFeedback,
   type PremiumFeedbackSceneInternals,
 } from './PremiumFeedback';
-import { MatchMusicDirector, isMatchMusicEnabled } from './MatchMusic';
+import {
+  MatchMusicDirector,
+  isMatchMusicEnabled,
+  loadMatchMusicVolume,
+  saveMatchMusicVolume,
+} from './MatchMusic';
 import { SettingsMenu } from './SettingsMenu';
+import { VictoryMusicDirector } from './VictoryMusic';
 
 interface ProductionSceneInternals extends CelShadedRiverSceneInternals, PremiumFeedbackSceneInternals {
   addRiverSurface: () => void;
@@ -43,6 +49,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private celRiver?: CelShadedRiverSurface;
   private premiumFeedback?: PremiumFeedback;
   private matchMusic?: MatchMusicDirector;
+  private victoryMusic?: VictoryMusicDirector;
+  private victoryMusicStarted = false;
   private demoVideo?: DemoVideoRecorder;
 
   create(): void {
@@ -91,7 +99,13 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
         if (!game.state.winner) this.matchMusic?.start();
       },
     );
+    const musicVolume = loadMatchMusicVolume(window.localStorage);
     this.settingsMenu = new SettingsMenu({
+      musicVolume,
+      setMusicVolume: (volume) => {
+        saveMatchMusicVolume(window.localStorage, volume);
+        this.matchMusic?.setVolume(volume);
+      },
       recordDemo: () => void this.demoVideo?.record(),
       recordingSupported: DemoVideoRecorder.isSupported(this.game.canvas),
     });
@@ -101,13 +115,24 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     this.premiumFeedback.install();
     if (isMatchMusicEnabled(window.location.search)) {
       this.matchMusic = new MatchMusicDirector();
+      this.matchMusic.setVolume(musicVolume);
       this.matchMusic.start();
+      this.victoryMusic = new VictoryMusicDirector();
     }
     const originalRenderAll = game.renderAll.bind(this);
     game.renderAll = () => {
       originalRenderAll();
       this.premiumFeedback?.sync(game.state, game.message);
-      if (game.state.winner) this.matchMusic?.stop();
+      if (game.state.winner) {
+        this.matchMusic?.stop();
+        if (!this.victoryMusicStarted && this.victoryMusic) {
+          this.victoryMusicStarted = true;
+          this.victoryMusic.play();
+        }
+      } else if (this.victoryMusicStarted) {
+        this.victoryMusicStarted = false;
+        this.victoryMusic?.stop();
+      }
     };
 
     this.events.once('shutdown', () => {
@@ -115,6 +140,9 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.premiumFeedback = undefined;
       this.matchMusic?.dispose();
       this.matchMusic = undefined;
+      this.victoryMusic?.dispose();
+      this.victoryMusic = undefined;
+      this.victoryMusicStarted = false;
       this.demoVideo?.dispose();
       this.demoVideo = undefined;
       this.celRiver?.destroy();

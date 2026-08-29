@@ -72,8 +72,8 @@ Audit snapshot: **2026-08-29**.
 
 ### P2 — ambience and music
 
-- [ ] `ambience-battlefield` — asset ❌; runtime ❌. Restrained looping fantasy battlefield/environment bed with plenty of room for tactical SFX.
-- [ ] `music-victory` — asset ❌; runtime ❌. Victory presentation music/transition after the short result sting.
+- [ ] `ambience-battlefield` — asset ❌; runtime ❌. Fresh validated A/B candidates are ready externally; accept one after audition. Restrained looping fantasy battlefield/environment bed with plenty of room for tactical SFX.
+- [ ] `music-victory` — asset ❌; runtime ❌. The two user-selected existing tracks are reserved; a fresh five-track set is ready externally, but the music gate needs one additional selection before integration.
 
 ## Runtime folders
 

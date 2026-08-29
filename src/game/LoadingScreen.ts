@@ -1,3 +1,5 @@
+import { showBetaWelcomeOnce } from './BetaWelcome';
+
 const MIN_VISIBLE_PROGRESS = 0.025;
 
 class LoadingScreen {
@@ -84,7 +86,10 @@ class LoadingScreen {
     this.element.classList.add('is-complete');
     window.setTimeout(() => {
       this.element.classList.add('is-leaving');
-      window.setTimeout(() => this.element.remove(), 520);
+      window.setTimeout(() => {
+        this.element.remove();
+        void showBetaWelcomeOnce();
+      }, 520);
     }, 140);
   }
 }

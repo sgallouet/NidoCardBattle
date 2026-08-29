@@ -6,13 +6,21 @@ interface OriginalPlacement {
   nextSibling: ChildNode | null;
 }
 
+export interface SettingsMenuActions {
+  recordDemo?: () => void;
+  recordingSupported?: boolean;
+}
+
 export class SettingsMenu {
   private root?: HTMLElement;
   private button?: HTMLButtonElement;
   private panel?: HTMLElement;
   private scrim?: HTMLElement;
   private placements: OriginalPlacement[] = [];
+  private demoVideoButton?: HTMLButtonElement;
   private open = false;
+
+  constructor(private readonly actions: SettingsMenuActions = {}) {}
 
   install(): void {
     const app = document.querySelector<HTMLElement>('#app');
@@ -68,6 +76,24 @@ export class SettingsMenu {
     this.moveControl('#new-game-button', match, 'New match');
 
     const developer = this.createSection(panel, 'Developer');
+    if (this.actions.recordDemo) {
+      const row = document.createElement('div');
+      row.className = 'settings-menu-row settings-menu-demo-video';
+      const copy = document.createElement('span');
+      copy.className = 'settings-menu-row-label';
+      copy.innerHTML = '<strong>Store sales trailer</strong><small>≈18s · 720p · music + SFX</small>';
+      const record = document.createElement('button');
+      record.type = 'button';
+      record.className = 'secondary settings-menu-demo-button';
+      record.textContent = 'Generate demo';
+      record.setAttribute('aria-label', 'Generate animated 16:9 Wavedash sales trailer with audio');
+      record.disabled = this.actions.recordingSupported === false;
+      if (record.disabled) record.textContent = 'Unavailable';
+      record.addEventListener('click', this.handleRecordDemo);
+      row.append(copy, record);
+      developer.append(row);
+      this.demoVideoButton = record;
+    }
     const debugStatus = document.querySelector<HTMLElement>('#debug-status');
     if (debugStatus) {
       this.remember(debugStatus);
@@ -95,6 +121,7 @@ export class SettingsMenu {
     window.removeEventListener('keydown', this.handleKeyDown);
     document.querySelector<HTMLButtonElement>('#new-game-button')
       ?.removeEventListener('click', this.handleClose);
+    this.demoVideoButton?.removeEventListener('click', this.handleRecordDemo);
 
     for (const placement of this.placements.reverse()) {
       if (!document.documentElement.contains(placement.element)) continue;
@@ -113,8 +140,26 @@ export class SettingsMenu {
     this.button = undefined;
     this.panel = undefined;
     this.scrim = undefined;
+    this.demoVideoButton = undefined;
     this.root = undefined;
     this.open = false;
+  }
+
+  setDemoRecordingState(state: 'idle' | 'recording' | 'saving' | 'saved' | 'unsupported' | 'error'): void {
+    const button = this.demoVideoButton;
+    if (!button) return;
+    button.disabled = state === 'recording' || state === 'saving' || state === 'unsupported';
+    button.textContent = state === 'recording'
+      ? 'Recording…'
+      : state === 'saving'
+        ? 'Saving…'
+        : state === 'saved'
+          ? 'Saved to Downloads'
+          : state === 'unsupported'
+            ? 'Unavailable'
+            : state === 'error'
+              ? 'Generation failed'
+              : 'Generate demo';
   }
 
   private createSection(panel: HTMLElement, title: string): HTMLElement {
@@ -155,6 +200,11 @@ export class SettingsMenu {
 
   private readonly handleClose = (): void => {
     this.setOpen(false);
+  };
+
+  private readonly handleRecordDemo = (): void => {
+    this.setOpen(false);
+    this.actions.recordDemo?.();
   };
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {

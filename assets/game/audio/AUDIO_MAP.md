@@ -17,7 +17,9 @@ Audit snapshot: **2026-08-29**.
 ### Complete — accepted files and runtime integration
 
 - [x] `commander-death` — asset ✅ `sfx/commander-death.mp3`; runtime ✅ Commander death, including end-turn Curse removal.
+- [x] `ability-blood-drain` — asset ✅ `sfx/ability-blood-drain.mp3`; runtime ✅ Blood Drain healing after successful attack damage, including AI attacks.
 - [x] `ability-displace` — asset ✅ `sfx/ability-displace.mp3`; runtime ✅ successful player and AI Displace resolution.
+- [x] `ability-rally` — asset ✅ `sfx/ability-rally.mp3`; runtime ✅ successful player and AI Rally resolution.
 - [x] `ability-thunder` — asset ✅ `sfx/ability-thunder.mp3`; runtime ✅ successful player and AI `UNB6` resolution.
 - [x] `combat-assist` — asset ✅ `sfx/combat-assist.mp3`; runtime ✅ Assist impact presentation.
 - [x] `combat-hit-melee` — asset ✅ `sfx/combat-hit-melee.mp3`; runtime ✅ melee attack/retaliation impact.
@@ -25,6 +27,7 @@ Audit snapshot: **2026-08-29**.
 - [x] `combat-retaliation` — asset ✅ `sfx/combat-retaliation.mp3`; runtime ✅ retaliation start.
 - [x] `match-victory` — asset ✅ `sfx/match-victory.mp3`; runtime ✅ local-player victory commit.
 - [x] `music-match` — asset ✅ `music/battle-*.mp3`; runtime ✅ one randomly selected WorldXplore battle cue loops from match start until a winner is committed.
+- [x] `demo-video-export-mix` — runtime ✅ the Settings sales-trailer generator records an approved battle cue with card, movement, combat, Assist, summon, and Thunder SFX into the exported MP4/WebM audio track.
 - [x] `site-capture` — asset ✅ `sfx/site-capture.mp3`; runtime ✅ end-turn capture resolution with the duplicate synthesized cue removed.
 - [x] `trait-healing-aura` — asset ✅ `sfx/trait-healing-aura.mp3`; runtime ✅ grouped `UNT13` start-turn healing.
 - [x] `trait-dark-reflection` — asset ✅ `sfx/trait-dark-reflection.mp3`; runtime ✅ actual `UNT7` returned-damage presentation.
@@ -61,11 +64,9 @@ Audit snapshot: **2026-08-29**.
 
 ### P1 — unit abilities and traits
 
-- [ ] `ability-rally` — asset ❌; runtime audio ❌. Trigger when Rally successfully resolves. Short banner/command accent, no spoken dialogue.
 - [ ] `ability-soul-link` — asset ❌; runtime audio ❌. Trigger when Soul Link successfully attaches. Dark tether / spectral bond.
 - [ ] `ability-curse` — asset ❌; runtime audio ❌. Trigger when Curse is successfully applied. Thin dark whisper/rune sting without intelligible speech.
 - [ ] `ability-curse-tick` — asset ❌; runtime audio ❌. Trigger when Curse deals periodic damage. Tiny dry dark pulse; cooldown/pooling for multiple ticks.
-- [ ] `ability-blood-drain` — asset ❌; runtime audio ❌. Trigger when Blood Drain actually restores HP after attack damage. Short vampiric siphon/reverse-impact.
 - [ ] `ability-cleave` — asset ❌; runtime audio ❌. Trigger when Cleave damages at least one additional adjacent enemy. Broad heavy sweep layered with the normal attack hit.
 - [ ] `trait-necromancy` — asset ❌; runtime audio ❌. Trigger when Necromancy successfully creates Skeletal Infantry. Bone-rise assembly burst.
 
@@ -84,7 +85,9 @@ Audit snapshot: **2026-08-29**.
 
 | ID | File | Trigger | Kind | Volume | Cooldown / Pool | Notes |
 | --- | --- | --- | --- | ---: | --- | --- |
+| `ability-blood-drain` | `sfx/ability-blood-drain.mp3` | Blood Drain actually restores HP after successful normal attack damage under `UNT10`. | sting | 0.64 | Action-serialized / pool 1 | Candidate A; user approved 2026-08-29; runtime integrated. |
 | `ability-displace` | `sfx/ability-displace.mp3` | Displace successfully commits its target to the selected destination. | sting | 0.68 | Action-serialized / pool 1 | Converted from WorldXplore runtime `arrow-fly.mp3`; user approved 2026-08-28. |
+| `ability-rally` | `sfx/ability-rally.mp3` | Rally successfully resolves under `UNB7`. | sting | 0.66 | Action-serialized / pool 1 | Candidate A; user approved 2026-08-29; runtime integrated. |
 | `ability-thunder` | `sfx/ability-thunder.mp3` | Thunder successfully commits under `UNB6`, immediately before its area VFX presentation. | sting | 0.78 | Action-serialized / pool 1 | Three-second strike and natural rumble excerpt from Pixabay `Thunder Strike (Wav)`; user approved 2026-08-29. |
 | `commander-death` | `sfx/commander-death.mp3` | A Commander is removed under `GRV2` or `GRV3`, including end-turn Curse damage. | sting | 0.86 | Action-serialized / pool 1 | Composite of approved WorldXplore runtime `heavy-stomp.wav` and `tree-fall.wav`; replaces the ordinary faction death cue for Commanders; user approved 2026-08-23. |
 | `combat-assist` | `sfx/combat-assist.mp3` | An Assist unit's supporting strike reaches its target and contributes damage. | impact | 0.62 | Animation-serialized / pool 1 | Derived from approved `crit-crack.mp3`; user approved 2026-08-23. |
@@ -115,18 +118,19 @@ Audit snapshot: **2026-08-29**.
 
 ## Recommended work order
 
-1. Generate/integrate `match-defeat` and `location-village-heal`.
-2. Generate/integrate ability and trait sounds in the order players encounter them most often.
-3. Add ambience and victory music after the SFX language is coherent.
+1. Validate and accept regenerated `match-defeat` and `location-village-heal` candidates.
+2. Validate and accept regenerated `ability-soul-link`, `ability-curse`, `ability-curse-tick`, `ability-cleave`, and `trait-necromancy` candidates.
+3. Choose a third victory-music candidate, then integrate it with the reserved `music-victory-02-dawn-over-the-hexfield` and `music-victory-04-the-grave-falls-silent` tracks.
+4. Validate and accept regenerated battlefield ambience.
 
 ## Remaining work by expected trigger count
 
 Directional baseline: two deterministic 60-half-turn AI matches on 2026-08-28. Both reached the turn limit, so this sample is useful for repeated-action frequency but not end-match frequency.
 
-1. `ability-blood-drain` and `ability-cleave` — attack-linked and potentially repeated. The sample summoned 1.5 Vampires and 2 Grave Knights per match; exact passive proc counts are not yet instrumented. Blood Drain already has a user-approved external candidate; the reviewed Cleave candidate was rejected on 2026-08-29.
+1. `ability-cleave` — attack-linked and potentially repeated. The sample summoned 2 Grave Knights per match; exact passive proc counts are not yet instrumented. The reviewed Cleave candidate was rejected on 2026-08-29; a fresh candidate set is ready externally.
 2. `location-village-heal` — conditional start-turn event; expected zero to a few times per match depending on occupation and missing HP.
 3. `match-defeat` — at most once per match and only on a local loss; low count but high presentation importance.
-4. `ability-rally`, `ability-soul-link`, `ability-curse`, `ability-curse-tick`, and `trait-necromancy` — zero active uses in this small sample; the Necromancer was summoned 0.5 times per match, so its conditional cues are expected to be comparatively rare. Rally already has a user-approved external candidate.
+4. `ability-soul-link`, `ability-curse`, `ability-curse-tick`, and `trait-necromancy` — zero active uses in this small sample; the Necromancer was summoned 0.5 times per match, so these conditional cues are expected to be comparatively rare. Fresh candidate sets are ready externally.
 5. `ambience-battlefield` and `music-victory` — one lifecycle trigger each, but ambience has full-session exposure and should be prioritized by listening impact rather than trigger count.
 
 ## Integration rules

@@ -504,8 +504,11 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
   }
 
   const survivingAttacker = findUnit(state, attackerId);
+  let bloodDrainHealed = false;
   if (survivingAttacker && dealt > 0 && attackerDef.ability === 'BloodDrain') {
+    const hpBeforeDrain = survivingAttacker.hp;
     survivingAttacker.hp = Math.min(attackerDef.maxHp, survivingAttacker.hp + 1);
+    bloodDrainHealed = survivingAttacker.hp > hpBeforeDrain;
   }
 
   const defenderAfterDamage = findUnit(state, defenderId);
@@ -543,6 +546,7 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
   return {
     ok: true,
     message: `${attackerDef.name} attacked ${defenderDef.name} for ${dealt}${assistText}.${victoryText}`,
+    ...(bloodDrainHealed ? { bloodDrainHealed: true } : {}),
     path: advancePath,
   };
 };

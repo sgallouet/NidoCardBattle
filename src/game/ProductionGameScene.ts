@@ -7,6 +7,10 @@ import {
   type CelShadedRiverSceneInternals,
 } from './CelShadedRiverSurface';
 import { setDebugStatus } from './DebugStatus';
+import {
+  DemoVideoRecorder,
+  type DemoVideoSceneInternals,
+} from './DemoVideoRecorder';
 import { PlayerCameraChoreographyGameScene } from './PlayerCameraChoreographyGameScene';
 import {
   PremiumFeedback,
@@ -39,6 +43,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private celRiver?: CelShadedRiverSurface;
   private premiumFeedback?: PremiumFeedback;
   private matchMusic?: MatchMusicDirector;
+  private demoVideo?: DemoVideoRecorder;
 
   create(): void {
     const game = this as unknown as ProductionSceneInternals;
@@ -77,7 +82,19 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       }
     };
 
-    this.settingsMenu = new SettingsMenu();
+    this.demoVideo = new DemoVideoRecorder(
+      this,
+      game as unknown as DemoVideoSceneInternals,
+      (state) => this.settingsMenu?.setDemoRecordingState(state),
+      () => this.matchMusic?.stop(),
+      () => {
+        if (!game.state.winner) this.matchMusic?.start();
+      },
+    );
+    this.settingsMenu = new SettingsMenu({
+      recordDemo: () => void this.demoVideo?.record(),
+      recordingSupported: DemoVideoRecorder.isSupported(this.game.canvas),
+    });
     this.settingsMenu.install();
 
     this.premiumFeedback = new PremiumFeedback(this, game);
@@ -98,6 +115,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.premiumFeedback = undefined;
       this.matchMusic?.dispose();
       this.matchMusic = undefined;
+      this.demoVideo?.dispose();
+      this.demoVideo = undefined;
       this.celRiver?.destroy();
       this.celRiver = undefined;
       this.settingsMenu?.destroy();

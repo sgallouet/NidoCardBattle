@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
+import abilityBloodDrainUrl from '../../assets/game/audio/sfx/ability-blood-drain.mp3?url';
 import abilityDisplaceUrl from '../../assets/game/audio/sfx/ability-displace.mp3?url';
+import abilityRallyUrl from '../../assets/game/audio/sfx/ability-rally.mp3?url';
 import abilityThunderUrl from '../../assets/game/audio/sfx/ability-thunder.mp3?url';
 import commanderDeathUrl from '../../assets/game/audio/sfx/commander-death.mp3?url';
 import combatAssistUrl from '../../assets/game/audio/sfx/combat-assist.mp3?url';
@@ -112,8 +114,12 @@ const COMPACT_VIEWPORT_MAX_HEIGHT = 500;
 const TOKEN_MOVEMENT_MS_PER_HEX = 190;
 const TOKEN_ATTACK_DURATION_MS = 500;
 const TOKEN_ATTACK_IMPACT_MS = 320;
+const ABILITY_BLOOD_DRAIN_AUDIO_KEY = 'ability-blood-drain';
+const ABILITY_BLOOD_DRAIN_VOLUME = 0.64;
 const ABILITY_DISPLACE_AUDIO_KEY = 'ability-displace';
 const ABILITY_DISPLACE_VOLUME = 0.68;
+const ABILITY_RALLY_AUDIO_KEY = 'ability-rally';
+const ABILITY_RALLY_VOLUME = 0.66;
 const ABILITY_THUNDER_AUDIO_KEY = 'ability-thunder';
 const ABILITY_THUNDER_VOLUME = 0.78;
 const COMMANDER_DEATH_AUDIO_KEY = 'commander-death';
@@ -253,7 +259,9 @@ export class GameScene extends Phaser.Scene {
       this.load.off(Phaser.Loader.Events.PROGRESS, updateLoadingProgress);
       loadingScreen.setProgress(0.96, 'Deploying the armies');
     });
+    this.load.audio(ABILITY_BLOOD_DRAIN_AUDIO_KEY, abilityBloodDrainUrl);
     this.load.audio(ABILITY_DISPLACE_AUDIO_KEY, abilityDisplaceUrl);
+    this.load.audio(ABILITY_RALLY_AUDIO_KEY, abilityRallyUrl);
     this.load.audio(ABILITY_THUNDER_AUDIO_KEY, abilityThunderUrl);
     this.load.audio(COMMANDER_DEATH_AUDIO_KEY, commanderDeathUrl);
     this.load.audio(COMBAT_ASSIST_AUDIO_KEY, combatAssistUrl);
@@ -1328,6 +1336,14 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.sound.play(ABILITY_DISPLACE_AUDIO_KEY, { volume: ABILITY_DISPLACE_VOLUME });
   }
 
+  playAbilityRally(): void {
+    this.sound.play(ABILITY_RALLY_AUDIO_KEY, { volume: ABILITY_RALLY_VOLUME });
+  }
+
+  playAbilityBloodDrain(): void {
+    this.sound.play(ABILITY_BLOOD_DRAIN_AUDIO_KEY, { volume: ABILITY_BLOOD_DRAIN_VOLUME });
+  }
+
   playAbilityThunder(): void {
     this.sound.play(ABILITY_THUNDER_AUDIO_KEY, { volume: ABILITY_THUNDER_VOLUME });
   }
@@ -1451,6 +1467,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     await this.animateAttackMotion(attackerId, defenderCoord, () => {
       result = attackUnit(this.state, attackerId, defenderId);
       if (result.ok) {
+        if (result.bloodDrainHealed) this.playAbilityBloodDrain();
         this.playCombatHit(unitDefinition(attacker).range > 1);
         if (!findUnit(this.state, defenderId)) this.playUnitDeath(defender.owner, defender.definitionId === 'commander');
         this.showHitFeedback(defenderId, Math.max(0, defenderHpBefore - defender.hp));

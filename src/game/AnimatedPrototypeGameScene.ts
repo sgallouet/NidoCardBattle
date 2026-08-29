@@ -33,7 +33,9 @@ interface AnimatedSceneInternals {
   playCombatAssist: () => void;
   playCombatHit: (ranged: boolean) => void;
   playCombatRetaliation: () => void;
+  playAbilityBloodDrain: () => void;
   playAbilityDisplace: () => void;
+  playAbilityRally: () => void;
   playAbilityThunder: () => void;
   playCardPlay: () => void;
   playTacticSound: (cardId: CardDefinitionId) => void;
@@ -159,6 +161,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       const targets = actor ? getRallyTargets(game.state, actor.id).map((unit) => ({ ...unit.coord })) : [];
       const result = applyAiAction(game.state, action);
       if (result.ok && actor) {
+        game.playAbilityRally();
         await game.presentAbilityVfx({
           kind: 'rally',
           source: { ...actor.coord },
@@ -293,6 +296,8 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       game.message = result.message;
       return result;
     }
+
+    if (result.bloodDrainHealed) game.playAbilityBloodDrain();
 
     for (const [unitId, view] of game.renderedUnits) {
       view.hpText?.setText(`${Math.max(0, findUnit(game.state, unitId)?.hp ?? 0)}`);

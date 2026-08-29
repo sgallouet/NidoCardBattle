@@ -41,6 +41,7 @@ export interface SpellHudSceneInternals {
   highlights: () => HighlightSets;
   handleHexClick: (coord: Coord) => Promise<void>;
   beginDisplace: () => void;
+  playAbilityRally: () => void;
   playAbilityThunder: () => void;
   presentAbilityVfx: (event: AbilityVfxEvent) => Promise<void>;
   setAnimationLock: (locked: boolean) => void;
@@ -305,6 +306,7 @@ export class SpellHud {
     this.game.message = result.message;
     if (result.ok) this.game.mode = 'unit';
     if (result.ok && actor) {
+      this.game.playAbilityRally();
       await this.present({
         kind: 'rally',
         source: { ...actor.coord },

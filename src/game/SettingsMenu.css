@@ -202,6 +202,26 @@
   white-space: normal !important;
 }
 
+.settings-menu-demo-video .settings-menu-row-label {
+  display: grid;
+  gap: 3px;
+}
+
+.settings-menu-demo-video .settings-menu-row-label strong {
+  color: #eff7f1;
+  font: inherit;
+}
+
+.settings-menu-demo-video .settings-menu-row-label small {
+  color: rgba(201, 216, 205, .64);
+  font: 600 10px/1.25 ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: .02em;
+}
+
+.settings-menu-demo-button {
+  min-width: 132px;
+}
+
 /* Once the old controls have been moved, the normal turn strip is deliberately sparse. */
 .turn-control {
   gap: 5px;

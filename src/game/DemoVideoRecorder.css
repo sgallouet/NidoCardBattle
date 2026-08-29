@@ -1,0 +1,15 @@
+#app.demo-video-recording {
+  background: #020814;
+}
+
+.demo-video-preview {
+  position: fixed;
+  z-index: 5000;
+  inset: 0;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  margin: auto;
+  background: #020814;
+  box-shadow: 0 0 80px #000;
+  pointer-events: none;
+}

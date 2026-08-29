@@ -182,6 +182,7 @@ export interface GameState {
 export interface ActionResult {
   ok: boolean;
   message: string;
+  bloodDrainHealed?: boolean;
   summonedUnitId?: string;
   path?: Coord[];
 }

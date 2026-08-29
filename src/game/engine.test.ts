@@ -429,7 +429,8 @@ describe('Undead specialist attacks', () => {
     const vampire = makeUnit('vampire', 'vampire', 2, { q: 4, r: 6 }, { hp: 2 });
     const victim = makeUnit('victim', 'lightMage', 1, { q: 5, r: 6 });
     state.units = [vampire, victim];
-    attackUnit(state, vampire.id, victim.id);
+    const result = attackUnit(state, vampire.id, victim.id);
+    expect(result.bloodDrainHealed).toBe(true);
     expect(vampire.hp).toBe(3);
   });
 });

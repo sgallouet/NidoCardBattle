@@ -1,12 +1,23 @@
 import type { GameState, PlayerId } from '../data/types';
+import { BATTLE_LOG_SCHEMA_VERSION } from './battleLog';
+import {
+  LIVE_BATTLE_LOG_SCHEMA_VERSION,
+  type LiveBattleLog,
+} from './liveBattleLog';
 
 const SAVE_KEY = 'nidocardbattle.match';
-const SAVE_VERSION = 2 as const;
+const SAVE_VERSION = 3 as const;
 
 interface SaveEnvelope {
   version: typeof SAVE_VERSION;
   savedAt: string;
   state: GameState;
+  battleLog: LiveBattleLog;
+}
+
+export interface SavedMatch {
+  state: GameState;
+  battleLog: LiveBattleLog;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -39,26 +50,54 @@ const isCurrentGameState = (value: unknown): value is GameState => {
   return true;
 };
 
-export const loadSavedGameState = (): GameState | null => {
+const isLiveBattleLogDraft = (value: unknown): value is LiveBattleLog => {
+  if (!isRecord(value)) return false;
+  return value.schemaVersion === LIVE_BATTLE_LOG_SCHEMA_VERSION
+    && value.stateSchemaVersion === BATTLE_LOG_SCHEMA_VERSION
+    && value.source === 'live-human-vs-ai'
+    && typeof value.startedAt === 'string'
+    && isPositiveInteger(value.initialTurnNumber)
+    && typeof value.historyComplete === 'boolean'
+    && typeof value.resumeCount === 'number'
+    && Number.isInteger(value.resumeCount)
+    && value.resumeCount >= 0
+    && Array.isArray(value.resumedAt)
+    && value.resumedAt.every((entry) => typeof entry === 'string')
+    && value.resumedAt.length === value.resumeCount
+    && value.completed === false
+    && value.completedAt === null
+    && value.winner === null
+    && isRecord(value.initial)
+    && value.initial.turnNumber === value.initialTurnNumber
+    && isRecord(value.final)
+    && Array.isArray(value.events);
+};
+
+export const loadSavedMatch = (): SavedMatch | null => {
   if (typeof localStorage === 'undefined') return null;
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
-    if (!isRecord(parsed) || parsed.version !== SAVE_VERSION || !isCurrentGameState(parsed.state)) return null;
-    return parsed.state;
+    if (!isRecord(parsed)
+      || parsed.version !== SAVE_VERSION
+      || !isCurrentGameState(parsed.state)
+      || !isLiveBattleLogDraft(parsed.battleLog)) return null;
+    return { state: parsed.state, battleLog: parsed.battleLog };
   } catch {
     return null;
   }
 };
 
-export const saveGameState = (state: GameState): boolean => {
+export const saveMatch = (state: GameState, battleLog: LiveBattleLog): boolean => {
   if (typeof localStorage === 'undefined') return false;
+  if (battleLog.completed) throw new Error('Completed matches must not be persisted as resumable matches.');
   try {
     const envelope: SaveEnvelope = {
       version: SAVE_VERSION,
       savedAt: new Date().toISOString(),
       state,
+      battleLog,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(envelope));
     return true;

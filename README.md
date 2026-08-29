@@ -20,6 +20,8 @@ npm run build
 
 ## AI battle logs
 
+Live Human-vs-AI battle logs are persisted atomically with the saved match. Reloading or resuming keeps the original turn-1 snapshot and prior events; exported schema-v2 logs report `historyComplete`, `initialTurnNumber`, `resumeCount`, and `resumedAt` so partial recordings cannot be mistaken for complete matches.
+
 Generate deterministic, action-by-action AI matches with compact state deltas and an analysis summary:
 
 ```bash

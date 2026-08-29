@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Coord } from '../data/types';
 import type { AiPlan } from './ai';
-import { LIVE_AI_OPTIONS_V6, planAiTurnV6 } from './aiPlannerV6';
+import { LIVE_AI_OPTIONS_V8, planAiTurnV8 } from './aiPlannerV8';
 import {
   CelShadedRiverSurface,
   type CelShadedRiverSceneInternals,
@@ -12,6 +12,7 @@ import {
   PremiumFeedback,
   type PremiumFeedbackSceneInternals,
 } from './PremiumFeedback';
+import { MatchMusicDirector, isMatchMusicEnabled } from './MatchMusic';
 import { SettingsMenu } from './SettingsMenu';
 
 interface ProductionSceneInternals extends CelShadedRiverSceneInternals, PremiumFeedbackSceneInternals {
@@ -37,6 +38,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private settingsMenu?: SettingsMenu;
   private celRiver?: CelShadedRiverSurface;
   private premiumFeedback?: PremiumFeedback;
+  private matchMusic?: MatchMusicDirector;
 
   create(): void {
     const game = this as unknown as ProductionSceneInternals;
@@ -55,7 +57,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
 
     super.create();
 
-    // Production and the shared AiGameScene both plan with V6. Keep this override so a
+    // Production and the shared AiGameScene both plan with V8. Keep this override so a
     // no-Worker/error fallback cannot silently revert to an older planner.
     const ai = this as unknown as AiFallbackInternals;
     ai.fallbackToMainThread = () => {
@@ -66,9 +68,9 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       ai.aiWorker?.terminate();
       ai.aiWorker = null;
       ai.stopAiHeartbeat();
-      setDebugStatus('AI: Worker unavailable; using V6 planner on main thread.', 'warning');
+      setDebugStatus('AI: Worker unavailable; using V8 planner on main thread.', 'warning');
       try {
-        const plan = planAiTurnV6(game.state, LIVE_AI_OPTIONS_V6);
+        const plan = planAiTurnV8(game.state, LIVE_AI_OPTIONS_V8);
         void ai.playAiPlan(game, plan).catch((error: unknown) => ai.reportAiFailure(error));
       } catch (error) {
         ai.reportAiFailure(error);
@@ -80,15 +82,22 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
 
     this.premiumFeedback = new PremiumFeedback(this, game);
     this.premiumFeedback.install();
+    if (isMatchMusicEnabled(window.location.search)) {
+      this.matchMusic = new MatchMusicDirector();
+      this.matchMusic.start();
+    }
     const originalRenderAll = game.renderAll.bind(this);
     game.renderAll = () => {
       originalRenderAll();
       this.premiumFeedback?.sync(game.state, game.message);
+      if (game.state.winner) this.matchMusic?.stop();
     };
 
     this.events.once('shutdown', () => {
       this.premiumFeedback?.destroy();
       this.premiumFeedback = undefined;
+      this.matchMusic?.dispose();
+      this.matchMusic = undefined;
       this.celRiver?.destroy();
       this.celRiver = undefined;
       this.settingsMenu?.destroy();

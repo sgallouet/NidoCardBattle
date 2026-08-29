@@ -6,7 +6,7 @@ import {
   type AiAction,
   type AiPlan,
 } from './ai';
-import { LIVE_AI_OPTIONS_V6, planAiTurnV6 } from './aiPlannerV6';
+import { LIVE_AI_OPTIONS_V8, planAiTurnV8 } from './aiPlannerV8';
 import {
   coordKey,
   curseUnit,
@@ -313,7 +313,7 @@ export class AiGameScene extends GameScene {
     this.aiWorker.postMessage({
       requestId: this.aiRequestId,
       state: scene.state,
-      options: LIVE_AI_OPTIONS_V6,
+      options: LIVE_AI_OPTIONS_V8,
     });
   }
 
@@ -347,7 +347,7 @@ export class AiGameScene extends GameScene {
     this.aiWorker = null;
     this.stopAiHeartbeat();
     const planningStartedAt = performance.now();
-    const plan = planAiTurnV6(scene.state, LIVE_AI_OPTIONS_V6);
+    const plan = planAiTurnV8(scene.state, LIVE_AI_OPTIONS_V8);
     setDebugStatus(
       `AI: main-thread plan finished in ${elapsedSince(planningStartedAt)} — ${plan.actions.length} actions.`,
       'warning',

@@ -69,4 +69,56 @@ describe('planner duel harness', () => {
       draws: 2,
     }));
   });
+
+  it('runs paired V5 versus V7 assignments', () => {
+    const report = simulatePlannerMatchupBatch('v5', 'v7', {
+      pairs: 1,
+      seed: 20261011,
+      maxHalfTurns: 1,
+      repetitionLimit: 2,
+      aiOptions: {
+        beamWidth: 1,
+        maxDepth: 1,
+        strategyMaxNodes: 90,
+        strategyMaxPlanningMs: 5_000,
+        candidatePlans: 2,
+        responseBeamWidth: 1,
+        responseDepth: 1,
+        tacticalMaxNodes: 30,
+        tacticalMaxPlanningMs: 5_000,
+      },
+    });
+
+    expect(report.planners).toEqual(['v5', 'v7']);
+    expect(report.games).toBe(2);
+    expect(report.replayFailuresByPlanner.v5).toBe(0);
+    expect(report.replayFailuresByPlanner.v7).toBe(0);
+    expect(report.searchTelemetryByPlanner.v7.candidatesGenerated).toBeGreaterThan(0);
+  });
+
+  it('runs paired V7 versus V8 assignments and records the opening audit', () => {
+    const report = simulatePlannerMatchupBatch('v7', 'v8', {
+      pairs: 1,
+      seed: 20261221,
+      maxHalfTurns: 1,
+      repetitionLimit: 2,
+      aiOptions: {
+        beamWidth: 1,
+        maxDepth: 1,
+        strategyMaxNodes: 90,
+        strategyMaxPlanningMs: 5_000,
+        candidatePlans: 2,
+        responseBeamWidth: 1,
+        responseDepth: 1,
+        tacticalMaxNodes: 30,
+        tacticalMaxPlanningMs: 5_000,
+      },
+    });
+
+    expect(report.planners).toEqual(['v7', 'v8']);
+    expect(report.games).toBe(2);
+    expect(report.replayFailuresByPlanner.v8).toBe(0);
+    expect(report.searchTelemetryByPlanner.v8.candidatesGenerated).toBeGreaterThan(0);
+    expect(report.gamesDetail.every((game) => game.openingTurns.length === 1)).toBe(true);
+  });
 });

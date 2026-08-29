@@ -51,10 +51,12 @@ export class UnitMotionAnimator {
     path: Coord[],
     center: (coord: Coord) => Phaser.Math.Vector2,
     face: (from: Phaser.Math.Vector2, to: Phaser.Math.Vector2) => void,
+    onStep: () => void,
   ): Promise<void> {
     if (path.length < 2) return;
     const style = this.styleFor(unit);
     face(center(path[0]), center(path[1]));
+    const lockFacingForPath = unit.definitionId === 'skeletalInfantry';
     this.playClip(view, 'walk');
     this.board()?.bringToTop(view.container);
 
@@ -66,11 +68,12 @@ export class UnitMotionAnimator {
     for (let index = 1; index < path.length; index += 1) {
       const from = center(path[index - 1]);
       const to = center(path[index]);
-      face(from, to);
+      if (!lockFacingForPath) face(from, to);
       const duration = view.art?.movementMsPerHex ?? 190;
 
       if (style === 'flying') {
         await this.glideStep(view, from, to, duration, 5);
+        onStep();
         continue;
       }
 
@@ -84,6 +87,7 @@ export class UnitMotionAnimator {
           alpha: 0.78,
         }, Math.round(duration * 0.72), 'Sine.easeInOut');
         await this.tween(view.container, { scaleX: 1, scaleY: 1, alpha: 1 }, Math.round(duration * 0.28), 'Quad.easeOut');
+        onStep();
         continue;
       }
 
@@ -109,6 +113,7 @@ export class UnitMotionAnimator {
       }, Math.round(duration * 0.32), 'Sine.easeIn');
       await this.tween(view.container, { scaleX: 1, scaleY: 1 }, Math.max(35, Math.round(duration * 0.13)), 'Back.easeOut');
       if (style === 'heavy') this.spawnDust(to, 0x9b8663, 3);
+      onStep();
     }
 
     this.playClip(view, 'idle');

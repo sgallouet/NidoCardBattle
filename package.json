@@ -12,6 +12,9 @@
     "simulate:v4": "node tools/run-planner-simulation.mjs --planner-a v3 --planner-b v4",
     "simulate:v5": "node tools/run-planner-simulation.mjs --planner-a v4 --planner-b v5",
     "simulate:v6": "node tools/run-planner-simulation.mjs --planner-a v5 --planner-b v6",
+    "simulate:v7": "node tools/run-planner-simulation.mjs --planner-a v5 --planner-b v7",
+    "simulate:v8": "node tools/run-planner-simulation.mjs --planner-a v7 --planner-b v8",
+    "audit:v8": "vite-node tools/audit-v8-opening.mjs",
     "battlelog": "vite-node tools/generate-battle-log.mjs"
   },
   "dependencies": {

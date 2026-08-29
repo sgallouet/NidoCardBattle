@@ -188,6 +188,47 @@ const contestedSiteDistance = (state: GameState, player: PlayerId, coord: Coord)
     .map((site) => hexDistance(coord, site.coord));
   return distances.length > 0 ? Math.min(...distances) : 12;
 };
+const controlledStrategicSiteCount = (state: GameState, player: PlayerId): number =>
+  state.sites.filter((site) => site.owner === player && (site.type === 'well' || site.type === 'fort')).length;
+const controlConversionActive = (
+  state: GameState,
+  player: PlayerId,
+  habits: PortfolioPlannerProfile['scoring']['habits'],
+): boolean => controlledStrategicSiteCount(state, player) >= habits.controlConversionSiteThreshold;
+const objectiveAssignments = (
+  state: GameState,
+  actor: PlayerId,
+  habits: PortfolioPlannerProfile['scoring']['habits'],
+): Map<string, GameState['sites'][number]> => {
+  const assignments = new Map<string, GameState['sites'][number]>();
+  if (!habits.coordinateObjectives) return assignments;
+  const enemy = opponentOf(actor);
+  const converting = controlConversionActive(state, actor, habits);
+  const available = state.units.filter((unit) => unit.owner === actor && unit.definitionId !== 'commander');
+  const candidates = state.sites.filter((site) => site.owner !== actor
+    && (site.type === 'well' || site.type === 'fort')
+    && (!converting || site.owner === enemy));
+  candidates.sort((left, right) => {
+    const ownership = Number(right.owner === enemy) - Number(left.owner === enemy);
+    if (ownership !== 0) return ownership;
+    const siteKind = Number(right.type === 'well') - Number(left.type === 'well');
+    if (siteKind !== 0) return siteKind;
+    const leftDistance = Math.min(20, ...available.map((unit) => hexDistance(unit.coord, left.coord)));
+    const rightDistance = Math.min(20, ...available.map((unit) => hexDistance(unit.coord, right.coord)));
+    return leftDistance - rightDistance || left.id.localeCompare(right.id);
+  });
+  const unassigned = new Set(available.map((unit) => unit.id));
+  for (const site of candidates) {
+    const runner = available.filter((unit) => unassigned.has(unit.id)).sort((left, right) =>
+      hexDistance(left.coord, site.coord) - hexDistance(right.coord, site.coord)
+      || unitDefinition(right).move - unitDefinition(left).move
+      || left.id.localeCompare(right.id))[0];
+    if (!runner) break;
+    assignments.set(runner.id, site);
+    unassigned.delete(runner.id);
+  }
+  return assignments;
+};
 const isRangedUnit = (definition: { range: number; traits: string[] }): boolean =>
   definition.range >= 2 || definition.traits.includes('Ranged');
 const isVillage = (coord: Coord): boolean =>
@@ -210,11 +251,15 @@ const terrainPostureBonus = (
   habits: PortfolioPlannerProfile['scoring']['habits'],
 ): number => {
   const hillBonus = isRangedUnit(definition) && terrainAt(destination) === 'hill' ? habits.hillRanged : 0;
-  const villageBonus = hp < definition.maxHp && isVillage(destination) ? habits.villageHeal : 0;
+  const villageBonus = hp < definition.maxHp
+    && hp / definition.maxHp <= habits.villageHealMaxHealthRatio
+    && isVillage(destination)
+    ? habits.villageHeal
+    : 0;
   return hillBonus + villageBonus;
 };
 const mapControlPressure = (state: GameState, actor: PlayerId): number => {
-  const units = state.units.filter((unit) => unit.owner === actor);
+  const units = state.units.filter((unit) => unit.owner === actor && unit.definitionId !== 'commander');
   if (units.length === 0) return 0;
   return state.sites.reduce((score, site) => {
     if (site.type !== 'well' && site.type !== 'fort') return score;
@@ -223,6 +268,27 @@ const mapControlPressure = (state: GameState, actor: PlayerId): number => {
     const siteWeight = site.type === 'well' ? 1.25 : 1;
     return score + Math.max(0, 10 - distance) * siteWeight;
   }, 0);
+};
+const hasLikelyTacticPayoff = (state: GameState, actor: PlayerId, action: AiAction): boolean => {
+  if (action.kind !== 'tactic') return true;
+  if (action.cardId === 'raiseFort' || action.cardId === 'profaneWell') return true;
+  if (!('destination' in action)) return true;
+
+  const friendlyUnits = state.units.filter((unit) => unit.owner === actor && unit.definitionId !== 'commander');
+  const nearestFriendly = friendlyUnits.length > 0
+    ? Math.min(...friendlyUnits.map((unit) => hexDistance(unit.coord, action.destination)))
+    : 20;
+  if (action.cardId === 'graveLock') {
+    const occupant = state.units.find((unit) => sameCoord(unit.coord, action.destination));
+    return Boolean(occupant && occupant.owner !== actor && nearestFriendly <= 4);
+  }
+
+  const contestedObjectives = state.sites.filter((site) => site.owner !== actor
+    && (site.type === 'well' || site.type === 'fort'));
+  const nearestObjective = contestedObjectives.length > 0
+    ? Math.min(...contestedObjectives.map((site) => hexDistance(site.coord, action.destination)))
+    : 20;
+  return nearestFriendly <= 3 && nearestObjective <= 4;
 };
 
 const doctrineUrgency = (
@@ -266,8 +332,15 @@ const commonActionScore = (
     const target = findUnit(state, action.targetId);
     if (!attacker || !target) return -100_000;
     const lethal = unitDefinition(attacker).attack >= target.hp;
+    const converting = controlConversionActive(state, actor, habits);
+    const targetDefendsSite = state.sites.some((site) => site.owner !== actor
+      && (site.type === 'well' || site.type === 'fort')
+      && sameCoord(site.coord, target.coord));
     return (target.definitionId === 'commander' ? 80_000 : 0)
       + (lethal ? 12_000 : 0)
+      + (converting ? habits.conversionAttackBonus : 0)
+      + (converting && lethal ? habits.conversionLethalBonus : 0)
+      + (converting && targetDefendsSite ? habits.conversionSiteDenialBonus : 0)
       + strategicUnitValue(target) * 2;
   }
   if (action.kind === 'move') {
@@ -284,11 +357,29 @@ const commonActionScore = (
     const definition = unitDefinition(unit);
     const approach = Math.max(0, contestedSiteDistance(state, actor, unit.coord)
       - contestedSiteDistance(state, actor, action.destination));
+    const assignedObjective = objectiveAssignments(state, actor, habits).get(unit.id);
+    const assignedApproach = assignedObjective
+      ? Math.max(0, hexDistance(unit.coord, assignedObjective.coord)
+        - hexDistance(action.destination, assignedObjective.coord))
+      : 0;
+    const approachScale = unit.definitionId === 'commander' ? habits.commanderSiteApproachScale : 1;
+    const capturesObjective = state.sites.some((site) => site.owner !== actor
+      && sameCoord(site.coord, action.destination));
+    const commanderApproachPenalty = unit.definitionId === 'commander' && !capturesObjective
+      ? approach * habits.commanderNonCaptureApproachPenalty
+      : 0;
+    const unassignedApproachPenalty = habits.coordinateObjectives && !capturesObjective && approach > 0
+      && (!assignedObjective || assignedApproach === 0)
+      ? approach * habits.unassignedObjectiveApproachPenalty
+      : 0;
     return (freesDeployment ? 14_000 : 0)
       + captureSiteBonus(state, actor, action.destination, habits)
       + terrainPostureBonus(definition, action.destination, unit.hp, habits)
-      + approach * habits.siteApproach
+      + approach * habits.siteApproach * approachScale
+      + assignedApproach * habits.assignedObjectiveApproach
       - danger * 450
+      - commanderApproachPenalty
+      - unassignedApproachPenalty
       - (retreat ? habits.commanderRetreatPenalty * 80 : 0);
   }
   if (action.kind === 'summon') {
@@ -352,16 +443,23 @@ const commonActionScore = (
       - beastCount * habits.extraBeastPenalty * 80;
   }
   if (action.kind === 'tactic') {
-    if (action.cardId === 'raiseFort') return 7_000;
-    if (action.cardId === 'profaneWell') return 6_500 + habits.profaneWellAction;
-    if (action.cardId === 'graveLock') return 5_500;
-    if (action.cardId === 'buildBridge') return 3_800;
-    if (action.cardId === 'scorch') return 3_200;
+    const payoffPenalty = hasLikelyTacticPayoff(state, actor, action) ? 0 : habits.lowPayoffTacticPenalty;
+    if (action.cardId === 'raiseFort') return 7_000 - payoffPenalty;
+    if (action.cardId === 'profaneWell') return 6_500 + habits.profaneWellAction - payoffPenalty;
+    if (action.cardId === 'graveLock') return 5_500 - payoffPenalty;
+    if (action.cardId === 'buildBridge') return 3_800 - payoffPenalty;
+    if (action.cardId === 'scorch') return 3_200 - payoffPenalty;
   }
   return 1_000;
 };
 
-const doctrineActionBias = (state: GameState, actor: PlayerId, action: AiAction, doctrine: PlannerV3Doctrine): number => {
+const doctrineActionBias = (
+  state: GameState,
+  actor: PlayerId,
+  action: AiAction,
+  doctrine: PlannerV3Doctrine,
+  profile: PortfolioPlannerProfile,
+): number => {
   const enemy = opponentOf(actor);
   const ownCommander = commander(state, actor);
   const enemyCommander = commander(state, enemy);
@@ -384,8 +482,14 @@ const doctrineActionBias = (state: GameState, actor: PlayerId, action: AiAction,
       if (action.kind === 'move') {
         const capture = state.sites.find((site) => site.owner !== actor && sameCoord(site.coord, action.destination));
         if (capture) return capture.type === 'keep' ? 16_000 : capture.type === 'well' ? 11_000 : 8_000;
-        if (unit) return (nearestObjectiveDistance(state, actor, unit)
-          - Math.min(12, ...state.sites.filter((site) => site.owner !== actor).map((site) => hexDistance(action.destination, site.coord)))) * 1_500;
+        if (unit) {
+          const approachScale = unit.definitionId === 'commander'
+            ? profile.scoring.habits.commanderSiteApproachScale
+            : 1;
+          return (nearestObjectiveDistance(state, actor, unit)
+            - Math.min(12, ...state.sites.filter((site) => site.owner !== actor).map((site) => hexDistance(action.destination, site.coord))))
+            * 1_500 * approachScale;
+        }
       }
       if (action.kind === 'tactic' && action.cardId === 'raiseFort') return 8_000;
       return 0;
@@ -533,11 +637,24 @@ const doctrineStateScore = (
     if (unit.owner !== actor) return score;
     return score + terrainPostureBonus(unitDefinition(unit), unit.coord, unit.hp, habits) * 0.08;
   }, 0);
+  const plannedVillageHealing = actions.reduce((score, action) => {
+    if (action.kind !== 'move' || !isVillage(action.destination)) return score;
+    const unit = findUnit(initial, action.unitId);
+    return score + (unit && unit.hp < unitDefinition(unit).maxHp
+      && unit.hp / unitDefinition(unit).maxHp <= habits.villageHealMaxHealthRatio
+      ? habits.villageHealPlanBonus
+      : 0);
+  }, 0);
   const controlPressure = (mapControlPressure(state, actor) - mapControlPressure(initial, actor))
     * habits.mapControlPressure;
+  const lowPayoffTactics = actions.filter((action) => action.kind === 'tactic'
+    && !hasLikelyTacticPayoff(state, actor, action)).length * habits.lowPayoffTacticPenalty;
+  const conversionMaterial = controlConversionActive(initial, actor, habits)
+    ? materialSwing * habits.conversionMaterialSwing
+    : 0;
   return base + urgency + doctrineBonus + actions.length * weights.action - emergencyPenalty
-    + pendingWellGain + posture + controlPressure
-    - unusedProfaneWell - unusedCurse - unusedMana - unthreatenedSoulLink - commanderRetreat;
+    + pendingWellGain + posture + plannedVillageHealing + controlPressure + conversionMaterial
+    - unusedProfaneWell - unusedCurse - unusedMana - unthreatenedSoulLink - commanderRetreat - lowPayoffTactics;
 };
 
 const recordSelection = (budget: Budget, stats: ReturnType<typeof selectCandidateActions>['stats'], retained: AiAction[]): void => {
@@ -558,8 +675,8 @@ const doctrineActions = (
 ): AiAction[] => {
   const selection = selectCandidateActions(state, actor, true);
   const ranked = [...selection.actions].sort((left, right) =>
-    commonActionScore(state, actor, right, profile) + doctrineActionBias(state, actor, right, doctrine)
-    - commonActionScore(state, actor, left, profile) - doctrineActionBias(state, actor, left, doctrine));
+    commonActionScore(state, actor, right, profile) + doctrineActionBias(state, actor, right, doctrine, profile)
+    - commonActionScore(state, actor, left, profile) - doctrineActionBias(state, actor, left, doctrine, profile));
   const retained = ranked.slice(0, profile.search.retainedActions);
   if (profile.search.representActionKinds) {
     const representedKinds = new Set(retained.map((action) => action.kind));
@@ -920,6 +1037,34 @@ const compareV6Candidates = (
   return combined !== 0 ? combined : right.actions.length - left.actions.length;
 };
 
+const plansVillageHealing = (
+  initial: GameState,
+  candidate: AuditedCandidate,
+  profile: PortfolioPlannerProfile,
+): boolean =>
+  candidate.actions.some((action) => {
+    if (action.kind !== 'move' || !isVillage(action.destination)) return false;
+    const unit = findUnit(initial, action.unitId);
+    return Boolean(unit && unit.hp < unitDefinition(unit).maxHp
+      && unit.hp / unitDefinition(unit).maxHp <= profile.scoring.habits.villageHealMaxHealthRatio);
+  });
+
+const compareV7Candidates = (
+  left: AuditedCandidate,
+  right: AuditedCandidate,
+  profile: PortfolioPlannerProfile,
+  initial: GameState,
+): number => {
+  const tactical = tacticalRank(right.tactical) - tacticalRank(left.tactical);
+  if (tactical !== 0) return tactical;
+  const assessed = Number(right.assessed) - Number(left.assessed);
+  if (assessed !== 0) return assessed;
+  const healing = Number(plansVillageHealing(initial, right, profile))
+    - Number(plansVillageHealing(initial, left, profile));
+  if (healing !== 0) return healing;
+  return compareV4Candidates(left, right, profile);
+};
+
 const proportionalBudgets = (total: number, weights: number[], minimum: number): number[] => {
   const count = Math.max(1, weights.length);
   const base = Math.min(minimum, Math.floor(total / count));
@@ -1010,7 +1155,9 @@ export const planPortfolioAiTurn = (
     ? compareAuditedCandidates
     : profile.id === 'v6-portfolio'
       ? (left, right) => compareV6Candidates(left, right, profile)
-      : (left, right) => compareV4Candidates(left, right, profile));
+      : profile.id === 'v7-portfolio' || profile.id === 'v8-portfolio'
+        ? (left, right) => compareV7Candidates(left, right, profile, state)
+        : (left, right) => compareV4Candidates(left, right, profile));
   const best = audited[0];
   const diagnostics: PortfolioDiagnostics = {
     strategy: strategyDiagnostics,

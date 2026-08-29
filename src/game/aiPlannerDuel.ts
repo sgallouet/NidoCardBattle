@@ -5,10 +5,12 @@ import { planAiTurnV3, type PlannerV3Doctrine } from './aiPlannerV3';
 import { planAiTurnV4 } from './aiPlannerV4';
 import { planAiTurnV5 } from './aiPlannerV5';
 import { planAiTurnV6 } from './aiPlannerV6';
+import { planAiTurnV7 } from './aiPlannerV7';
+import { planAiTurnV8 } from './aiPlannerV8';
 import { createGameState } from './engine';
 import { seededRandom } from './simulation';
 
-export type DuelPlannerId = 'v2' | 'v3' | 'v4' | 'v5' | 'v6';
+export type DuelPlannerId = 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8';
 export type DuelTermination = 'victory' | 'repetition' | 'turn-limit' | 'planner-failure';
 
 export interface PlannerSearchTelemetry {
@@ -31,6 +33,8 @@ const PLANNERS: Record<DuelPlannerId, PlannerFunction> = {
   v4: planAiTurnV4,
   v5: planAiTurnV5,
   v6: planAiTurnV6,
+  v7: planAiTurnV7,
+  v8: planAiTurnV8,
 };
 
 export const FAIR_DUEL_AI_OPTIONS: AiSearchOptions = {
@@ -56,6 +60,14 @@ export interface PlannerDuelGameResult {
   doctrineSelections: Partial<Record<PlannerV3Doctrine, number>>;
   doctrineSelectionsByPlanner: Record<DuelPlannerId, Partial<Record<PlannerV3Doctrine, number>>>;
   searchTelemetryByPlanner: Record<DuelPlannerId, PlannerSearchTelemetry>;
+  openingTurns: PlannerOpeningTurn[];
+}
+
+export interface PlannerOpeningTurn {
+  halfTurn: number;
+  player: PlayerId;
+  planner: DuelPlannerId;
+  actions: AiPlan['actions'];
 }
 
 export interface PlannerDuelBatchOptions {
@@ -135,13 +147,15 @@ export interface PlannerMatchupBatchResult {
 }
 
 const ratio = (numerator: number, denominator: number): number => denominator === 0 ? 0 : numerator / denominator;
-const emptyPlannerCounts = (): Record<DuelPlannerId, number> => ({ v2: 0, v3: 0, v4: 0, v5: 0, v6: 0 });
+const emptyPlannerCounts = (): Record<DuelPlannerId, number> => ({ v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0, v8: 0 });
 const emptyDoctrineSelections = (): Record<DuelPlannerId, Partial<Record<PlannerV3Doctrine, number>>> => ({
   v2: {},
   v3: {},
   v4: {},
   v5: {},
   v6: {},
+  v7: {},
+  v8: {},
 });
 const emptySearchTelemetry = (): PlannerSearchTelemetry => ({
   plans: 0,
@@ -160,6 +174,8 @@ const emptySearchTelemetryByPlanner = (): Record<DuelPlannerId, PlannerSearchTel
   v4: emptySearchTelemetry(),
   v5: emptySearchTelemetry(),
   v6: emptySearchTelemetry(),
+  v7: emptySearchTelemetry(),
+  v8: emptySearchTelemetry(),
 });
 const mergeSearchTelemetry = (target: PlannerSearchTelemetry, source: PlannerSearchTelemetry): void => {
   target.plans += source.plans;
@@ -232,6 +248,7 @@ export const simulatePlannerDuelGame = (
   const doctrineSelectionsByPlanner = emptyDoctrineSelections();
   const searchTelemetryByPlanner = emptySearchTelemetryByPlanner();
   const seen = new Map<string, number>();
+  const openingTurns: PlannerOpeningTurn[] = [];
   let halfTurns = 0;
   let termination: DuelTermination = 'turn-limit';
 
@@ -250,6 +267,9 @@ export const simulatePlannerDuelGame = (
     const beforeSites = ownerMap(state);
     const enemyUnitsBefore = enemyUnitCount(state, actor);
     const plan = planner(state, aiOptions);
+    if (halfTurns < 6) {
+      openingTurns.push({ halfTurn: halfTurns + 1, player: actor, planner: plannerId, actions: plan.actions });
+    }
     actionsByPlanner[plannerId] += plan.actions.length;
 
     const diagnostics = plannerDiagnostics(plan);
@@ -264,7 +284,8 @@ export const simulatePlannerDuelGame = (
     telemetry.tacticalCandidatesAssessed += diagnostics.tacticalCandidatesAssessed ?? 0;
     telemetry.responseSequencesChecked += diagnostics.responseSequencesChecked ?? 0;
     if ((diagnostics.planner === 'v3-portfolio' || diagnostics.planner === 'v4-portfolio'
-      || diagnostics.planner === 'v5-portfolio' || diagnostics.planner === 'v6-portfolio')
+      || diagnostics.planner === 'v5-portfolio' || diagnostics.planner === 'v6-portfolio'
+      || diagnostics.planner === 'v7-portfolio' || diagnostics.planner === 'v8-portfolio')
       && diagnostics.selectedDoctrine) {
       doctrineSelections[diagnostics.selectedDoctrine] = (doctrineSelections[diagnostics.selectedDoctrine] ?? 0) + 1;
       const plannerDoctrines = doctrineSelectionsByPlanner[plannerId];
@@ -305,6 +326,7 @@ export const simulatePlannerDuelGame = (
     doctrineSelections,
     doctrineSelectionsByPlanner,
     searchTelemetryByPlanner,
+    openingTurns,
   };
 };
 
@@ -354,6 +376,8 @@ export const simulatePlannerMatchupBatch = (
     v4: { human: 0, undead: 0 },
     v5: { human: 0, undead: 0 },
     v6: { human: 0, undead: 0 },
+    v7: { human: 0, undead: 0 },
+    v8: { human: 0, undead: 0 },
   };
   const doctrineSelections: Partial<Record<PlannerV3Doctrine, number>> = {};
   const doctrineSelectionsByPlanner = emptyDoctrineSelections();
@@ -411,6 +435,8 @@ export const simulatePlannerMatchupBatch = (
       v4: ratio(winsByPlanner.v4, games),
       v5: ratio(winsByPlanner.v5, games),
       v6: ratio(winsByPlanner.v6, games),
+      v7: ratio(winsByPlanner.v7, games),
+      v8: ratio(winsByPlanner.v8, games),
     },
     decisiveWinRateByPlanner: {
       v2: ratio(winsByPlanner.v2, decisiveGames),
@@ -418,6 +444,8 @@ export const simulatePlannerMatchupBatch = (
       v4: ratio(winsByPlanner.v4, decisiveGames),
       v5: ratio(winsByPlanner.v5, decisiveGames),
       v6: ratio(winsByPlanner.v6, decisiveGames),
+      v7: ratio(winsByPlanner.v7, decisiveGames),
+      v8: ratio(winsByPlanner.v8, decisiveGames),
     },
     draws,
     firstPlayerWins,
@@ -431,6 +459,8 @@ export const simulatePlannerMatchupBatch = (
       v4: ratio(actionsByPlanner.v4, turnsByPlanner.v4),
       v5: ratio(actionsByPlanner.v5, turnsByPlanner.v5),
       v6: ratio(actionsByPlanner.v6, turnsByPlanner.v6),
+      v7: ratio(actionsByPlanner.v7, turnsByPlanner.v7),
+      v8: ratio(actionsByPlanner.v8, turnsByPlanner.v8),
     },
     capturesByPlanner,
     killsByPlanner,

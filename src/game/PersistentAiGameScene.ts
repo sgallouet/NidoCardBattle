@@ -1,6 +1,6 @@
 import type { GameState } from '../data/types';
 import { AiGameScene } from './AiGameScene';
-import { MAX_MANA } from './engine';
+import { LiveBattleLogRecorder, type LiveBattleLog } from './liveBattleLog';
 import {
   alignCommanderRuntimeForLocalFaction,
   chooseNewGameSetup,
@@ -9,7 +9,7 @@ import {
   savePendingNewGameSetup,
   startSideLabel,
 } from './NewGameSetup';
-import { clearSavedGameState, loadSavedGameState, saveGameState } from './save';
+import { clearSavedGameState, loadSavedMatch, saveMatch } from './save';
 
 interface PersistentSceneInternals {
   state: GameState;
@@ -18,18 +18,26 @@ interface PersistentSceneInternals {
 }
 
 export class PersistentAiGameScene extends AiGameScene {
+  private restoredBattleLog: LiveBattleLog | null = null;
+
+  protected override createLiveBattleLogRecorder(initialState: GameState): LiveBattleLogRecorder {
+    const draft = this.restoredBattleLog;
+    this.restoredBattleLog = null;
+    return draft
+      ? LiveBattleLogRecorder.resume(initialState, draft)
+      : new LiveBattleLogRecorder(initialState);
+  }
+
   create(): void {
     const scene = this as unknown as PersistentSceneInternals;
-    const saved = loadSavedGameState();
+    const saved = loadSavedMatch();
     const pendingSetup = saved ? null : consumePendingNewGameSetup();
 
     if (saved) {
-      for (const playerId of [1, 2] as const) {
-        saved.players[playerId].mana = Math.min(MAX_MANA, Math.max(0, saved.players[playerId].mana));
-      }
-      scene.state = saved;
-      alignCommanderRuntimeForLocalFaction(saved.players[1].faction);
-      scene.message = `Saved match resumed on turn ${saved.turnNumber}.`;
+      scene.state = saved.state;
+      this.restoredBattleLog = saved.battleLog;
+      alignCommanderRuntimeForLocalFaction(saved.state.players[1].faction);
+      scene.message = `Saved match resumed on turn ${saved.state.turnNumber}.`;
     } else if (pendingSetup) {
       configureFreshGameState(scene.state, pendingSetup);
       const factionName = pendingSetup.faction === 'human' ? 'Human' : 'Undead';
@@ -42,10 +50,15 @@ export class PersistentAiGameScene extends AiGameScene {
 
     const originalRenderAll = scene.renderAll.bind(this);
     let persistenceEnabled = true;
+    let persistedLogRevision = -1;
     const persist = (): void => {
-      if (!persistenceEnabled) return;
+      if (!persistenceEnabled || this.isLiveBattleLogActionInProgress()) return;
       if (scene.state.winner) clearSavedGameState();
-      else saveGameState(scene.state);
+      else {
+        const revision = this.liveBattleLogRevision();
+        if (revision === persistedLogRevision) return;
+        if (saveMatch(scene.state, this.createLiveBattleLogDraft())) persistedLogRevision = revision;
+      }
     };
 
     scene.renderAll = () => {

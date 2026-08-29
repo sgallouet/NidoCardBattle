@@ -39,6 +39,7 @@ export interface UnitDefinition {
   cost: number;
   maxHp: number;
   attack: number;
+  normalAttack?: boolean;
   move: number;
   range: number;
   traits: Trait[];

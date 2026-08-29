@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import abilityDisplaceUrl from '../../assets/game/audio/sfx/ability-displace.mp3?url';
+import abilityThunderUrl from '../../assets/game/audio/sfx/ability-thunder.mp3?url';
 import commanderDeathUrl from '../../assets/game/audio/sfx/commander-death.mp3?url';
 import combatAssistUrl from '../../assets/game/audio/sfx/combat-assist.mp3?url';
 import combatHitMeleeUrl from '../../assets/game/audio/sfx/combat-hit-melee.mp3?url';
@@ -7,6 +9,8 @@ import combatRetaliationUrl from '../../assets/game/audio/sfx/combat-retaliation
 import matchVictoryUrl from '../../assets/game/audio/sfx/match-victory.mp3?url';
 import siteCaptureUrl from '../../assets/game/audio/sfx/site-capture.mp3?url';
 import traitHealingAuraUrl from '../../assets/game/audio/sfx/trait-healing-aura.mp3?url';
+import traitDarkReflectionUrl from '../../assets/game/audio/sfx/trait-dark-reflection.mp3?url';
+import unitMoveStepUrl from '../../assets/game/audio/sfx/unit-move-step.mp3?url';
 import unitDeathHumanUrl from '../../assets/game/audio/sfx/unit-death-human.mp3?url';
 import unitDeathUndeadUrl from '../../assets/game/audio/sfx/unit-death-undead.mp3?url';
 import unitSummonHumanUrl from '../../assets/game/audio/sfx/unit-summon-human.mp3?url';
@@ -37,7 +41,7 @@ import {
   PLAIN_TERRAIN_ART,
   RIVER_WATER_ART,
 } from '../data/terrainArt';
-import type { ActionResult, Coord, PlayerId, SiteType, UnitState } from '../data/types';
+import type { ActionResult, Coord, GameState, PlayerId, SiteType, UnitState } from '../data/types';
 import { GALAXY_BACKGROUND_ART, GALAXY_BACKGROUND_CONTRACT } from '../data/vfxArt';
 import {
   UNIT_ART,
@@ -49,7 +53,7 @@ import type { UnitDefinitionId } from '../data/units';
 import type { AbilityVfxEvent } from './AbilityVfxAnimator';
 import { setDebugStatus } from './DebugStatus';
 import type { AiAction, AiPlan } from './ai';
-import { downloadLiveBattleLog, LiveBattleLogRecorder } from './liveBattleLog';
+import { downloadLiveBattleLog, LiveBattleLogRecorder, type LiveBattleLog } from './liveBattleLog';
 import { loadingScreen } from './LoadingScreen';
 import { SelectionHexFx } from './SelectionHexFx';
 import { TacticalHexFxLayer, type TacticalHexFxKind } from './TacticalHexFx';
@@ -108,6 +112,10 @@ const COMPACT_VIEWPORT_MAX_HEIGHT = 500;
 const TOKEN_MOVEMENT_MS_PER_HEX = 190;
 const TOKEN_ATTACK_DURATION_MS = 500;
 const TOKEN_ATTACK_IMPACT_MS = 320;
+const ABILITY_DISPLACE_AUDIO_KEY = 'ability-displace';
+const ABILITY_DISPLACE_VOLUME = 0.68;
+const ABILITY_THUNDER_AUDIO_KEY = 'ability-thunder';
+const ABILITY_THUNDER_VOLUME = 0.78;
 const COMMANDER_DEATH_AUDIO_KEY = 'commander-death';
 const COMMANDER_DEATH_VOLUME = 0.86;
 const COMBAT_ASSIST_AUDIO_KEY = 'combat-assist';
@@ -124,6 +132,11 @@ const SITE_CAPTURE_AUDIO_KEY = 'site-capture';
 const SITE_CAPTURE_VOLUME = 0.68;
 const TRAIT_HEALING_AURA_AUDIO_KEY = 'trait-healing-aura';
 const TRAIT_HEALING_AURA_VOLUME = 0.64;
+const TRAIT_DARK_REFLECTION_AUDIO_KEY = 'trait-dark-reflection';
+const TRAIT_DARK_REFLECTION_VOLUME = 0.7;
+const UNIT_MOVE_STEP_AUDIO_KEY = 'unit-move-step';
+const UNIT_MOVE_STEP_VOLUME = 0.34;
+const UNIT_MOVE_STEP_COOLDOWN_MS = 100;
 const UNIT_DEATH_HUMAN_AUDIO_KEY = 'unit-death-human';
 const UNIT_DEATH_HUMAN_VOLUME = 0.7;
 const UNIT_DEATH_UNDEAD_AUDIO_KEY = 'unit-death-undead';
@@ -199,6 +212,7 @@ export class GameScene extends Phaser.Scene {
   private unitFacings = new Map<string, UnitFacing>();
   private message = 'Player 1 begins. Move a unit or play a card.';
   private announcedWinner: PlayerId | null = null;
+  private lastMoveStepAt = Number.NEGATIVE_INFINITY;
   private liveBattleLog?: LiveBattleLogRecorder;
   private readonly handleBattleLogDownload = (): void => {
     if (!this.state.winner || !this.liveBattleLog) return;
@@ -239,6 +253,8 @@ export class GameScene extends Phaser.Scene {
       this.load.off(Phaser.Loader.Events.PROGRESS, updateLoadingProgress);
       loadingScreen.setProgress(0.96, 'Deploying the armies');
     });
+    this.load.audio(ABILITY_DISPLACE_AUDIO_KEY, abilityDisplaceUrl);
+    this.load.audio(ABILITY_THUNDER_AUDIO_KEY, abilityThunderUrl);
     this.load.audio(COMMANDER_DEATH_AUDIO_KEY, commanderDeathUrl);
     this.load.audio(COMBAT_ASSIST_AUDIO_KEY, combatAssistUrl);
     this.load.audio(COMBAT_HIT_MELEE_AUDIO_KEY, combatHitMeleeUrl);
@@ -247,6 +263,8 @@ export class GameScene extends Phaser.Scene {
     this.load.audio(MATCH_VICTORY_AUDIO_KEY, matchVictoryUrl);
     this.load.audio(SITE_CAPTURE_AUDIO_KEY, siteCaptureUrl);
     this.load.audio(TRAIT_HEALING_AURA_AUDIO_KEY, traitHealingAuraUrl);
+    this.load.audio(TRAIT_DARK_REFLECTION_AUDIO_KEY, traitDarkReflectionUrl);
+    this.load.audio(UNIT_MOVE_STEP_AUDIO_KEY, unitMoveStepUrl);
     this.load.audio(UNIT_DEATH_HUMAN_AUDIO_KEY, unitDeathHumanUrl);
     this.load.audio(UNIT_DEATH_UNDEAD_AUDIO_KEY, unitDeathUndeadUrl);
     this.load.audio(UNIT_SUMMON_HUMAN_AUDIO_KEY, unitSummonHumanUrl);
@@ -286,7 +304,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.liveBattleLog = new LiveBattleLogRecorder(this.state);
+    this.liveBattleLog = this.createLiveBattleLogRecorder(this.state);
     document.querySelector<HTMLButtonElement>('#end-turn-button')?.addEventListener('click', () => this.handleEndTurn());
     document.querySelector<HTMLButtonElement>('#cancel-button')?.addEventListener('click', () => this.cancelInteraction('Selection cleared.'));
     document.querySelector<HTMLButtonElement>('#ability-button')?.addEventListener('click', () => this.beginDisplace());
@@ -605,6 +623,24 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.renderHud();
     this.syncMatchResultAudio();
     this.liveBattleLog?.recordState(this.state, this.message);
+  }
+
+  protected createLiveBattleLogRecorder(initialState: GameState): LiveBattleLogRecorder {
+    return new LiveBattleLogRecorder(initialState);
+  }
+
+  protected createLiveBattleLogDraft(): LiveBattleLog {
+    if (!this.liveBattleLog) throw new Error('Live battle log recorder is not initialized.');
+    return this.liveBattleLog.createLog(this.state);
+  }
+
+  protected isLiveBattleLogActionInProgress(): boolean {
+    return this.liveBattleLog?.actionInProgress ?? false;
+  }
+
+  protected liveBattleLogRevision(): number {
+    if (!this.liveBattleLog) throw new Error('Live battle log recorder is not initialized.');
+    return this.liveBattleLog.revision;
   }
 
   private syncMatchResultAudio(): void {
@@ -1288,6 +1324,24 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.sound.play(TRAIT_HEALING_AURA_AUDIO_KEY, { volume: TRAIT_HEALING_AURA_VOLUME });
   }
 
+  playAbilityDisplace(): void {
+    this.sound.play(ABILITY_DISPLACE_AUDIO_KEY, { volume: ABILITY_DISPLACE_VOLUME });
+  }
+
+  playAbilityThunder(): void {
+    this.sound.play(ABILITY_THUNDER_AUDIO_KEY, { volume: ABILITY_THUNDER_VOLUME });
+  }
+
+  playTraitDarkReflection(): void {
+    this.sound.play(TRAIT_DARK_REFLECTION_AUDIO_KEY, { volume: TRAIT_DARK_REFLECTION_VOLUME });
+  }
+
+  playUnitMoveStep(): void {
+    if (this.time.now - this.lastMoveStepAt < UNIT_MOVE_STEP_COOLDOWN_MS) return;
+    this.lastMoveStepAt = this.time.now;
+    this.sound.play(UNIT_MOVE_STEP_AUDIO_KEY, { volume: UNIT_MOVE_STEP_VOLUME });
+  }
+
   playTacticSound(cardId: CardDefinitionId): void {
     const audio = TACTIC_AUDIO[cardId as keyof typeof TACTIC_AUDIO];
     if (!audio) throw new Error(`No accepted tactic audio for ${cardId}.`);
@@ -1306,15 +1360,18 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     const view = this.renderedUnits.get(unitId);
     if (!view) throw new Error(`Moving unit ${unitId} has no rendered view.`);
     if (path.length < 2) return;
+    const unit = findUnit(this.state, unitId);
+    const lockFacingForPath = unit?.definitionId === 'skeletalInfantry';
     this.boardLayer?.bringToTop(view.container);
     this.faceUnit(unitId, this.center(path[0]), this.center(path[1]));
     this.playUnitAnimation(unitId, 'walk');
     for (let index = 1; index < path.length; index += 1) {
       const from = this.center(path[index - 1]);
       const to = this.center(path[index]);
-      this.faceUnit(unitId, from, to);
+      if (!lockFacingForPath) this.faceUnit(unitId, from, to);
       const duration = view.art ? view.art.movementMsPerHex : TOKEN_MOVEMENT_MS_PER_HEX;
       await this.tweenPosition(view.container, to.x, to.y, duration);
+      this.playUnitMoveStep();
     }
     this.playUnitAnimation(unitId, 'idle');
   }
@@ -1389,7 +1446,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     const attackerCoord = { ...attacker.coord };
     const attackerHpBefore = attacker.hp;
     const defenderHpBefore = defender.hp;
-    let result = { ok: false, message: 'That attack is no longer available.' };
+    let result: ActionResult = { ok: false, message: 'That attack is no longer available.' };
 
     await this.animateAttackMotion(attackerId, defenderCoord, () => {
       result = attackUnit(this.state, attackerId, defenderId);
@@ -1400,14 +1457,22 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       }
     });
 
-    const retaliationDamage = Math.max(0, attackerHpBefore - attacker.hp);
-    if (result.ok && retaliationDamage > 0 && findUnit(this.state, defenderId)) {
-      this.playCombatRetaliation();
-      await this.animateAttackMotion(defenderId, attackerCoord, () => {
-        this.playCombatHit(unitDefinition(defender).range > 1);
-        if (!findUnit(this.state, attackerId)) this.playUnitDeath(attacker.owner, attacker.definitionId === 'commander');
-        this.showHitFeedback(attackerId, retaliationDamage);
-      });
+    const returnedDamage = Math.max(0, attackerHpBefore - attacker.hp);
+    if (result.ok && returnedDamage > 0) {
+      if (unitDefinition(defender).traits.includes('DarkReflection')) {
+        this.playTraitDarkReflection();
+        this.showHitFeedback(attackerId, returnedDamage);
+      } else if (findUnit(this.state, defenderId)) {
+        this.playCombatRetaliation();
+        await this.animateAttackMotion(defenderId, attackerCoord, () => {
+          this.playCombatHit(unitDefinition(defender).range > 1);
+          if (!findUnit(this.state, attackerId)) this.playUnitDeath(attacker.owner, attacker.definitionId === 'commander');
+          this.showHitFeedback(attackerId, returnedDamage);
+        });
+      }
+    }
+    if (result.ok && result.path && findUnit(this.state, attackerId)) {
+      await this.animateMovement(attackerId, result.path);
     }
     this.message = result.message;
   }
@@ -1497,6 +1562,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (result.ok) {
         this.displaceTargetId = null;
         this.mode = 'unit';
+        this.playAbilityDisplace();
         this.setAnimationLock(true);
         try {
           await this.presentAbilityVfx({
@@ -1730,7 +1796,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
           <div class="unit-name unit-owner-${selected.owner}">${definition.name}</div>
           <div class="unit-stats">
             <span>HP <strong>${selected.hp}/${definition.maxHp}</strong></span>
-            <span>Attack <strong>${definition.attack}</strong></span>
+            <span>Attack <strong>${definition.normalAttack === false ? '—' : definition.attack}</strong></span>
             <span>Move <strong>${definition.move}</strong></span>
             <span>Range <strong>${effectiveRange(selected)}</strong></span>
           </div>

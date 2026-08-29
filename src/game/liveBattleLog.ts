@@ -9,7 +9,7 @@ import {
   type StateDelta,
 } from './battleLog';
 
-export const LIVE_BATTLE_LOG_SCHEMA_VERSION = 1 as const;
+export const LIVE_BATTLE_LOG_SCHEMA_VERSION = 2 as const;
 
 interface LiveBattleEventBase {
   sequence: number;
@@ -42,6 +42,10 @@ export interface LiveBattleLog {
   stateSchemaVersion: typeof BATTLE_LOG_SCHEMA_VERSION;
   source: 'live-human-vs-ai';
   startedAt: string;
+  initialTurnNumber: number;
+  historyComplete: boolean;
+  resumeCount: number;
+  resumedAt: string[];
   completedAt: string | null;
   completed: boolean;
   winner: PlayerId | null;
@@ -51,18 +55,53 @@ export interface LiveBattleLog {
 }
 
 const clone = <T>(value: T): T => structuredClone(value);
+const snapshotsMatch = (left: CompactStateSnapshot, right: CompactStateSnapshot): boolean =>
+  JSON.stringify(left) === JSON.stringify(right);
 
 export class LiveBattleLogRecorder {
-  private readonly startedAt: string;
-  private readonly initial: CompactStateSnapshot;
+  private startedAt: string;
+  private initialTurnNumber: number;
+  private historyComplete: boolean;
+  private resumeCount = 0;
+  private resumedAt: string[] = [];
+  private initial: CompactStateSnapshot;
   private previous: CompactStateSnapshot;
   private aiActionStart: CompactStateSnapshot | null = null;
-  private readonly events: LiveBattleEvent[] = [];
+  private events: LiveBattleEvent[] = [];
 
   constructor(initialState: GameState, startedAt = new Date().toISOString()) {
     this.startedAt = startedAt;
     this.initial = snapshotBattleState(initialState);
+    this.initialTurnNumber = this.initial.turnNumber;
+    this.historyComplete = this.initialTurnNumber === 1;
     this.previous = this.initial;
+  }
+
+  get actionInProgress(): boolean {
+    return this.aiActionStart !== null;
+  }
+
+  get revision(): number {
+    return this.events.length;
+  }
+
+  static resume(initialState: GameState, draft: LiveBattleLog, resumedAt = new Date().toISOString()): LiveBattleLogRecorder {
+    if (draft.completed || draft.winner !== null || draft.completedAt !== null) {
+      throw new Error('Cannot resume a completed live battle log.');
+    }
+    const current = snapshotBattleState(initialState);
+    if (!snapshotsMatch(draft.final, current)) {
+      throw new Error('Saved match and live battle log are out of sync.');
+    }
+    const recorder = new LiveBattleLogRecorder(initialState, draft.startedAt);
+    recorder.initialTurnNumber = draft.initialTurnNumber;
+    recorder.historyComplete = draft.historyComplete;
+    recorder.resumeCount = draft.resumeCount + 1;
+    recorder.resumedAt = [...draft.resumedAt, resumedAt];
+    recorder.initial = clone(draft.initial);
+    recorder.previous = clone(draft.final);
+    recorder.events = clone(draft.events);
+    return recorder;
   }
 
   recordState(state: GameState, message: string): void {
@@ -119,6 +158,10 @@ export class LiveBattleLogRecorder {
       stateSchemaVersion: BATTLE_LOG_SCHEMA_VERSION,
       source: 'live-human-vs-ai',
       startedAt: this.startedAt,
+      initialTurnNumber: this.initialTurnNumber,
+      historyComplete: this.historyComplete,
+      resumeCount: this.resumeCount,
+      resumedAt: clone(this.resumedAt),
       completedAt: final.winner ? completedAt : null,
       completed: final.winner !== null,
       winner: final.winner,

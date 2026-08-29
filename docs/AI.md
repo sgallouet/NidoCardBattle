@@ -19,13 +19,15 @@ This document describes AI architecture only. Gameplay rules remain authoritativ
 - **AI-017** - Before applying the 72-action node cap, reserve capacity for attacks, abilities, summons, tactics, and moves; tile-target cards keep only their strongest representative destinations and no family may consume the entire backfill.
 - **AI-018** - Strategic planning and tactical opponent response have independent node/time budgets and independently report `complete`, `node-limit`, or `time-limit`.
 - **AI-019** - Committed Commander damage is worth substantially more than speculative future attack pressure. Wounded Commanders increase pursuit priority, while tactical safety tiers still prevent avoidable Commander losses.
-- **AI-020** - Portfolio planner search policy and strategic doctrine weights live in typed versioned profile constants, so V3, V4, V5, and V6 share one implementation and tuning does not fork gameplay logic.
+- **AI-020** - Portfolio planner search policy and strategic doctrine weights live in typed versioned profile constants, so V3 through V7 share one implementation and tuning does not fork gameplay logic.
 - **AI-023** - V5 keeps V4's search budget and adds habit weights for early Profane Well, unused Curse, empty Soul Link, leftover playable mana, healthy Commander retreat, and Invoked Beast spam.
 - **AI-024** - V6 keeps the one-second live budget and makes map control persistent: uncaptured Mana Wells and Forts reward both immediate capture and multi-turn approach, healthy ranged units prefer Hills, and wounded ranged units prefer available Villages over Hill posture.
+- **AI-025** - V7 returns to V5's strict tactical candidate ordering while adding selective map-control habits: non-Commanders approach uncaptured Mana Wells and Forts, healthy Commanders do not receive that approach pressure unless capturing immediately, wounded units prioritize Village healing within the same tactical safety tier, ranged units value Hills, and tactics with no nearby practical payoff are penalized.
+- **AI-026** - V8 is a V7-derived control-conversion challenger: it assigns distinct non-Commander runners to priority objectives, switches from neutral expansion to enemy-site denial after securing three Wells/Forts, increases lethal and site-defender attack value during conversion, and reserves hard Village priority for units at 60% health or below.
 - **AI-021** - V4 retains multiple candidates per doctrine, allocates doctrine budgets by bounded urgency, preserves action-family diversity, deduplicates equivalent end states, and audits diverse visible response sequences under the same total node budget as V3.
 - **AI-022** - Planner matchup reports aggregate per-planner candidate counts, response sequences, node use, termination reasons, doctrine selections, replay failures, captures, kills, and paired outcomes. Live promotion requires a separate held-out seed set.
 
-The live opponent uses Planner V6's nine-doctrine portfolio. V4 remains the accepted regression baseline from its 32-game held-out paired-seed promotion run against V3. V5 preserves the intervening ability/card habits, while V6 adds the map-control behavior under **AI-024** without forking the planner engine.
+The live opponent uses Planner V8's nine-doctrine portfolio as a human-playtest candidate under **AI-026**. V7 remains the accepted benchmark after winning its 24-game held-out paired-seed run against V5 by 13 wins to 9 with 2 draws (5–3 in paired-seed wins, with 4 pair ties). V8's initial eight-game calibration against V7 finished 4–4, so this live promotion is for battle-log evaluation rather than final tournament acceptance.
 
 ## Rules-Aware Contract
 - `src/game/actions.ts` is the AI-facing gameplay action boundary.
@@ -37,7 +39,7 @@ The live opponent uses Planner V6's nine-doctrine portfolio. V4 remains the acce
 - Simulation action counters use the same canonical action-kind list, so adding an action cannot silently break telemetry.
 
 ## Common Performance Budget
-- Every live device uses the same V6 two-phase think: strategic planning gets **7,200 nodes / 700 ms**, and tactical opponent response gets **3,000 nodes / 300 ms** (**1 second** together) before each committed action.
+- Every live device uses the same V8 two-phase think: strategic planning gets **7,200 nodes / 700 ms**, and tactical opponent response gets **3,000 nodes / 300 ms** (**1 second** together) before each committed action.
 - Live play replans after each committed action so the visible think is part of enemy-turn pacing. Headless simulation still plans a whole turn under relaxed clocks.
 - Each phase's node budget is its intelligence limit; its wall-clock limit is a safety valve if a device cannot finish the node budget in time.
 - Headless simulation uses the same node/search-width limits but relaxes the wall-clock cap so benchmark results do not depend on the machine running them.
@@ -59,6 +61,9 @@ The live opponent uses Planner V6's nine-doctrine portfolio. V4 remains the acce
 - `npm run simulate:v4` compares V3 and V4 under the same node budgets. V4 uses typed scoring/search profiles, two candidates per doctrine, urgency-weighted budget allocation, cross-doctrine state deduplication, and a diverse visible-response beam.
 - `npm run simulate:v5` compares V4 and V5 under the same node budgets. V5 adds habit weights from first-turn reviews: play Profane Well before well-income ticks, Curse a reachable Commander, skip Soul Link with no threat, and stop parking a healthy Commander on the map edge.
 - `npm run simulate:v6` compares V5 and V6 under the same node budgets. V6 adds multi-turn map-control pressure plus stronger Well, Fort, Hill, and Village priorities.
+- `npm run simulate:v7` compares V5 and V7 under the same node budgets. V7 keeps V5's tactical ordering while adding selective objective pressure, Commander restraint, terrain posture, and low-payoff tactic discipline.
+- `npm run simulate:v8` compares V7 and V8 under the same node budgets. V8 coordinates objective runners and converts established control into combat pressure.
+- `npm run audit:v8 -- 20261221` prints both seat assignments for the first six half-turns (three complete rounds), including chosen actions, captures, kills, and replay failures.
 
 ## Known Limits From Self-Review
 - Opponent response search models visible board actions only and deliberately does not guess hidden cards yet.

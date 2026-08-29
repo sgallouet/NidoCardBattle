@@ -326,6 +326,7 @@ export const getAttackTargets = (state: GameState, unitId: string): UnitState[] 
   const unit = findUnit(state, unitId);
   if (!unit || unit.owner !== state.currentPlayer || unit.exhausted || unit.attacked) return [];
   const definition = unitDefinition(unit);
+  if (definition.normalAttack === false) return [];
   if (definition.traits.includes('SetShot') && (unit.movementSpent ?? 0) > 0) return [];
   const range = effectiveRange(unit);
   return state.units.filter((target) => target.owner !== unit.owner && hexDistance(unit.coord, target.coord) <= range);
@@ -522,9 +523,28 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
     });
   }
 
+  const survivingPrimaryAttacker = findUnit(state, attackerId);
+  const primaryDefenderKilled = findUnit(state, defenderId) === undefined;
+  const closeNormalAttack = !attackerDef.traits.includes('Ranged')
+    && hexDistance(attacker.coord, defenderCoord) === 1;
+  let advancePath: Coord[] | undefined;
+  if (survivingPrimaryAttacker
+    && primaryDefenderKilled
+    && closeNormalAttack
+    && !isGraveLocked(state, survivingPrimaryAttacker.coord)
+    && !isGraveLocked(state, defenderCoord)
+    && !unitAt(state, defenderCoord)) {
+    advancePath = [{ ...survivingPrimaryAttacker.coord }, { ...defenderCoord }];
+    survivingPrimaryAttacker.coord = { ...defenderCoord };
+  }
+
   const assistText = assisted > 0 ? ` + ${assisted} Assist` : '';
   const victoryText = state.winner ? ` Player ${state.winner} wins the match.` : '';
-  return { ok: true, message: `${attackerDef.name} attacked ${defenderDef.name} for ${dealt}${assistText}.${victoryText}` };
+  return {
+    ok: true,
+    message: `${attackerDef.name} attacked ${defenderDef.name} for ${dealt}${assistText}.${victoryText}`,
+    path: advancePath,
+  };
 };
 
 export const getDisplaceTargets = (state: GameState, unitId: string): UnitState[] => {

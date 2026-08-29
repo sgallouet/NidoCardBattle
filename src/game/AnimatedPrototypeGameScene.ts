@@ -33,10 +33,14 @@ interface AnimatedSceneInternals {
   playCombatAssist: () => void;
   playCombatHit: (ranged: boolean) => void;
   playCombatRetaliation: () => void;
+  playAbilityDisplace: () => void;
+  playAbilityThunder: () => void;
   playCardPlay: () => void;
   playTacticSound: (cardId: CardDefinitionId) => void;
   playUnitDeath: (owner: PlayerId, commander?: boolean) => void;
   playUnitSummon: (owner: PlayerId) => void;
+  playUnitMoveStep: () => void;
+  playTraitDarkReflection: () => void;
   presentInvokedUnit: (unitId: string) => Promise<void>;
   presentAbilityVfx: (event: AbilityVfxEvent) => Promise<void>;
   playAiAction?: (action: AiAction) => Promise<ActionResult>;
@@ -84,6 +88,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
         path,
         game.center.bind(this),
         (from, to) => game.faceUnit(unitId, from, to),
+        () => game.playUnitMoveStep(),
       );
     };
 
@@ -128,6 +133,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
           result.path,
           game.center.bind(this),
           (from, to) => game.faceUnit(action.unitId, from, to),
+          () => game.playUnitMoveStep(),
         );
       }
       return result;
@@ -137,6 +143,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
       const actor = findUnit(game.state, action.unitId);
       const result = applyAiAction(game.state, action);
       if (result.ok && actor) {
+        game.playAbilityDisplace();
         await game.presentAbilityVfx({
           kind: 'displace',
           source: { ...actor.coord },
@@ -193,6 +200,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
     if (action.kind === 'thunder') {
       const result = applyAiAction(game.state, action);
       if (result.ok) {
+        game.playAbilityThunder();
         await game.presentAbilityVfx({
           kind: 'thunder',
           destination: { ...action.destination },
@@ -430,6 +438,7 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
           motion.finishAttack(defenderView, counterPose.source, true),
         ]);
       } else if (defenderDefinition.traits.includes('DarkReflection')) {
+        game.playTraitDarkReflection();
         await motion.reflect(defenderCoord, attackerCoord, game.center.bind(this));
         await motion.hurt(
           attackerView,
@@ -451,6 +460,18 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
         game.playUnitDeath(attackerBefore.owner, attackerBefore.definitionId === 'commander');
         await motion.die(attackerView, attackerBefore);
       }
+    }
+
+    const advancingAttacker = findUnit(game.state, attackerId);
+    if (result.path && advancingAttacker) {
+      await motion.move(
+        attackerView,
+        advancingAttacker,
+        result.path,
+        game.center.bind(this),
+        (from, to) => game.faceUnit(attackerId, from, to),
+        () => game.playUnitMoveStep(),
+      );
     }
 
     game.message = result.message;

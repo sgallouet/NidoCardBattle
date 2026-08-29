@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createGameState } from './engine';
-import { loadSavedGameState, saveGameState } from './save';
+import { LiveBattleLogRecorder } from './liveBattleLog';
+import { clearSavedGameState, loadSavedMatch, saveMatch } from './save';
 
 const installStorage = (initial: Record<string, string> = {}): void => {
   const values = new Map(Object.entries(initial));
@@ -14,23 +15,35 @@ const installStorage = (initial: Record<string, string> = {}): void => {
 describe('saved matches', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('rejects matches from before the empty-Home-Keep setup', () => {
+  it('rejects matches from before persistent battle-log drafts', () => {
     installStorage({
       'nidocardbattle.match': JSON.stringify({
-        version: 1,
+        version: 2,
         savedAt: new Date(0).toISOString(),
         state: createGameState(),
       }),
     });
 
-    expect(loadSavedGameState()).toBeNull();
+    expect(loadSavedMatch()).toBeNull();
   });
 
   it('round-trips the current save version', () => {
     installStorage();
     const state = createGameState();
+    const battleLog = new LiveBattleLogRecorder(state).createLog(state);
 
-    expect(saveGameState(state)).toBe(true);
-    expect(loadSavedGameState()).toEqual(state);
+    expect(saveMatch(state, battleLog)).toBe(true);
+    expect(loadSavedMatch()).toEqual({ state, battleLog });
+  });
+
+  it('clears the saved state and its battle-log draft together', () => {
+    installStorage();
+    const state = createGameState();
+    const battleLog = new LiveBattleLogRecorder(state).createLog(state);
+    saveMatch(state, battleLog);
+
+    clearSavedGameState();
+
+    expect(loadSavedMatch()).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import {
   attackUnit,
   createGameState,
   endTurn,
+  getAttackTargets,
   getInvokeDestinations,
   getThunderTargetCoords,
   invokeBeast,
@@ -79,6 +80,47 @@ describe('UnitRule regressions', () => {
     state.units = [necromancer];
 
     expect(getInvokeDestinations(state, necromancer.id)).toEqual([]);
+  });
+
+  it('enforces HUR5', () => {
+    const state = freshState();
+    const mage = makeUnit('mage', 'lightMage', 1, { q: 4, r: 6 });
+    const enemy = makeUnit('enemy', 'skeletalInfantry', 2, { q: 5, r: 6 });
+    state.units = [mage, enemy];
+
+    expect(getAttackTargets(state, mage.id)).toEqual([]);
+    expect(getThunderTargetCoords(state, mage.id).length).toBeGreaterThan(0);
+    expect(getInvokeDestinations(state, mage.id).length).toBeGreaterThan(0);
+  });
+
+  it('enforces UNC4', () => {
+    const state = freshState();
+    const attacker = makeUnit('attacker', 'royalGuard', 1, { q: 4, r: 6 });
+    const defender = makeUnit('defender', 'skeletalInfantry', 2, { q: 5, r: 6 }, { hp: 1 });
+    state.units = [attacker, defender];
+
+    const result = attackUnit(state, attacker.id, defender.id);
+
+    expect(result.path).toEqual([{ q: 4, r: 6 }, { q: 5, r: 6 }]);
+    expect(attacker.coord).toEqual({ q: 5, r: 6 });
+  });
+
+  it('enforces UNC4 with CRC4', () => {
+    const state = freshState();
+    const attacker = makeUnit('attacker', 'royalGuard', 1, { q: 4, r: 6 });
+    const defender = makeUnit('defender', 'skeletalInfantry', 2, { q: 5, r: 6 }, { hp: 1 });
+    state.units = [attacker, defender];
+    state.tileEffects.push({
+      kind: 'graveLock',
+      coord: { ...defender.coord },
+      sourcePlayer: 2,
+      expiresAtTurn: state.turnNumber + 1,
+    });
+
+    const result = attackUnit(state, attacker.id, defender.id);
+
+    expect(result.path).toBeUndefined();
+    expect(attacker.coord).toEqual({ q: 4, r: 6 });
   });
 
   it('makes UNB6 Thunder damage its target hex and every adjacent unit, including allies and the caster', () => {

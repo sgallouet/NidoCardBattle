@@ -3,7 +3,7 @@
 This file owns unit stats, activation, combat, movement, traits, abilities, faction rosters, and implementation gaps.
 
 ## Unit Data
-- **UNS1** - Every unit has Mana Cost, HP, Attack, Move, Range, Traits, and at most one special Ability or Spell unless its roster entry explicitly says otherwise.
+- **UNS1** - Every unit has Mana Cost, HP, Move, Range, Traits, and at most one special Ability or Spell unless its roster entry explicitly says otherwise. Units with a normal attack also have an Attack value.
 - **UNS2** - Every summonable unit belongs to exactly one faction.
 - **UNS3** - Faction roster tables below define the target stats; the Implementation column shows whether the prototype currently matches the target and is not a second source of gameplay rules.
 
@@ -16,6 +16,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNC1** - Attacks deal deterministic damage; there is no hit/miss roll.
 - **UNC2** - A unit whose HP reaches 0 is removed immediately.
 - **UNC3** - Retaliation is a reaction and does not consume the defender's normal attack on its next activation.
+- **UNC4** - When a surviving unit kills the primary target of its close normal attack, it advances into the defeated unit's vacated hex without spending movement points. The advance must obey `CRC4`; captures still resolve under `MPC1`-`MPC3`.
 
 ## Movement
 - **UNM1** - Movement uses movement points; entering a normal hex costs 1 point unless terrain says otherwise.
@@ -58,7 +59,7 @@ Human identity: formation, mobility, ranged support, sustain, and controlled rep
 | **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates, Assist | — | ✅ Implemented. |
 | **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
 | **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
-| **HUR5** | Thunder Mage | 4 | 3 | 2 | 2 | 2 | Invoker | Thunder | ✅ Implemented; Thunder and Invoke Beast both replace its attack. |
+| **HUR5** | Thunder Mage | 4 | 3 | — | 2 | 2 | Invoker | Thunder; Invoke Beast; no normal attack | ✅ Implemented. |
 | **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | Healing Aura | — | ✅ Implemented. |
 | **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | ✅ Implemented. |
 | **HUR8** | Invoked Beast | — | 2 | 1 | 2 | 1 | — | — | ✅ Implemented as the free token created by Thunder Mage through `UNT3`. |

@@ -53,8 +53,21 @@ export interface PortfolioHabitWeights {
   captureFort: number;
   hillRanged: number;
   villageHeal: number;
+  villageHealPlanBonus: number;
+  villageHealMaxHealthRatio: number;
   siteApproach: number;
   mapControlPressure: number;
+  commanderSiteApproachScale: number;
+  commanderNonCaptureApproachPenalty: number;
+  lowPayoffTacticPenalty: number;
+  coordinateObjectives: boolean;
+  controlConversionSiteThreshold: number;
+  assignedObjectiveApproach: number;
+  unassignedObjectiveApproachPenalty: number;
+  conversionAttackBonus: number;
+  conversionLethalBonus: number;
+  conversionSiteDenialBonus: number;
+  conversionMaterialSwing: number;
 }
 
 export interface PortfolioScoringProfile {
@@ -84,7 +97,7 @@ export interface PortfolioSearchProfile {
 }
 
 export interface PortfolioPlannerProfile {
-  id: 'v3-portfolio' | 'v4-portfolio' | 'v5-portfolio' | 'v6-portfolio';
+  id: 'v3-portfolio' | 'v4-portfolio' | 'v5-portfolio' | 'v6-portfolio' | 'v7-portfolio' | 'v8-portfolio';
   liveOptions: Required<AiSearchOptions>;
   search: PortfolioSearchProfile;
   scoring: PortfolioScoringProfile;
@@ -108,8 +121,21 @@ const ZERO_HABITS: PortfolioHabitWeights = {
   captureFort: 0,
   hillRanged: 0,
   villageHeal: 0,
+  villageHealPlanBonus: 0,
+  villageHealMaxHealthRatio: 1,
   siteApproach: 0,
   mapControlPressure: 0,
+  commanderSiteApproachScale: 1,
+  commanderNonCaptureApproachPenalty: 0,
+  lowPayoffTacticPenalty: 0,
+  coordinateObjectives: false,
+  controlConversionSiteThreshold: 99,
+  assignedObjectiveApproach: 0,
+  unassignedObjectiveApproachPenalty: 0,
+  conversionAttackBonus: 0,
+  conversionLethalBonus: 0,
+  conversionSiteDenialBonus: 0,
+  conversionMaterialSwing: 0,
 };
 
 const V3_SCORING: PortfolioScoringProfile = {
@@ -213,8 +239,21 @@ export const PLANNER_V4_PROFILE: PortfolioPlannerProfile = {
       captureFort: 9_500,
       hillRanged: 7_500,
       villageHeal: 4_500,
+      villageHealPlanBonus: 0,
+      villageHealMaxHealthRatio: 1,
       siteApproach: 1_400,
       mapControlPressure: 0,
+      commanderSiteApproachScale: 1,
+      commanderNonCaptureApproachPenalty: 0,
+      lowPayoffTacticPenalty: 0,
+      coordinateObjectives: false,
+      controlConversionSiteThreshold: 99,
+      assignedObjectiveApproach: 0,
+      unassignedObjectiveApproachPenalty: 0,
+      conversionAttackBonus: 0,
+      conversionLethalBonus: 0,
+      conversionSiteDenialBonus: 0,
+      conversionMaterialSwing: 0,
       invokeOnObjectiveBonus: 8_000,
     },
   },
@@ -256,8 +295,21 @@ export const PLANNER_V5_PROFILE: PortfolioPlannerProfile = {
       captureFort: 9_500,
       hillRanged: 7_500,
       villageHeal: 4_500,
+      villageHealPlanBonus: 0,
+      villageHealMaxHealthRatio: 1,
       siteApproach: 1_400,
       mapControlPressure: 0,
+      commanderSiteApproachScale: 1,
+      commanderNonCaptureApproachPenalty: 0,
+      lowPayoffTacticPenalty: 0,
+      coordinateObjectives: false,
+      controlConversionSiteThreshold: 99,
+      assignedObjectiveApproach: 0,
+      unassignedObjectiveApproachPenalty: 0,
+      conversionAttackBonus: 0,
+      conversionLethalBonus: 0,
+      conversionSiteDenialBonus: 0,
+      conversionMaterialSwing: 0,
     },
   },
 };
@@ -288,6 +340,67 @@ export const PLANNER_V6_PROFILE: PortfolioPlannerProfile = {
       villageHeal: 40_000,
       siteApproach: 2_400,
       mapControlPressure: 650,
+    },
+  },
+};
+
+export const PLANNER_V7_PROFILE: PortfolioPlannerProfile = {
+  id: 'v7-portfolio',
+  liveOptions: {
+    ...PLANNER_V5_PROFILE.liveOptions,
+  },
+  search: {
+    ...PLANNER_V5_PROFILE.search,
+  },
+  scoring: {
+    ...PLANNER_V5_PROFILE.scoring,
+    doctrines: {
+      ...PLANNER_V5_PROFILE.scoring.doctrines,
+    },
+    habits: {
+      ...PLANNER_V5_PROFILE.scoring.habits,
+      captureWell: 14_000,
+      captureFort: 11_000,
+      hillRanged: 8_500,
+      villageHeal: 40_000,
+      villageHealPlanBonus: 35_000,
+      siteApproach: 1_800,
+      mapControlPressure: 250,
+      commanderSiteApproachScale: 0,
+      commanderNonCaptureApproachPenalty: 10_000,
+      lowPayoffTacticPenalty: 20_000,
+    },
+  },
+};
+
+export const PLANNER_V8_PROFILE: PortfolioPlannerProfile = {
+  id: 'v8-portfolio',
+  liveOptions: {
+    ...PLANNER_V7_PROFILE.liveOptions,
+  },
+  search: {
+    ...PLANNER_V7_PROFILE.search,
+  },
+  scoring: {
+    ...PLANNER_V7_PROFILE.scoring,
+    doctrines: {
+      ...PLANNER_V7_PROFILE.scoring.doctrines,
+    },
+    habits: {
+      ...PLANNER_V7_PROFILE.scoring.habits,
+      villageHeal: 25_000,
+      villageHealPlanBonus: 20_000,
+      villageHealMaxHealthRatio: 0.6,
+      siteApproach: 1_000,
+      mapControlPressure: 175,
+      coordinateObjectives: true,
+      controlConversionSiteThreshold: 3,
+      assignedObjectiveApproach: 2_600,
+      unassignedObjectiveApproachPenalty: 1_200,
+      conversionAttackBonus: 3_500,
+      conversionLethalBonus: 9_000,
+      conversionSiteDenialBonus: 5_000,
+      conversionMaterialSwing: 0.45,
     },
   },
 };

@@ -41,6 +41,7 @@ export interface SpellHudSceneInternals {
   highlights: () => HighlightSets;
   handleHexClick: (coord: Coord) => Promise<void>;
   beginDisplace: () => void;
+  playAbilityThunder: () => void;
   presentAbilityVfx: (event: AbilityVfxEvent) => Promise<void>;
   setAnimationLock: (locked: boolean) => void;
 }
@@ -54,6 +55,7 @@ export class SpellHud {
   private button?: HTMLButtonElement;
   private invokeButton?: HTMLButtonElement;
   private originalButtonParent?: HTMLElement;
+  private originalInvokeButtonParent?: HTMLElement;
   private currentSpell?: ActiveSpellId;
 
   constructor(
@@ -68,6 +70,7 @@ export class SpellHud {
     if (!app || !button) return;
 
     this.originalButtonParent = button.parentElement ?? undefined;
+    this.originalInvokeButtonParent = invokeButton?.parentElement ?? undefined;
     this.button = button;
     this.invokeButton = invokeButton ?? undefined;
     if (invokeButton) {
@@ -77,12 +80,12 @@ export class SpellHud {
       image.draggable = false;
       const label = document.createElement('span');
       label.textContent = SPELL_UI.InvokeBeast.name;
-      invokeButton.classList.add('invoke-action-button');
+      invokeButton.className = 'spell-button invoke-spell-button';
       invokeButton.replaceChildren(image, label);
       invokeButton.setAttribute('aria-label', `${SPELL_UI.InvokeBeast.name}. ${SPELL_UI.InvokeBeast.description}`);
       invokeButton.title = `${SPELL_UI.InvokeBeast.name} — ${SPELL_UI.InvokeBeast.description}`;
     }
-    this.buildDock(app, button);
+    this.buildDock(app, button, invokeButton ?? undefined);
 
     const originalBeginAbility = this.game.beginDisplace.bind(this.scene);
     const originalHighlights = this.game.highlights.bind(this.scene);
@@ -162,6 +165,7 @@ export class SpellHud {
         this.game.message = result.message;
         if (result.ok) this.game.mode = 'unit';
         if (result.ok) {
+          this.game.playAbilityThunder();
           await this.present({
             kind: 'thunder',
             destination: { ...coord },
@@ -180,7 +184,7 @@ export class SpellHud {
     this.scene.events.once('shutdown', () => this.destroy());
   }
 
-  private buildDock(app: HTMLElement, button: HTMLButtonElement): void {
+  private buildDock(app: HTMLElement, button: HTMLButtonElement, invokeButton?: HTMLButtonElement): void {
     const dock = document.createElement('div');
     dock.className = 'spell-dock';
     dock.hidden = true;
@@ -201,7 +205,12 @@ export class SpellHud {
     const cooldown = document.createElement('div');
     cooldown.className = 'spell-cooldown';
 
-    dock.append(copy, button, cooldown);
+    const actions = document.createElement('div');
+    actions.className = 'spell-actions';
+    actions.append(button);
+    if (invokeButton) actions.append(invokeButton);
+
+    dock.append(copy, actions, cooldown);
     app.append(dock);
 
     this.dock = dock;
@@ -392,12 +401,14 @@ export class SpellHud {
     }
     this.dock?.remove();
     if (this.invokeButton) {
-      this.invokeButton.classList.remove('invoke-action-button');
+      this.invokeButton.className = 'secondary';
       this.invokeButton.textContent = 'Invoke Beast';
       this.invokeButton.removeAttribute('title');
+      this.originalInvokeButtonParent?.append(this.invokeButton);
     }
     this.dock = undefined;
     this.button = undefined;
     this.invokeButton = undefined;
+    this.originalInvokeButtonParent = undefined;
   }
 }

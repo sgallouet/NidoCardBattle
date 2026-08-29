@@ -11,7 +11,8 @@
 }
 
 .spell-dock[hidden],
-.spell-copy[hidden] {
+.spell-copy[hidden],
+.spell-button[hidden] {
   display: none;
 }
 
@@ -58,6 +59,13 @@
   background: #090c0a;
   box-shadow: 0 8px 20px #000c, inset 0 0 0 1px #000;
   pointer-events: auto;
+}
+
+.spell-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
 }
 
 .spell-button::before {
@@ -137,17 +145,25 @@
   display: none;
 }
 
-.invoke-action-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+.invoke-spell-button {
+  display: block;
+  overflow: hidden;
 }
 
-.invoke-action-button img {
-  width: 30px;
-  height: 30px;
-  border-radius: 5px;
-  object-fit: cover;
+.invoke-spell-button span {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  left: 3px;
+  padding: 3px 2px;
+  border-radius: 4px;
+  color: #f8f3e7;
+  background: rgba(8, 12, 9, .82);
+  font: 800 9px Arial, sans-serif;
+  line-height: 1.05;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px #000;
   pointer-events: none;
 }
 

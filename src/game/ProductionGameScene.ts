@@ -12,6 +12,7 @@ import {
   DemoVideoRecorder,
   type DemoVideoSceneInternals,
 } from './DemoVideoRecorder';
+import { FirstTurnGuide, type FirstTurnGuideSceneInternals } from './FirstTurnGuide';
 import { PlayerCameraChoreographyGameScene } from './PlayerCameraChoreographyGameScene';
 import {
   PremiumFeedback,
@@ -25,12 +26,16 @@ import {
 } from './MatchMusic';
 import { SettingsMenu } from './SettingsMenu';
 import { VictoryMusicDirector } from './VictoryMusic';
+import { VictoryObjectiveHud } from './VictoryObjectiveHud';
 import {
   MatchIntroPresentation,
   type MatchIntroSceneInternals,
 } from './MatchIntroPresentation';
 
-interface ProductionSceneInternals extends CelShadedRiverSceneInternals, PremiumFeedbackSceneInternals {
+interface ProductionSceneInternals extends
+  CelShadedRiverSceneInternals,
+  PremiumFeedbackSceneInternals,
+  FirstTurnGuideSceneInternals {
   addRiverSurface: () => void;
   clearRiverSurface: () => void;
   renderAll: () => void;
@@ -55,6 +60,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private celRiver?: CelShadedRiverSurface;
   private premiumFeedback?: PremiumFeedback;
   private cardAvailabilityTips?: CardAvailabilityTips;
+  private victoryObjective?: VictoryObjectiveHud;
+  private firstTurnGuide?: FirstTurnGuide;
   private matchMusic?: MatchMusicDirector;
   private victoryMusic?: VictoryMusicDirector;
   private victoryMusicStarted = false;
@@ -84,6 +91,11 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       hideTileInsight: () => game.hideTileInsight(true),
     });
     this.cardAvailabilityTips.install();
+
+    this.victoryObjective = new VictoryObjectiveHud({ getState: () => game.state });
+    this.victoryObjective.install();
+    this.firstTurnGuide = new FirstTurnGuide(this, game);
+    this.firstTurnGuide.install();
 
     // Production and the shared AiGameScene both plan with V8. Keep this override so a
     // no-Worker/error fallback cannot silently revert to an older planner.
@@ -140,6 +152,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     game.renderAll = () => {
       originalRenderAll();
       this.premiumFeedback?.sync(game.state, game.message);
+      this.victoryObjective?.sync(game.state);
+      this.firstTurnGuide?.sync();
       if (game.state.winner) {
         this.matchMusic?.stop();
         if (!this.victoryMusicStarted && this.victoryMusic) {
@@ -170,6 +184,10 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     this.events.once('shutdown', () => {
       this.matchIntro?.destroy();
       this.matchIntro = undefined;
+      this.firstTurnGuide?.destroy();
+      this.firstTurnGuide = undefined;
+      this.victoryObjective?.destroy();
+      this.victoryObjective = undefined;
       this.premiumFeedback?.destroy();
       this.premiumFeedback = undefined;
       this.cardAvailabilityTips?.destroy();

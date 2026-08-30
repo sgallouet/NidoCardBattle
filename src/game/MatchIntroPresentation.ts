@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { MAP_HEIGHT, MAP_WIDTH } from '../data/map';
 import type { Coord, GameState, UnitState } from '../data/types';
 import { ActionFxAnimator } from './ActionFxAnimator';
+import { CommanderConfrontation } from './CommanderConfrontation';
 import { neighbors } from './engine';
 import { buildMapRevealPlan, MAP_REVEAL_DURATION, ownedKeepCoord } from './MatchIntroPlan';
 import { loadingScreen } from './LoadingScreen';
@@ -25,6 +26,7 @@ export class MatchIntroPresentation {
   private covers = new Map<string, Phaser.GameObjects.Graphics>();
   private guide?: HTMLElement;
   private actionFx?: ActionFxAnimator;
+  private commanderConfrontation?: CommanderConfrontation;
   private localKeep?: Coord;
   private localUnits: UnitState[] = [];
   private prepared = false;
@@ -45,6 +47,7 @@ export class MatchIntroPresentation {
     this.localKeep = keep;
     this.localUnits = this.game.state.units.filter((unit) => unit.owner === 1);
     this.actionFx = new ActionFxAnimator(this.scene, () => this.game.boardLayer, this.game.center.bind(this.game));
+    this.commanderConfrontation = new CommanderConfrontation(this.scene, this.game);
 
     document.querySelector<HTMLElement>('#app')?.classList.add('match-intro-active');
     this.game.setAnimationLock(true);
@@ -91,6 +94,11 @@ export class MatchIntroPresentation {
       await this.wait(70);
     }
 
+    const enemyCommander = this.game.state.units.find((unit) => unit.owner === 2 && unit.definitionId === 'commander');
+    if (commander && enemyCommander && this.commanderConfrontation) {
+      await this.commanderConfrontation.play(enemyCommander, commander);
+    }
+
     this.showGuide('05', 'Your Hand', 'Spend mana to reinforce your army or change the battlefield with a Tactic.', 'hand');
     await this.revealHudAndCards();
     await this.wait(180);
@@ -111,8 +119,10 @@ export class MatchIntroPresentation {
     await this.wait(210);
     this.guide?.remove();
     this.guide = undefined;
+    this.commanderConfrontation?.destroy();
+    this.commanderConfrontation = undefined;
     const app = document.querySelector<HTMLElement>('#app');
-    app?.classList.remove('match-intro-active', 'match-intro-hud-visible');
+    app?.classList.remove('match-intro-active', 'match-intro-hud-visible', 'match-intro-dialogue-active');
     this.game.setAnimationLock(false);
   }
 
@@ -122,11 +132,14 @@ export class MatchIntroPresentation {
       if (cover.active) cover.destroy();
     }
     this.covers.clear();
+    this.commanderConfrontation?.destroy();
+    this.commanderConfrontation = undefined;
     this.guide?.remove();
     this.guide = undefined;
     document.querySelector<HTMLElement>('#app')?.classList.remove(
       'match-intro-active',
       'match-intro-hud-visible',
+      'match-intro-dialogue-active',
     );
   }
 

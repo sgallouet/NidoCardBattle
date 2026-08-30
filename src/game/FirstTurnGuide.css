@@ -1,0 +1,129 @@
+.first-turn-guide {
+  position: absolute;
+  z-index: 18;
+  top: max(16px, env(safe-area-inset-top));
+  left: 50%;
+  display: grid;
+  width: min(360px, calc(100vw - 32px));
+  padding: 10px 14px 11px;
+  border: 1px solid rgba(103, 214, 255, .42);
+  border-radius: 12px;
+  color: #f7f3e8;
+  background:
+    radial-gradient(circle at 50% 0, rgba(91, 210, 255, .13), transparent 54%),
+    linear-gradient(145deg, rgba(18, 26, 24, .96), rgba(7, 12, 11, .93));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .45), inset 0 1px rgba(255, 255, 255, .045);
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  backdrop-filter: blur(12px) saturate(1.08);
+  transition: opacity 220ms ease, transform 260ms ease;
+}
+
+.first-turn-guide.is-complete {
+  opacity: 0;
+  transform: translate(-50%, -10px) scale(.98);
+}
+
+.first-turn-guide-step {
+  color: #6fdfff;
+  font: 900 9px/1 Inter, ui-sans-serif, sans-serif;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.first-turn-guide-title {
+  margin-top: 3px;
+  color: #fff9ec;
+  font: 700 18px/1.15 Georgia, serif;
+}
+
+.first-turn-guide-copy {
+  margin-top: 4px;
+  color: #d4cfc3;
+  font: 600 11px/1.35 Inter, ui-sans-serif, sans-serif;
+}
+
+.card.ftue-card-target {
+  z-index: 13;
+}
+
+.card.ftue-card-target .card-surface {
+  box-shadow:
+    0 18px 34px #000e,
+    0 0 0 2px rgba(109, 224, 255, .92),
+    0 0 24px rgba(82, 211, 255, .66);
+  animation: ftue-card-pulse 1.05s ease-in-out infinite alternate;
+}
+
+#end-turn-button.ftue-end-turn-target {
+  position: relative;
+  z-index: 13;
+  border-color: #74e2ff;
+  box-shadow: 0 0 0 2px rgba(116, 226, 255, .24), 0 0 18px rgba(88, 214, 255, .55);
+  animation: ftue-end-turn-pulse .9s ease-in-out infinite alternate;
+}
+
+.first-turn-guide-beacon {
+  position: fixed;
+  z-index: 17;
+  width: 74px;
+  height: 74px;
+  border: 3px solid rgba(105, 224, 255, .92);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 5px rgba(105, 224, 255, .11),
+    0 0 24px rgba(105, 224, 255, .62),
+    inset 0 0 18px rgba(105, 224, 255, .22);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: ftue-unit-pulse .9s ease-in-out infinite alternate;
+}
+
+.first-turn-guide-beacon[hidden] { display: none; }
+
+@keyframes ftue-card-pulse {
+  to {
+    filter: brightness(1.08);
+    box-shadow:
+      0 20px 38px #000e,
+      0 0 0 3px rgba(135, 232, 255, .98),
+      0 0 34px rgba(82, 211, 255, .82);
+  }
+}
+
+@keyframes ftue-end-turn-pulse {
+  to {
+    filter: brightness(1.16);
+    box-shadow: 0 0 0 3px rgba(116, 226, 255, .3), 0 0 28px rgba(88, 214, 255, .72);
+  }
+}
+
+@keyframes ftue-unit-pulse {
+  to {
+    width: 86px;
+    height: 86px;
+    opacity: .72;
+  }
+}
+
+@media (max-width: 700px), (max-height: 500px) {
+  .first-turn-guide {
+    top: max(76px, calc(env(safe-area-inset-top) + 68px));
+    width: min(320px, calc(100vw - 20px));
+    padding: 8px 11px 9px;
+  }
+  .first-turn-guide-title { font-size: 16px; }
+  .first-turn-guide-copy { font-size: 10px; }
+  .first-turn-guide-beacon { width: 60px; height: 60px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .first-turn-guide,
+  .card.ftue-card-target .card-surface,
+  #end-turn-button.ftue-end-turn-target,
+  .first-turn-guide-beacon {
+    animation: none;
+    transition-duration: 80ms;
+  }
+}

@@ -2,7 +2,12 @@ import Phaser from 'phaser';
 import type { Coord } from '../data/types';
 import type { AiPlan } from './ai';
 import { LIVE_AI_OPTIONS_V8, planAiTurnV8 } from './aiPlannerV8';
+import {
+  ActionAvailabilityTips,
+  type ActionAvailabilitySceneInternals,
+} from './ActionAvailabilityTips';
 import { CardAvailabilityTips } from './CardAvailabilityTips';
+import { CaptureHint } from './CaptureHint';
 import {
   CelShadedRiverSurface,
   type CelShadedRiverSceneInternals,
@@ -35,7 +40,8 @@ import {
 interface ProductionSceneInternals extends
   CelShadedRiverSceneInternals,
   PremiumFeedbackSceneInternals,
-  FirstTurnGuideSceneInternals {
+  FirstTurnGuideSceneInternals,
+  ActionAvailabilitySceneInternals {
   addRiverSurface: () => void;
   clearRiverSurface: () => void;
   renderAll: () => void;
@@ -60,6 +66,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private celRiver?: CelShadedRiverSurface;
   private premiumFeedback?: PremiumFeedback;
   private cardAvailabilityTips?: CardAvailabilityTips;
+  private actionAvailabilityTips?: ActionAvailabilityTips;
+  private captureHint?: CaptureHint;
   private victoryObjective?: VictoryObjectiveHud;
   private firstTurnGuide?: FirstTurnGuide;
   private matchMusic?: MatchMusicDirector;
@@ -91,6 +99,14 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       hideTileInsight: () => game.hideTileInsight(true),
     });
     this.cardAvailabilityTips.install();
+    this.actionAvailabilityTips = new ActionAvailabilityTips(
+      this,
+      game,
+      () => this.areTileTipsEnabled(),
+    );
+    this.actionAvailabilityTips.install();
+    this.captureHint = new CaptureHint(this, game);
+    this.captureHint.install();
 
     this.victoryObjective = new VictoryObjectiveHud({ getState: () => game.state });
     this.victoryObjective.install();
@@ -154,6 +170,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.premiumFeedback?.sync(game.state, game.message);
       this.victoryObjective?.sync(game.state);
       this.firstTurnGuide?.sync();
+      this.captureHint?.sync();
       if (game.state.winner) {
         this.matchMusic?.stop();
         if (!this.victoryMusicStarted && this.victoryMusic) {
@@ -188,6 +205,10 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.firstTurnGuide = undefined;
       this.victoryObjective?.destroy();
       this.victoryObjective = undefined;
+      this.captureHint?.destroy();
+      this.captureHint = undefined;
+      this.actionAvailabilityTips?.destroy();
+      this.actionAvailabilityTips = undefined;
       this.premiumFeedback?.destroy();
       this.premiumFeedback = undefined;
       this.cardAvailabilityTips?.destroy();

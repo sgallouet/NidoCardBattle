@@ -11,6 +11,7 @@ class LoadingScreen {
   private animationFrame: number | null = null;
   private completing = false;
   private failed = false;
+  private waitingForStart = false;
   private readonly battlefieldReady: Promise<void>;
   private resolveBattlefieldReady!: () => void;
 
@@ -76,7 +77,7 @@ class LoadingScreen {
 
     this.displayed = this.target;
     this.render();
-    if (this.completing && this.displayed >= 1) this.dismiss();
+    if (this.completing && this.displayed >= 1) this.awaitStart();
   };
 
   private render(): void {
@@ -90,9 +91,36 @@ class LoadingScreen {
     this.percentage.textContent = `${percentage}%`;
   }
 
-  private dismiss(): void {
+  private awaitStart(): void {
+    if (this.waitingForStart) return;
+    this.waitingForStart = true;
     this.element.classList.remove('is-progressing');
     this.element.classList.add('is-complete');
+    this.element.dataset.loadingStage = 'ready';
+    this.status.textContent = 'Click anywhere to start';
+    this.element.addEventListener('pointerup', this.handlePointerStart, { once: true });
+    window.addEventListener('keydown', this.handleKeyStart);
+  }
+
+  private readonly handlePointerStart = (): void => {
+    this.start();
+  };
+
+  private readonly handleKeyStart = (event: KeyboardEvent): void => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    this.start();
+  };
+
+  private start(): void {
+    if (!this.waitingForStart) return;
+    this.waitingForStart = false;
+    this.element.removeEventListener('pointerup', this.handlePointerStart);
+    window.removeEventListener('keydown', this.handleKeyStart);
+    this.dismiss();
+  }
+
+  private dismiss(): void {
     window.setTimeout(() => {
       this.element.classList.add('is-leaving');
       window.setTimeout(() => {

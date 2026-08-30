@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { Coord } from '../data/types';
 import type { AiPlan } from './ai';
 import { LIVE_AI_OPTIONS_V8, planAiTurnV8 } from './aiPlannerV8';
+import { CardAvailabilityTips } from './CardAvailabilityTips';
 import {
   CelShadedRiverSurface,
   type CelShadedRiverSceneInternals,
@@ -33,6 +34,7 @@ interface ProductionSceneInternals extends CelShadedRiverSceneInternals, Premium
   addRiverSurface: () => void;
   clearRiverSurface: () => void;
   renderAll: () => void;
+  hideTileInsight: (clearHover?: boolean) => void;
   boardLayer?: Phaser.GameObjects.Container;
   center: (coord: Coord) => Phaser.Math.Vector2;
   hexPoints: (center: Phaser.Math.Vector2, inset?: number) => Phaser.Geom.Point[];
@@ -52,6 +54,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private settingsMenu?: SettingsMenu;
   private celRiver?: CelShadedRiverSurface;
   private premiumFeedback?: PremiumFeedback;
+  private cardAvailabilityTips?: CardAvailabilityTips;
   private matchMusic?: MatchMusicDirector;
   private victoryMusic?: VictoryMusicDirector;
   private victoryMusicStarted = false;
@@ -74,6 +77,13 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     };
 
     super.create();
+
+    this.cardAvailabilityTips = new CardAvailabilityTips({
+      getState: () => game.state,
+      tileTipsEnabled: () => this.areTileTipsEnabled(),
+      hideTileInsight: () => game.hideTileInsight(true),
+    });
+    this.cardAvailabilityTips.install();
 
     // Production and the shared AiGameScene both plan with V8. Keep this override so a
     // no-Worker/error fallback cannot silently revert to an older planner.
@@ -162,6 +172,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.matchIntro = undefined;
       this.premiumFeedback?.destroy();
       this.premiumFeedback = undefined;
+      this.cardAvailabilityTips?.destroy();
+      this.cardAvailabilityTips = undefined;
       this.matchMusic?.dispose();
       this.matchMusic = undefined;
       this.victoryMusic?.dispose();

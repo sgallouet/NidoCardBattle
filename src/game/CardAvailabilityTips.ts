@@ -1,5 +1,6 @@
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import type { GameState } from '../data/types';
+import { getValidSummonCoords } from './engine';
 import './CardAvailabilityTips.css';
 
 interface CardAvailabilityTipsOptions {
@@ -7,6 +8,10 @@ interface CardAvailabilityTipsOptions {
   tileTipsEnabled: () => boolean;
   hideTileInsight: () => void;
 }
+
+type BlockReason =
+  | { kind: 'mana'; missing: number; cost: number; mana: number }
+  | { kind: 'deployment' };
 
 export class CardAvailabilityTips {
   private observer?: MutationObserver;
@@ -35,23 +40,30 @@ export class CardAvailabilityTips {
     if (!hand) return;
     const state = this.options.getState();
     const player = state.players[state.currentPlayer];
+    const hasSummonSite = getValidSummonCoords(state).length > 0;
 
     for (const button of hand.querySelectorAll<HTMLButtonElement>('.card[data-hand-index]')) {
       const index = Number(button.dataset.handIndex);
       const cardId = player.hand[index] as CardDefinitionId | undefined;
       if (!cardId) continue;
       const card = CARD_DEFINITIONS[cardId];
-      if (card.cost <= player.mana) continue;
+      let reason: BlockReason | undefined;
+      if (card.cost > player.mana) {
+        reason = { kind: 'mana', missing: card.cost - player.mana, cost: card.cost, mana: player.mana };
+      } else if (card.type === 'unit' && !hasSummonSite) {
+        reason = { kind: 'deployment' };
+      }
+      if (!reason) continue;
 
       // Native disabled buttons are unreliable hover targets. Keep the same disabled
       // presentation and semantics, but block activation ourselves so FTUE can explain why.
       button.disabled = false;
-      button.dataset.manaBlocked = 'true';
+      button.dataset.availabilityBlocked = reason.kind;
       button.setAttribute('aria-disabled', 'true');
       button.addEventListener('click', this.blockActivation, { capture: true });
-      button.addEventListener('pointerenter', () => this.schedule(button, card.name, card.cost, player.mana));
+      button.addEventListener('pointerenter', () => this.schedule(button, card.name, reason));
       button.addEventListener('pointerleave', () => this.hide(button));
-      button.addEventListener('focus', () => this.schedule(button, card.name, card.cost, player.mana));
+      button.addEventListener('focus', () => this.schedule(button, card.name, reason));
       button.addEventListener('blur', () => this.hide(button));
     }
   }
@@ -61,14 +73,14 @@ export class CardAvailabilityTips {
     event.stopImmediatePropagation();
   };
 
-  private schedule(button: HTMLButtonElement, cardName: string, cost: number, mana: number): void {
+  private schedule(button: HTMLButtonElement, cardName: string, reason: BlockReason): void {
     if (!this.options.tileTipsEnabled() || window.matchMedia('(hover: none)').matches) return;
     this.hide();
     this.activeCard = button;
     this.showTimer = window.setTimeout(() => {
       this.showTimer = null;
       if (this.activeCard !== button || !button.isConnected) return;
-      this.render(button, cardName, cost, mana);
+      this.render(button, cardName, reason);
     }, 220);
   }
 
@@ -86,7 +98,7 @@ export class CardAvailabilityTips {
     panel.hidden = true;
   }
 
-  private render(button: HTMLButtonElement, cardName: string, cost: number, mana: number): void {
+  private render(button: HTMLButtonElement, cardName: string, reason: BlockReason): void {
     this.options.hideTileInsight();
     const panel = document.querySelector<HTMLElement>('#tile-insight');
     const eyebrow = document.querySelector<HTMLElement>('#tile-insight-eyebrow');
@@ -95,20 +107,28 @@ export class CardAvailabilityTips {
     const rows = document.querySelector<HTMLElement>('#tile-insight-rows');
     if (!panel || !eyebrow || !title || !badge || !rows) return;
 
-    const missing = cost - mana;
     eyebrow.textContent = 'Card unavailable';
-    title.textContent = 'Not enough Mana';
-    badge.textContent = `Need ${missing}`;
     panel.dataset.tone = 'hostile';
 
     const item = document.createElement('div');
     item.className = 'tile-insight-row';
     const label = document.createElement('span');
     label.className = 'tile-insight-label';
-    label.textContent = 'Mana';
     const copy = document.createElement('span');
     copy.className = 'tile-insight-copy';
-    copy.textContent = `${cardName} costs ${cost}. You have ${mana}; gain ${missing} more to play it.`;
+
+    if (reason.kind === 'mana') {
+      title.textContent = 'Not enough Mana';
+      badge.textContent = `Need ${reason.missing}`;
+      label.textContent = 'Mana';
+      copy.textContent = `${cardName} costs ${reason.cost}. You have ${reason.mana}; gain ${reason.missing} more to play it.`;
+    } else {
+      title.textContent = 'No deployment location';
+      badge.textContent = 'No site';
+      label.textContent = 'Deploy';
+      copy.textContent = `${cardName} needs an empty controlled Keep, Fort, or linked Garrison. Capture or clear one first.`;
+    }
+
     item.append(label, copy);
     rows.replaceChildren(item);
 

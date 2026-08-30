@@ -24,6 +24,10 @@ import {
 } from './MatchMusic';
 import { SettingsMenu } from './SettingsMenu';
 import { VictoryMusicDirector } from './VictoryMusic';
+import {
+  MatchIntroPresentation,
+  type MatchIntroSceneInternals,
+} from './MatchIntroPresentation';
 
 interface ProductionSceneInternals extends CelShadedRiverSceneInternals, PremiumFeedbackSceneInternals {
   addRiverSurface: () => void;
@@ -52,6 +56,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private victoryMusic?: VictoryMusicDirector;
   private victoryMusicStarted = false;
   private demoVideo?: DemoVideoRecorder;
+  private matchIntro?: MatchIntroPresentation;
 
   create(): void {
     const game = this as unknown as ProductionSceneInternals;
@@ -106,6 +111,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
         saveMatchMusicVolume(window.localStorage, volume);
         this.matchMusic?.setVolume(volume);
       },
+      tileTipsEnabled: this.areTileTipsEnabled(),
+      setTileTipsEnabled: (enabled) => this.setTileTipsEnabled(enabled),
       recordDemo: () => void this.demoVideo?.record(),
       recordingSupported: DemoVideoRecorder.isSupported(this.game.canvas),
     });
@@ -135,7 +142,24 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       }
     };
 
+    if (this.shouldPlayFreshMatchIntro()) {
+      this.matchIntro = new MatchIntroPresentation(
+        this,
+        game as unknown as MatchIntroSceneInternals,
+      );
+      if (this.matchIntro.prepare()) {
+        void this.matchIntro.playWhenReady().catch((error: unknown) => {
+          setDebugStatus(`Battlefield introduction ended early: ${error instanceof Error ? error.message : 'unknown error'}.`, 'warning');
+          void this.matchIntro?.finish();
+        });
+      } else {
+        this.matchIntro = undefined;
+      }
+    }
+
     this.events.once('shutdown', () => {
+      this.matchIntro?.destroy();
+      this.matchIntro = undefined;
       this.premiumFeedback?.destroy();
       this.premiumFeedback = undefined;
       this.matchMusic?.dispose();

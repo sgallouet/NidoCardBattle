@@ -36,6 +36,10 @@
   display: none;
 }
 
+#app.settings-menu-open #tile-insight {
+  display: none !important;
+}
+
 .settings-menu-panel {
   position: absolute;
   z-index: 91;
@@ -222,6 +226,13 @@
   transform: none !important;
   font-size: 10px;
   white-space: nowrap;
+}
+
+.settings-menu-row > .settings-menu-tile-tips[aria-pressed='true'] {
+  border-color: rgba(101, 222, 255, .7);
+  color: #ecfbff;
+  background: rgba(17, 78, 96, .62);
+  box-shadow: inset 0 0 18px rgba(101, 222, 255, .08);
 }
 
 .settings-menu-row > .fullscreen-button {

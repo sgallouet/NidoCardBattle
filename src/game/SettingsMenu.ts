@@ -9,6 +9,8 @@ interface OriginalPlacement {
 export interface SettingsMenuActions {
   musicVolume?: number;
   setMusicVolume?: (volume: number) => void;
+  tileTipsEnabled?: boolean;
+  setTileTipsEnabled?: (enabled: boolean) => void;
   recordDemo?: () => void;
   recordingSupported?: boolean;
 }
@@ -20,9 +22,13 @@ export class SettingsMenu {
   private scrim?: HTMLElement;
   private placements: OriginalPlacement[] = [];
   private demoVideoButton?: HTMLButtonElement;
+  private tileTipsButton?: HTMLButtonElement;
+  private tileTipsEnabled: boolean;
   private open = false;
 
-  constructor(private readonly actions: SettingsMenuActions = {}) {}
+  constructor(private readonly actions: SettingsMenuActions = {}) {
+    this.tileTipsEnabled = actions.tileTipsEnabled ?? true;
+  }
 
   install(): void {
     const app = document.querySelector<HTMLElement>('#app');
@@ -67,15 +73,13 @@ export class SettingsMenu {
     this.moveControl('#player-camera-toggle', gameplay, 'Action camera');
     this.moveControl('#enemy-animation-toggle', gameplay, 'Enemy turn');
     this.moveControl('#fullscreen-button', gameplay, 'Display');
+    this.createTileTipsControl(gameplay);
 
     const audio = this.createSection(panel, 'Audio');
     this.createMusicVolumeControl(audio);
 
     const playtest = this.createSection(panel, 'Playtest');
     this.moveControl('#tile-border-button', playtest, 'Hex borders');
-    this.moveControl('#map-render-button', playtest, 'Map renderer');
-    this.moveControl('#generated-map-toggle', playtest, 'Map preview');
-    this.moveControl('#selection-fx-toggle', playtest, 'Selection FX');
 
     const match = this.createSection(panel, 'Match');
     this.moveControl('#new-game-button', match, 'New match');
@@ -127,6 +131,7 @@ export class SettingsMenu {
     document.querySelector<HTMLButtonElement>('#new-game-button')
       ?.removeEventListener('click', this.handleClose);
     this.demoVideoButton?.removeEventListener('click', this.handleRecordDemo);
+    this.tileTipsButton?.removeEventListener('click', this.handleTileTipsToggle);
 
     for (const placement of this.placements.reverse()) {
       if (!document.documentElement.contains(placement.element)) continue;
@@ -146,6 +151,7 @@ export class SettingsMenu {
     this.panel = undefined;
     this.scrim = undefined;
     this.demoVideoButton = undefined;
+    this.tileTipsButton = undefined;
     this.root = undefined;
     this.open = false;
   }
@@ -235,6 +241,22 @@ export class SettingsMenu {
     destination.append(row);
   }
 
+  private createTileTipsControl(destination: HTMLElement): void {
+    const row = document.createElement('div');
+    row.className = 'settings-menu-row';
+    const label = document.createElement('span');
+    label.className = 'settings-menu-row-label';
+    label.textContent = 'Tile tips';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'secondary settings-menu-tile-tips';
+    toggle.addEventListener('click', this.handleTileTipsToggle);
+    row.append(label, toggle);
+    destination.append(row);
+    this.tileTipsButton = toggle;
+    this.updateTileTipsControl();
+  }
+
   private remember(element: HTMLElement): void {
     const parent = element.parentNode;
     if (!parent) return;
@@ -253,6 +275,23 @@ export class SettingsMenu {
     this.setOpen(false);
     this.actions.recordDemo?.();
   };
+
+  private readonly handleTileTipsToggle = (): void => {
+    this.tileTipsEnabled = !this.tileTipsEnabled;
+    this.updateTileTipsControl();
+    this.actions.setTileTipsEnabled?.(this.tileTipsEnabled);
+  };
+
+  private updateTileTipsControl(): void {
+    const button = this.tileTipsButton;
+    if (!button) return;
+    button.textContent = this.tileTipsEnabled ? 'Tips: On' : 'Tips: Off';
+    button.setAttribute('aria-pressed', `${this.tileTipsEnabled}`);
+    button.setAttribute(
+      'aria-label',
+      this.tileTipsEnabled ? 'Disable tile tips' : 'Enable tile tips',
+    );
+  }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape' && this.open) {

@@ -19,6 +19,11 @@ interface PersistentSceneInternals {
 
 export class PersistentAiGameScene extends AiGameScene {
   private restoredBattleLog: LiveBattleLog | null = null;
+  private freshMatchStart = false;
+
+  protected shouldPlayFreshMatchIntro(): boolean {
+    return this.freshMatchStart;
+  }
 
   protected override createLiveBattleLogRecorder(initialState: GameState): LiveBattleLogRecorder {
     const draft = this.restoredBattleLog;
@@ -32,6 +37,7 @@ export class PersistentAiGameScene extends AiGameScene {
     const scene = this as unknown as PersistentSceneInternals;
     const saved = loadSavedMatch();
     const pendingSetup = saved ? null : consumePendingNewGameSetup();
+    this.freshMatchStart = !saved;
 
     if (saved) {
       scene.state = saved.state;

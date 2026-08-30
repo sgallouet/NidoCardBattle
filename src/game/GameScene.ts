@@ -31,7 +31,6 @@ import tacticProfaneWellSacrificeUrl from '../../assets/game/audio/sfx/tactic-pr
 import tacticProfaneWellTickUrl from '../../assets/game/audio/sfx/tactic-profane-well-tick.mp3?url';
 import tacticRaiseFortUrl from '../../assets/game/audio/sfx/tactic-raise-fort.mp3?url';
 import tacticScorchUrl from '../../assets/game/audio/sfx/tactic-scorch.mp3?url';
-import generatedMapPreviewUrl from '../../assets/game/maps/generated-map-preview.png?url';
 import type { ProjectedShadowArtDefinition } from '../data/artShadow';
 import { CARD_ART } from '../data/cardArt';
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
@@ -62,6 +61,7 @@ import { downloadLiveBattleLog, LiveBattleLogRecorder, type LiveBattleLog } from
 import { loadingScreen } from './LoadingScreen';
 import { SelectionHexFx } from './SelectionHexFx';
 import { TacticalHexFxLayer, type TacticalHexFxKind } from './TacticalHexFx';
+import { tileInsightFor } from './TileInsight';
 import {
   attackUnit,
   coordKey,
@@ -98,14 +98,10 @@ const WORLD_HEIGHT = 1100;
 const WORLD_Y_DEPTH_BASE = 1000;
 const TACTICAL_FX_DEPTH = WORLD_Y_DEPTH_BASE - 2;
 const SELECTION_FX_DEPTH = WORLD_Y_DEPTH_BASE - 1;
-const GENERATED_MAP_TEXTURE_KEY = 'debug-generated-map-preview';
-const GENERATED_MAP_HEIGHT = 600;
-const GENERATED_MAP_VIEWPORT_HEIGHT_RATIO = 2;
 const MIN_ZOOM = 0.52;
 const TABLET_MIN_ZOOM = 0.42;
 const COMPACT_MIN_ZOOM = 0.3;
 const TILE_MAP_MAX_ZOOM = 1.25;
-const GENERATED_MAP_MAX_ZOOM = 6;
 const TILE_ZOOM_STEP = 0.12;
 const DEFAULT_TILE_ZOOM_STEPS = 3;
 const TABLET_TILE_ZOOM_STEPS = 2;
@@ -172,6 +168,7 @@ const TACTIC_PROFANE_WELL_COMPLETE_AUDIO_KEY = 'tactic-profane-well-complete';
 const TACTIC_PROFANE_WELL_COMPLETE_VOLUME = 0.72;
 const TACTIC_PROFANE_WELL_TICK_AUDIO_KEY = 'tactic-profane-well-tick';
 const TACTIC_PROFANE_WELL_TICK_VOLUME = 0.46;
+const TILE_TIPS_STORAGE_KEY = 'nidocardbattle.tileTipsEnabled';
 const TACTIC_AUDIO = {
   graveLock: { key: 'tactic-grave-lock', url: tacticGraveLockUrl, volume: 0.68 },
   buildBridge: { key: 'tactic-build-bridge', url: tacticBuildBridgeUrl, volume: 0.66 },
@@ -186,7 +183,6 @@ const TERRAIN_PALETTES: Record<'cliff', number[]> = {
 const cardDefinition = (id: CardDefinitionId) => CARD_DEFINITIONS[id];
 
 type InteractionMode = 'unit' | 'card' | 'displace-target' | 'displace-destination' | 'restore-target' | 'invoke-destination' | null;
-type SelectionFxMode = 'current' | 'premium';
 
 interface DragState {
   startX: number;
@@ -225,8 +221,6 @@ export class GameScene extends Phaser.Scene {
   private renderedBoardStateSignature = '';
   private riverMaskGraphics?: Phaser.GameObjects.Graphics;
   private riverAnimationTargets: object[] = [];
-  private useGeneratedMapPreview = false;
-  private generatedMapLoading = false;
   private selectedUnitId: string | null = null;
   private selectedCardIndex: number | null = null;
   private displaceTargetId: string | null = null;
@@ -234,12 +228,14 @@ export class GameScene extends Phaser.Scene {
   private mode: InteractionMode = null;
   private dragState: DragState | null = null;
   private suppressBoardClickUntil = 0;
+  private hoveredTileKey: string | null = null;
+  private tileInsightTimer: number | null = null;
+  private tileTipsEnabled = true;
   private lastHandSignature = '';
   private animationInProgress = false;
   private renderedUnits = new Map<string, RenderedUnitView>();
   private tacticalHexFx?: TacticalHexFxLayer;
   private selectionHexFx: SelectionHexFx[] = [];
-  private selectionFxMode: SelectionFxMode = 'premium';
   private unitFacings = new Map<string, UnitFacing>();
   private message = 'Player 1 begins. Move a unit or play a card.';
   private lastMoveStepAt = Number.NEGATIVE_INFINITY;
@@ -250,62 +246,6 @@ export class GameScene extends Phaser.Scene {
     downloadLiveBattleLog(this.liveBattleLog.createLog(this.state));
     setDebugStatus('Battle log downloaded as compact JSON for AI review.', 'success');
   };
-  private readonly handleSelectionFxToggle = (): void => {
-    this.selectionFxMode = this.selectionFxMode === 'premium' ? 'current' : 'premium';
-    this.updateSelectionFxToggle();
-    this.renderAll();
-  };
-  private readonly handleGeneratedMapToggle = (): void => {
-    const toggle = document.querySelector<HTMLButtonElement>('#generated-map-toggle');
-    if (this.useGeneratedMapPreview) {
-      this.setGeneratedMapPreview(false);
-      return;
-    }
-    if (this.generatedMapLoading) return;
-    if (this.textures.exists(GENERATED_MAP_TEXTURE_KEY)) {
-      this.setGeneratedMapPreview(true);
-      return;
-    }
-
-    this.generatedMapLoading = true;
-    if (toggle) {
-      toggle.disabled = true;
-      toggle.textContent = 'Map: loading';
-    }
-    let failed = false;
-    this.load.once(Phaser.Loader.Events.FILE_LOAD_ERROR, () => {
-      failed = true;
-      this.generatedMapLoading = false;
-      if (toggle) {
-        toggle.disabled = false;
-        toggle.textContent = 'Map: unavailable';
-      }
-      setDebugStatus('Generated map preview failed to load.', 'error');
-    });
-    this.load.once(Phaser.Loader.Events.COMPLETE, () => {
-      if (failed) return;
-      this.generatedMapLoading = false;
-      if (toggle) toggle.disabled = false;
-      this.setGeneratedMapPreview(true);
-    });
-    this.load.image(GENERATED_MAP_TEXTURE_KEY, generatedMapPreviewUrl);
-    this.load.start();
-  };
-
-  private setGeneratedMapPreview(enabled: boolean): void {
-    const toggle = document.querySelector<HTMLButtonElement>('#generated-map-toggle');
-    this.useGeneratedMapPreview = enabled;
-    this.staticBoardDirty = true;
-    toggle?.setAttribute('aria-pressed', `${this.useGeneratedMapPreview}`);
-    toggle?.setAttribute(
-      'aria-label',
-      this.useGeneratedMapPreview ? 'Use tile map' : 'Use generated map preview',
-    );
-    if (toggle) toggle.textContent = this.useGeneratedMapPreview ? 'Map: generated' : 'Map: tiles';
-    this.renderAll();
-    this.resetCamera();
-  }
-
   constructor() {
     super('game');
   }
@@ -376,6 +316,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.tileTipsEnabled = this.loadTileTipsPreference();
     this.liveBattleLog = this.createLiveBattleLogRecorder(this.state);
     document.querySelector<HTMLButtonElement>('#end-turn-button')?.addEventListener('click', () => this.handleEndTurn());
     document.querySelector<HTMLButtonElement>('#cancel-button')?.addEventListener('click', () => this.cancelInteraction('Selection cleared.'));
@@ -384,16 +325,9 @@ export class GameScene extends Phaser.Scene {
     document.querySelector<HTMLButtonElement>('#zoom-in')?.addEventListener('click', () => this.zoomBy(TILE_ZOOM_STEP));
     document.querySelector<HTMLButtonElement>('#zoom-out')?.addEventListener('click', () => this.zoomBy(-TILE_ZOOM_STEP));
     document.querySelector<HTMLButtonElement>('#zoom-reset')?.addEventListener('click', () => this.resetCamera());
-    const generatedMapToggle = document.querySelector<HTMLButtonElement>('#generated-map-toggle');
-    const selectionFxToggle = document.querySelector<HTMLButtonElement>('#selection-fx-toggle');
     const battleLogDownload = document.querySelector<HTMLButtonElement>('#battle-log-download-button');
-    generatedMapToggle?.addEventListener('click', this.handleGeneratedMapToggle);
-    selectionFxToggle?.addEventListener('click', this.handleSelectionFxToggle);
     battleLogDownload?.addEventListener('click', this.handleBattleLogDownload);
-    this.updateSelectionFxToggle();
     this.events.once('shutdown', () => {
-      generatedMapToggle?.removeEventListener('click', this.handleGeneratedMapToggle);
-      selectionFxToggle?.removeEventListener('click', this.handleSelectionFxToggle);
       battleLogDownload?.removeEventListener('click', this.handleBattleLogDownload);
       this.liveBattleLog = undefined;
       this.clearTacticalHexFx();
@@ -405,6 +339,7 @@ export class GameScene extends Phaser.Scene {
       this.hexGraphics.clear();
       this.hexGeometry.clear();
       this.boardLayer = undefined;
+      this.hideTileInsight(true);
     });
     this.createUnitAnimations();
     this.setupCameraControls();
@@ -453,6 +388,7 @@ export class GameScene extends Phaser.Scene {
       _deltaX: number,
       deltaY: number,
     ) => {
+      this.hideTileInsight();
       const worldPoint = camera.getWorldPoint(pointer.x, pointer.y);
       const zoom = Phaser.Math.Clamp(camera.zoom - deltaY * 0.0012, this.minZoom(), this.maxZoom());
       camera.setZoom(zoom);
@@ -463,6 +399,7 @@ export class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
   if (!pointer.isDown) return;
+  this.hideTileInsight();
   this.dragState = {
     startX: pointer.x,
     startY: pointer.y,
@@ -522,23 +459,20 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     const hudInset = viewportMode === 'desktop' ? 0 : this.bottomHudInset();
     const usableHeight = Math.max(1, this.scale.height - hudInset);
     const fit = Math.min(this.scale.width / (WORLD_WIDTH - 120), usableHeight / (WORLD_HEIGHT - 100));
-    const generatedMapZoom = usableHeight * GENERATED_MAP_VIEWPORT_HEIGHT_RATIO / GENERATED_MAP_HEIGHT;
     const defaultZoomSteps = viewportMode === 'compact'
       ? COMPACT_TILE_ZOOM_STEPS
       : viewportMode === 'tablet'
         ? TABLET_TILE_ZOOM_STEPS
         : DEFAULT_TILE_ZOOM_STEPS;
-    const fittedZoom = this.useGeneratedMapPreview
-      ? Phaser.Math.Clamp(generatedMapZoom, this.minZoom(), GENERATED_MAP_MAX_ZOOM)
-      : Phaser.Math.Clamp(
-        fit * 1.02 + TILE_ZOOM_STEP * defaultZoomSteps,
-        this.minZoom(),
-        TILE_MAP_MAX_ZOOM,
-      );
+    const fittedZoom = Phaser.Math.Clamp(
+      fit * 1.02 + TILE_ZOOM_STEP * defaultZoomSteps,
+      this.minZoom(),
+      TILE_MAP_MAX_ZOOM,
+    );
     const initialZoom = viewportMode === 'tablet'
       ? TABLET_INITIAL_ZOOM
       : fittedZoom;
-    const zoom = this.useGeneratedMapPreview ? fittedZoom : Math.max(fittedZoom, initialZoom);
+    const zoom = Math.max(fittedZoom, initialZoom);
     const camera = this.cameras.main;
     const localKeep = this.state.sites.find((site) => site.type === 'keep' && site.owner === 1);
     const focus = localKeep ? this.center(localKeep.coord) : new Phaser.Math.Vector2(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
@@ -552,7 +486,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
   }
 
   private maxZoom(): number {
-    return this.useGeneratedMapPreview ? GENERATED_MAP_MAX_ZOOM : TILE_MAP_MAX_ZOOM;
+    return TILE_MAP_MAX_ZOOM;
   }
 
   private minZoom(): number {
@@ -603,8 +537,8 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     const centerX = minCenterX >= maxCenterX
       ? WORLD_WIDTH / 2
       : Phaser.Math.Clamp(currentCenterX, minCenterX, maxCenterX);
-    const mapTop = this.useGeneratedMapPreview ? (WORLD_HEIGHT - GENERATED_MAP_HEIGHT) / 2 : 0;
-    const mapBottom = this.useGeneratedMapPreview ? mapTop + GENERATED_MAP_HEIGHT : WORLD_HEIGHT;
+    const mapTop = 0;
+    const mapBottom = WORLD_HEIGHT;
     const minCenterY = mapTop + halfVisibleHeight;
     const maxCenterY = mapBottom - halfVisibleHeight + bottomHudInset;
     const centerY = minCenterY <= maxCenterY
@@ -625,19 +559,6 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
   private updateZoomLabel(): void {
     const label = document.querySelector<HTMLElement>('#zoom-value');
     if (label) label.textContent = `${Math.round(this.cameras.main.zoom * 100)}%`;
-  }
-
-  private updateSelectionFxToggle(): void {
-    const toggle = document.querySelector<HTMLButtonElement>('#selection-fx-toggle');
-    if (!toggle) return;
-    const premium = this.selectionFxMode === 'premium';
-    toggle.textContent = premium ? 'Selection: Premium' : 'Selection: Current';
-    toggle.setAttribute('aria-pressed', `${premium}`);
-    toggle.setAttribute(
-      'aria-label',
-      premium ? 'Use current tile selection effect' : 'Use premium tile selection effect',
-    );
-    toggle.title = premium ? 'Switch to current selection art' : 'Switch to premium selection art';
   }
 
   private center(coord: Coord): Phaser.Math.Vector2 {
@@ -699,7 +620,22 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
   private renderAll(): void {
     this.renderBoard();
     this.renderHud();
+    this.refreshTileInsight();
     this.liveBattleLog?.recordState(this.state, this.message);
+  }
+
+  areTileTipsEnabled(): boolean {
+    return this.tileTipsEnabled;
+  }
+
+  setTileTipsEnabled(enabled: boolean): void {
+    this.tileTipsEnabled = enabled;
+    if (!enabled) this.hideTileInsight(true);
+    try {
+      window.localStorage.setItem(TILE_TIPS_STORAGE_KEY, `${enabled}`);
+    } catch {
+      // Keep the in-memory preference if storage is unavailable.
+    }
   }
 
   protected createLiveBattleLogRecorder(initialState: GameState): LiveBattleLogRecorder {
@@ -762,7 +698,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
           path: tacticalKind === 'move' ? movementPaths.get(key) : undefined,
         });
       }
-      if (highlight.selected.has(key) && this.selectionFxMode === 'premium') {
+      if (highlight.selected.has(key)) {
         premiumSelections.push({ center: geometry.center, points: geometry.points });
       }
     }
@@ -798,11 +734,9 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       this.destroyBoardObjects(this.entityBoardObjects);
       this.activeRenderObjects = this.entityBoardObjects;
       try {
-        if (!this.useGeneratedMapPreview) {
-          for (const site of this.state.sites) this.addSite(site.coord, site.type, site.owner);
-          for (const garrison of MAP_GARRISONS) {
-            this.addGarrison(garrison.coord, getGarrisonOwner(this.state, garrison.fortId));
-          }
+        for (const site of this.state.sites) this.addSite(site.coord, site.type, site.owner);
+        for (const garrison of MAP_GARRISONS) {
+          this.addGarrison(garrison.coord, getGarrisonOwner(this.state, garrison.fortId));
         }
         for (const unit of this.state.units) this.addUnit(unit);
       } finally {
@@ -830,10 +764,11 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       site.coord.r,
       site.owner ?? 0,
     ].join(':')).join('|');
-    return `${Number(this.useGeneratedMapPreview)};${units};${sites}`;
+    return `${units};${sites}`;
   }
 
   private rebuildStaticBoard(): void {
+    this.hideTileInsight();
     this.clearRiverSurface();
     this.destroyBoardObjects(this.staticBoardObjects);
     this.hexGraphics.clear();
@@ -841,16 +776,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.activeRenderObjects = this.staticBoardObjects;
 
     try {
-      if (this.useGeneratedMapPreview) {
-        const generatedMap = this.add.image(
-          WORLD_WIDTH / 2,
-          WORLD_HEIGHT / 2,
-          GENERATED_MAP_TEXTURE_KEY,
-        ).setDisplaySize(WORLD_WIDTH, GENERATED_MAP_HEIGHT);
-        this.addRenderObject(generatedMap, true);
-      } else {
-        this.addRiverSurface();
-      }
+      this.addRiverSurface();
 
       for (let r = 0; r < MAP_HEIGHT; r += 1) {
         for (let q = 0; q < MAP_WIDTH; q += 1) {
@@ -860,49 +786,47 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
           const points = this.hexPoints(center);
           const terrain = terrainAt(coord);
           this.hexGeometry.set(key, { coord, center, points, terrain });
-          if (!this.useGeneratedMapPreview) {
-            const base = this.add.graphics();
-            base.fillStyle(0x101a13, 0.42);
-            base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x + 4, center.y + 6), 0), true);
-            if (terrain === 'plain') {
-              this.addRenderObject(base, true);
-              const tile = this.add.image(center.x, center.y, PLAIN_TERRAIN_ART.textureKey)
-                .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
-              this.addRenderObject(tile, true);
-            } else if (terrain === 'forest') {
-              this.addRenderObject(base, true);
-              const ground = this.add.image(center.x, center.y, FOREST_TERRAIN_ART.ground.textureKey)
-                .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
-              const canopy = this.add.image(center.x, center.y, FOREST_TERRAIN_ART.overlay.textureKey)
-                .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2)
-                .setAlpha(FOREST_TERRAIN_ART.overlay.alpha);
-              this.addRenderObject([ground, canopy], true);
-            } else if (terrain === 'hill') {
-              this.addRenderObject(base, true);
-              const ground = this.add.image(center.x, center.y, PLAIN_TERRAIN_ART.textureKey)
-                .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
-              const overlay = this.add.image(center.x, center.y, HILL_TERRAIN_ART.textureKey)
-                .setDisplaySize(HILL_TERRAIN_ART.displayWidth, HILL_TERRAIN_ART.displayHeight);
-              this.addRenderObject([ground, overlay], true);
-            } else if (terrain === 'mountain') {
-              this.addRenderObject(base, true);
-              const tile = this.add.image(center.x, center.y, MOUNTAIN_TERRAIN_ART.textureKey)
-                .setDisplaySize(HEX_WIDTH * 1.035, HEX_SIZE * 2.07);
-              this.addRenderObject(tile, true);
-            } else if (terrain === 'water' || terrain === 'bridge') {
-              this.addRenderObject(base, true);
-            } else {
-              const palette = TERRAIN_PALETTES[terrain];
-              const fill = palette[(q * 17 + r * 31) % palette.length];
-              base.fillStyle(fill, 1);
-              base.fillPoints(points, true);
-              base.fillStyle(0xffffff, 0.035);
-              base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x - 3, center.y - 4), 9), true);
-              this.addRenderObject(base, true);
-            }
+          const base = this.add.graphics();
+          base.fillStyle(0x101a13, 0.42);
+          base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x + 4, center.y + 6), 0), true);
+          if (terrain === 'plain') {
+            this.addRenderObject(base, true);
+            const tile = this.add.image(center.x, center.y, PLAIN_TERRAIN_ART.textureKey)
+              .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
+            this.addRenderObject(tile, true);
+          } else if (terrain === 'forest') {
+            this.addRenderObject(base, true);
+            const ground = this.add.image(center.x, center.y, FOREST_TERRAIN_ART.ground.textureKey)
+              .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
+            const canopy = this.add.image(center.x, center.y, FOREST_TERRAIN_ART.overlay.textureKey)
+              .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2)
+              .setAlpha(FOREST_TERRAIN_ART.overlay.alpha);
+            this.addRenderObject([ground, canopy], true);
+          } else if (terrain === 'hill') {
+            this.addRenderObject(base, true);
+            const ground = this.add.image(center.x, center.y, PLAIN_TERRAIN_ART.textureKey)
+              .setDisplaySize(HEX_WIDTH, HEX_SIZE * 2);
+            const overlay = this.add.image(center.x, center.y, HILL_TERRAIN_ART.textureKey)
+              .setDisplaySize(HILL_TERRAIN_ART.displayWidth, HILL_TERRAIN_ART.displayHeight);
+            this.addRenderObject([ground, overlay], true);
+          } else if (terrain === 'mountain') {
+            this.addRenderObject(base, true);
+            const tile = this.add.image(center.x, center.y, MOUNTAIN_TERRAIN_ART.textureKey)
+              .setDisplaySize(HEX_WIDTH * 1.035, HEX_SIZE * 2.07);
+            this.addRenderObject(tile, true);
+          } else if (terrain === 'water' || terrain === 'bridge') {
+            this.addRenderObject(base, true);
+          } else {
+            const palette = TERRAIN_PALETTES[terrain];
+            const fill = palette[(q * 17 + r * 31) % palette.length];
+            base.fillStyle(fill, 1);
+            base.fillPoints(points, true);
+            base.fillStyle(0xffffff, 0.035);
+            base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x - 3, center.y - 4), 9), true);
+            this.addRenderObject(base, true);
           }
 
-          if (!this.useGeneratedMapPreview && terrain !== 'plain' && terrain !== 'forest' && terrain !== 'water') {
+          if (terrain !== 'plain' && terrain !== 'forest' && terrain !== 'water') {
             this.addTerrainDetail(coord, center);
           }
 
@@ -911,15 +835,19 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
           hex.on('pointerup', () => {
             if (!this.dragState?.moved && performance.now() >= this.suppressBoardClickUntil) this.handleHexClick(coord);
           });
-          hex.on('pointerover', () => this.tacticalHexFx?.setHovered(key, true));
-          hex.on('pointerout', () => this.tacticalHexFx?.setHovered(key, false));
+          hex.on('pointerover', () => {
+            this.tacticalHexFx?.setHovered(key, true);
+            this.showTileInsight(key, coord);
+          });
+          hex.on('pointerout', () => {
+            this.tacticalHexFx?.setHovered(key, false);
+            if (this.hoveredTileKey === key) this.hideTileInsight();
+          });
           this.hexGraphics.set(key, hex);
           this.addRenderObject(hex);
         }
       }
-      if (!this.useGeneratedMapPreview) {
-        for (const decoration of MAP_DECORATIONS) this.addMapDecoration(decoration);
-      }
+      for (const decoration of MAP_DECORATIONS) this.addMapDecoration(decoration);
     } finally {
       this.activeRenderObjects = undefined;
     }
@@ -930,17 +858,117 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     for (const [key, geometry] of this.hexGeometry) {
       const hex = this.hexGraphics.get(key);
       if (!hex?.active) continue;
-      let stroke = 0x263828;
-      let strokeWidth = this.useGeneratedMapPreview ? 0 : 2;
-      if (highlight.selected.has(key) && this.selectionFxMode === 'current') {
-        stroke = 0xffffff;
-        strokeWidth = 5;
-      }
+      const stroke = 0x263828;
+      const strokeWidth = 2;
       const joinsTerrainSurface = (geometry.terrain === 'mountain' || geometry.terrain === 'water')
         && strokeWidth === 2;
       hex.clear();
       hex.lineStyle(joinsTerrainSurface ? 0 : strokeWidth, stroke, joinsTerrainSurface ? 0 : 0.95);
       hex.strokePoints(geometry.points, true);
+    }
+  }
+
+  private showTileInsight(key: string, coord: Coord): void {
+    if (
+      !this.tileTipsEnabled
+      || window.matchMedia('(hover: none)').matches
+      || document.querySelector('#app')?.classList.contains('match-intro-active')
+    ) return;
+    this.hideTileInsight();
+    this.hoveredTileKey = key;
+    this.tileInsightTimer = window.setTimeout(() => {
+      this.tileInsightTimer = null;
+      if (this.hoveredTileKey !== key) return;
+      this.renderTileInsight(coord);
+    }, 220);
+  }
+
+  private hideTileInsight(clearHover = true): void {
+    if (this.tileInsightTimer !== null) {
+      window.clearTimeout(this.tileInsightTimer);
+      this.tileInsightTimer = null;
+    }
+    if (clearHover) this.hoveredTileKey = null;
+    const panel = document.querySelector<HTMLElement>('#tile-insight');
+    if (!panel) return;
+    panel.classList.remove('is-visible');
+    panel.setAttribute('aria-hidden', 'true');
+    panel.hidden = true;
+  }
+
+  private refreshTileInsight(): void {
+    if (!this.hoveredTileKey) return;
+    const geometry = this.hexGeometry.get(this.hoveredTileKey);
+    const panel = document.querySelector<HTMLElement>('#tile-insight');
+    if (!geometry || !panel || panel.hidden) return;
+    this.renderTileInsight(geometry.coord);
+  }
+
+  private renderTileInsight(coord: Coord): void {
+    if (
+      !this.tileTipsEnabled
+      || document.querySelector('#app')?.classList.contains('match-intro-active')
+    ) return;
+    const panel = document.querySelector<HTMLElement>('#tile-insight');
+    const eyebrow = document.querySelector<HTMLElement>('#tile-insight-eyebrow');
+    const title = document.querySelector<HTMLElement>('#tile-insight-title');
+    const badge = document.querySelector<HTMLElement>('#tile-insight-badge');
+    const rows = document.querySelector<HTMLElement>('#tile-insight-rows');
+    if (!panel || !eyebrow || !title || !badge || !rows) return;
+
+    const insight = tileInsightFor(this.state, coord, 1);
+    eyebrow.textContent = insight.eyebrow;
+    title.textContent = insight.title;
+    badge.textContent = insight.badge;
+    panel.dataset.tone = insight.tone;
+    rows.replaceChildren(...insight.rows.map((row) => {
+      const item = document.createElement('div');
+      item.className = 'tile-insight-row';
+      const label = document.createElement('span');
+      label.className = 'tile-insight-label';
+      label.textContent = row.label;
+      const copy = document.createElement('span');
+      copy.className = 'tile-insight-copy';
+      copy.textContent = row.text;
+      item.append(label, copy);
+      return item;
+    }));
+
+    panel.hidden = false;
+    panel.setAttribute('aria-hidden', 'false');
+    this.positionTileInsight(panel, coord);
+    window.requestAnimationFrame(() => {
+      if (!panel.hidden) panel.classList.add('is-visible');
+    });
+  }
+
+  private positionTileInsight(panel: HTMLElement, coord: Coord): void {
+    const anchor = this.coordToViewport(coord);
+    const panelRect = panel.getBoundingClientRect();
+    const viewportPadding = 12;
+    const tileClearance = Math.max(44, HEX_WIDTH * this.cameras.main.zoom * 0.55);
+    let side: 'left' | 'right' = 'right';
+    let left = anchor.x + tileClearance;
+    if (left + panelRect.width > window.innerWidth - viewportPadding) {
+      side = 'left';
+      left = anchor.x - tileClearance - panelRect.width;
+    }
+    left = Phaser.Math.Clamp(left, viewportPadding, window.innerWidth - panelRect.width - viewportPadding);
+    const top = Phaser.Math.Clamp(
+      anchor.y - panelRect.height / 2,
+      viewportPadding,
+      window.innerHeight - panelRect.height - viewportPadding,
+    );
+    panel.dataset.side = side;
+    panel.style.left = `${Math.round(left)}px`;
+    panel.style.top = `${Math.round(top)}px`;
+  }
+
+  private loadTileTipsPreference(): boolean {
+    try {
+      return window.localStorage.getItem(TILE_TIPS_STORAGE_KEY) !== 'false';
+    } catch {
+      return true;
     }
   }
 

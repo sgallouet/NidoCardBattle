@@ -11,8 +11,13 @@ class LoadingScreen {
   private animationFrame: number | null = null;
   private completing = false;
   private failed = false;
+  private readonly battlefieldReady: Promise<void>;
+  private resolveBattlefieldReady!: () => void;
 
   constructor(private readonly element: HTMLElement) {
+    this.battlefieldReady = new Promise((resolve) => {
+      this.resolveBattlefieldReady = resolve;
+    });
     const progress = element.querySelector<HTMLElement>('[role="progressbar"]');
     const status = element.querySelector<HTMLElement>('[data-loading-status]');
     const percentage = element.querySelector<HTMLElement>('[data-loading-percent]');
@@ -21,6 +26,10 @@ class LoadingScreen {
     this.status = status;
     this.percentage = percentage;
     this.render();
+  }
+
+  whenBattlefieldReady(): Promise<void> {
+    return this.battlefieldReady;
   }
 
   setProgress(value: number, status: string): void {
@@ -88,7 +97,7 @@ class LoadingScreen {
       this.element.classList.add('is-leaving');
       window.setTimeout(() => {
         this.element.remove();
-        void showBetaWelcomeOnce();
+        void showBetaWelcomeOnce().then(() => this.resolveBattlefieldReady());
       }, 520);
     }, 140);
   }

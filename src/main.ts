@@ -19,7 +19,6 @@ type GraphicsLineStyle = (
 
 const app = document.querySelector<HTMLElement>('#app');
 const fullscreenButton = document.querySelector<HTMLButtonElement>('#fullscreen-button');
-const mapRenderButton = document.querySelector<HTMLButtonElement>('#map-render-button');
 const tileBorderButton = document.querySelector<HTMLButtonElement>('#tile-border-button');
 const TILE_BORDER_STORAGE_KEY = 'nido.tileBorderMode';
 const LEGACY_TILE_BORDER_STORAGE_KEY = 'nido.tileBordersVisible';
@@ -70,15 +69,6 @@ const updateFullscreenButton = (): void => {
   fullscreenButton.title = label;
 };
 
-const updateMapRenderButton = (): void => {
-  if (!mapRenderButton) return;
-  const currentLabel = MAP_RENDER_MODE === 'authored' ? 'Authored' : 'Tiled';
-  const nextLabel = MAP_RENDER_MODE === 'authored' ? 'Tiled' : 'Authored';
-  mapRenderButton.textContent = `Map: ${currentLabel}`;
-  mapRenderButton.setAttribute('aria-label', `Switch map rendering to ${nextLabel}`);
-  mapRenderButton.title = `Switch to ${nextLabel} map rendering`;
-};
-
 const updateTileBorderButton = (): void => {
   if (!tileBorderButton) return;
   const currentLabel = tileBorderMode === 'full' ? 'Full' : tileBorderMode === 'half' ? 'Half' : 'Off';
@@ -100,13 +90,6 @@ fullscreenButton?.addEventListener('click', async () => {
 document.addEventListener('fullscreenchange', updateFullscreenButton);
 updateFullscreenButton();
 
-mapRenderButton?.addEventListener('click', () => {
-  const nextMode = MAP_RENDER_MODE === 'authored' ? 'tiled' : 'authored';
-  const url = new URL(window.location.href);
-  url.searchParams.set('map', nextMode);
-  window.location.assign(url);
-});
-updateMapRenderButton();
 updateTileBorderButton();
 
 const game = new Phaser.Game({

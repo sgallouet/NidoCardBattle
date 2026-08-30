@@ -1,0 +1,43 @@
+name: Apply unused highlight fix
+
+on:
+  push:
+    paths:
+      - .github/workflows/apply-unused-highlight-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Apply targeted GameScene fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/game/GameScene.ts')
+          text = path.read_text()
+          old_call = 'this.refreshHexGraphics(highlight);'
+          old_signature = "private refreshHexGraphics(highlight: ReturnType<GameScene['highlights']>): void {"
+          assert text.count(old_call) == 1, f'expected one call, got {text.count(old_call)}'
+          assert text.count(old_signature) == 1, f'expected one signature, got {text.count(old_signature)}'
+          text = text.replace(old_call, 'this.refreshHexGraphics();')
+          text = text.replace(old_signature, 'private refreshHexGraphics(): void {')
+          path.write_text(text)
+          PY
+      - name: Validate build
+        run: |
+          npm ci
+          npm run build
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/game/GameScene.ts
+          git commit -m "Fix unused highlight parameter"
+          git push origin HEAD:main

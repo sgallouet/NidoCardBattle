@@ -30,6 +30,7 @@ import {
   saveMatchMusicVolume,
 } from './MatchMusic';
 import { SettingsMenu } from './SettingsMenu';
+import { UnitInfoInspector, type UnitInfoInspectorSceneInternals } from './UnitInfoInspector';
 import { VictoryMusicDirector } from './VictoryMusic';
 import { VictoryObjectiveHud } from './VictoryObjectiveHud';
 import {
@@ -41,7 +42,8 @@ interface ProductionSceneInternals extends
   CelShadedRiverSceneInternals,
   PremiumFeedbackSceneInternals,
   FirstTurnGuideSceneInternals,
-  ActionAvailabilitySceneInternals {
+  ActionAvailabilitySceneInternals,
+  UnitInfoInspectorSceneInternals {
   addRiverSurface: () => void;
   clearRiverSurface: () => void;
   renderAll: () => void;
@@ -68,6 +70,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private cardAvailabilityTips?: CardAvailabilityTips;
   private actionAvailabilityTips?: ActionAvailabilityTips;
   private captureHint?: CaptureHint;
+  private unitInfoInspector?: UnitInfoInspector;
   private victoryObjective?: VictoryObjectiveHud;
   private firstTurnGuide?: FirstTurnGuide;
   private matchMusic?: MatchMusicDirector;
@@ -107,6 +110,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     this.actionAvailabilityTips.install();
     this.captureHint = new CaptureHint(this, game);
     this.captureHint.install();
+    this.unitInfoInspector = new UnitInfoInspector(game);
+    this.unitInfoInspector.install();
 
     this.victoryObjective = new VictoryObjectiveHud({ getState: () => game.state });
     this.victoryObjective.install();
@@ -171,6 +176,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.victoryObjective?.sync(game.state);
       this.firstTurnGuide?.sync();
       this.captureHint?.sync();
+      this.unitInfoInspector?.sync();
       if (game.state.winner) {
         this.matchMusic?.stop();
         if (!this.victoryMusicStarted && this.victoryMusic) {
@@ -205,6 +211,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.firstTurnGuide = undefined;
       this.victoryObjective?.destroy();
       this.victoryObjective = undefined;
+      this.unitInfoInspector?.destroy();
+      this.unitInfoInspector = undefined;
       this.captureHint?.destroy();
       this.captureHint = undefined;
       this.actionAvailabilityTips?.destroy();

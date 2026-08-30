@@ -48,7 +48,6 @@ export class DemoVideoSoundtrack {
   private context: AudioContext | null = null;
   private destination: MediaStreamAudioDestinationNode | null = null;
   private musicGain: GainNode | null = null;
-  private musicSource: AudioBufferSourceNode | null = null;
   private readonly buffers = new Map<DemoVideoAudioCue | 'music', AudioBuffer>();
   private readonly sources = new Set<AudioBufferSourceNode>();
 
@@ -88,7 +87,6 @@ export class DemoVideoSoundtrack {
     gain.connect(destination);
     gain.connect(context.destination);
     source.start();
-    this.musicSource = source;
     this.musicGain = gain;
     this.trackSource(source);
   }
@@ -123,7 +121,6 @@ export class DemoVideoSoundtrack {
       }
     }
     this.sources.clear();
-    this.musicSource = null;
     this.musicGain = null;
     this.destination?.stream.getTracks().forEach((track) => track.stop());
     this.destination = null;

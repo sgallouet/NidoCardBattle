@@ -59,11 +59,13 @@ D:\grok\stable-audio-3\.venv\Scripts\python.exe `
   --event-id combat-hit-melee `
   --trigger "A normal close-range attack reaches its impact frame and deals damage." `
   --prompt "TrackType: SFX, isolated close-up foley recording, exactly one steel sword impact against padded leather armor, compact dry metal contact and short body thud, no blade swing, no second hit, no voice, no footsteps, no explosion, no music, no ambience" `
-  --kind impact --duration 1.3 --minimum 0.35 --tail-ms 180 `
-  --seed 827001 --volume 0.85 --cooldown-ms 80 --pool 3
+  --kind impact --duration 1.3 --minimum 0.35 --maximum 0.9 --tail-ms 180 `
+  --seed 827001 --steps 16 --minimum-crest 8 `
+  --volume 0.85 --cooldown-ms 80 --pool 3
 ```
 
 If both candidates share the same semantic defect, rewrite the prompt before trying more seeds.
+For strict one-shot events, use `--maximum` to reject generation that remains active for the entire raw window and `--minimum-crest` to reject dense, flattened, repeated textures. Increase `--steps` when the fast eight-step output is semantically unstable.
 
 ## Technical gates
 

@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import turnStartHumanUrl from '../../assets/game/audio/sfx/turn-start-human.mp3?url';
+import turnStartUndeadUrl from '../../assets/game/audio/sfx/turn-start-undead.mp3?url';
 import type { Coord, GameState, PlayerId } from '../data/types';
 import { MAX_MANA } from './engine';
 import './PremiumFeedback.css';
@@ -28,6 +30,9 @@ export class PremiumFeedback {
   private previous: FeedbackSnapshot;
   private turnOverlay?: HTMLElement;
   private audioContext?: AudioContext;
+  private humanTurnAudio?: HTMLAudioElement;
+  private undeadTurnAudio?: HTMLAudioElement;
+  private activeTurnAudio?: HTMLAudioElement;
   private lastHoveredCard?: HTMLElement;
   private manaTimers: number[] = [];
 
@@ -39,6 +44,9 @@ export class PremiumFeedback {
   }
 
   install(): void {
+    this.humanTurnAudio = this.createTurnAudio(turnStartHumanUrl);
+    this.undeadTurnAudio = this.createTurnAudio(turnStartUndeadUrl);
+
     const app = document.querySelector<HTMLElement>('#app');
     app?.addEventListener('pointerdown', this.handleUiPointerDown, true);
     app?.addEventListener('pointerover', this.handleUiPointerOver, true);
@@ -81,6 +89,13 @@ export class PremiumFeedback {
     this.manaTimers = [];
     void this.audioContext?.close().catch(() => undefined);
     this.audioContext = undefined;
+    for (const audio of [this.humanTurnAudio, this.undeadTurnAudio]) {
+      audio?.pause();
+      if (audio) audio.currentTime = 0;
+    }
+    this.humanTurnAudio = undefined;
+    this.undeadTurnAudio = undefined;
+    this.activeTurnAudio = undefined;
     this.lastHoveredCard = undefined;
   }
 
@@ -111,7 +126,7 @@ export class PremiumFeedback {
     this.turnOverlay = overlay;
 
     requestAnimationFrame(() => overlay.classList.add('is-visible'));
-    this.playTurnTone(faction === 'undead');
+    this.playTurnFanfare(faction === 'undead');
 
     const lifetime = reducedMotion ? 520 : 880;
     window.setTimeout(() => {
@@ -299,10 +314,26 @@ export class PremiumFeedback {
     oscillator.stop(now + duration + 0.01);
   }
 
-  private playTurnTone(undead: boolean): void {
-    if (!this.audioContext || this.audioContext.state !== 'running') return;
-    this.playUiTone(undead ? 260 : 420, undead ? 390 : 690, 0.16, 0.018);
-    window.setTimeout(() => this.playUiTone(undead ? 330 : 560, undead ? 520 : 840, 0.13, 0.014), 72);
+  private createTurnAudio(src: string): HTMLAudioElement {
+    const audio = new Audio(src);
+    audio.preload = 'auto';
+    audio.volume = 0.68;
+    return audio;
+  }
+
+  private playTurnFanfare(undead: boolean): void {
+    const audio = undead ? this.undeadTurnAudio : this.humanTurnAudio;
+    if (!audio) throw new Error('Turn-start fanfare audio was not initialized.');
+
+    if (this.activeTurnAudio && this.activeTurnAudio !== audio) {
+      this.activeTurnAudio.pause();
+      this.activeTurnAudio.currentTime = 0;
+    }
+    audio.currentTime = 0;
+    this.activeTurnAudio = audio;
+    void audio.play().catch((error: unknown) => {
+      console.warn('Turn-start fanfare playback failed.', error);
+    });
   }
 
   private playManaGain(): void {

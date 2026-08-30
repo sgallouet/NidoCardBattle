@@ -11,7 +11,6 @@ import combatAssistUrl from '../../assets/game/audio/sfx/combat-assist.mp3?url';
 import combatHitMeleeUrl from '../../assets/game/audio/sfx/combat-hit-melee.mp3?url';
 import combatHitRangedUrl from '../../assets/game/audio/sfx/combat-hit-ranged.mp3?url';
 import combatRetaliationUrl from '../../assets/game/audio/sfx/combat-retaliation.mp3?url';
-import matchVictoryUrl from '../../assets/game/audio/sfx/match-victory.mp3?url';
 import locationVillageHealUrl from '../../assets/game/audio/sfx/location-village-heal.mp3?url';
 import siteCaptureUrl from '../../assets/game/audio/sfx/site-capture.mp3?url';
 import traitHealingAuraUrl from '../../assets/game/audio/sfx/trait-healing-aura.mp3?url';
@@ -142,8 +141,6 @@ const COMBAT_HIT_RANGED_AUDIO_KEY = 'combat-hit-ranged';
 const COMBAT_HIT_RANGED_VOLUME = 0.78;
 const COMBAT_RETALIATION_AUDIO_KEY = 'combat-retaliation';
 const COMBAT_RETALIATION_VOLUME = 0.58;
-const MATCH_VICTORY_AUDIO_KEY = 'match-victory';
-const MATCH_VICTORY_VOLUME = 0.78;
 const LOCATION_VILLAGE_HEAL_AUDIO_KEY = 'location-village-heal';
 const LOCATION_VILLAGE_HEAL_VOLUME = 0.58;
 const SITE_CAPTURE_AUDIO_KEY = 'site-capture';
@@ -162,7 +159,7 @@ const UNIT_DEATH_UNDEAD_VOLUME = 0.74;
 const UNIT_SUMMON_HUMAN_AUDIO_KEY = 'unit-summon-human';
 const UNIT_SUMMON_HUMAN_VOLUME = 0.72;
 const UNIT_SUMMON_UNDEAD_AUDIO_KEY = 'unit-summon-undead';
-const UNIT_SUMMON_UNDEAD_VOLUME = 0.62;
+const UNIT_SUMMON_UNDEAD_VOLUME = 0.66;
 const TURN_END_AUDIO_KEY = 'turn-end';
 const TURN_END_VOLUME = 0.52;
 const UI_CARD_DRAW_AUDIO_KEY = 'ui-card-draw';
@@ -229,7 +226,6 @@ export class GameScene extends Phaser.Scene {
   private selectionFxMode: SelectionFxMode = 'premium';
   private unitFacings = new Map<string, UnitFacing>();
   private message = 'Player 1 begins. Move a unit or play a card.';
-  private announcedWinner: PlayerId | null = null;
   private lastMoveStepAt = Number.NEGATIVE_INFINITY;
   private liveBattleLog?: LiveBattleLogRecorder;
   private readonly handleBattleLogDownload = (): void => {
@@ -283,7 +279,6 @@ export class GameScene extends Phaser.Scene {
     this.load.audio(COMBAT_HIT_MELEE_AUDIO_KEY, combatHitMeleeUrl);
     this.load.audio(COMBAT_HIT_RANGED_AUDIO_KEY, combatHitRangedUrl);
     this.load.audio(COMBAT_RETALIATION_AUDIO_KEY, combatRetaliationUrl);
-    this.load.audio(MATCH_VICTORY_AUDIO_KEY, matchVictoryUrl);
     this.load.audio(LOCATION_VILLAGE_HEAL_AUDIO_KEY, locationVillageHealUrl);
     this.load.audio(SITE_CAPTURE_AUDIO_KEY, siteCaptureUrl);
     this.load.audio(TRAIT_HEALING_AURA_AUDIO_KEY, traitHealingAuraUrl);
@@ -645,7 +640,6 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
   private renderAll(): void {
     this.renderBoard();
     this.renderHud();
-    this.syncMatchResultAudio();
     this.liveBattleLog?.recordState(this.state, this.message);
   }
 
@@ -665,11 +659,6 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
   protected liveBattleLogRevision(): number {
     if (!this.liveBattleLog) throw new Error('Live battle log recorder is not initialized.');
     return this.liveBattleLog.revision;
-  }
-
-  private syncMatchResultAudio(): void {
-    if (this.state.winner === 1 && this.announcedWinner !== 1) this.playMatchVictory();
-    this.announcedWinner = this.state.winner;
   }
 
   private renderBoard(): void {
@@ -1338,10 +1327,6 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 
   playVictoryCountdown(): void {
     this.sound.play(VICTORY_COUNTDOWN_AUDIO_KEY, { volume: VICTORY_COUNTDOWN_VOLUME });
-  }
-
-  playMatchVictory(): void {
-    this.sound.play(MATCH_VICTORY_AUDIO_KEY, { volume: MATCH_VICTORY_VOLUME });
   }
 
   playVillageHeal(): void {

@@ -39,8 +39,11 @@ class GenerationContract:
     kind: str
     raw_duration: float
     minimum_duration: float
+    maximum_duration: float | None
     tail_ms: int
     seed: int
+    steps: int
+    minimum_crest: float
     volume: float
     cooldown_ms: int
     pool: int
@@ -51,7 +54,7 @@ def decode_unclamped(model: StableAudioModel, contract: GenerationContract, seed
         prompt=contract.prompt,
         duration=contract.raw_duration,
         seed=seed,
-        steps=8,
+        steps=contract.steps,
         return_latents=True,
     )
     decoded = model.same.decode(latents, chunked=None)
@@ -141,8 +144,11 @@ def parse_args() -> GenerationContract:
     parser.add_argument("--kind", choices=("impact", "footstep", "ui", "creature", "sting"), required=True)
     parser.add_argument("--duration", type=float, required=True, dest="raw_duration")
     parser.add_argument("--minimum", type=float, required=True, dest="minimum_duration")
+    parser.add_argument("--maximum", type=float, dest="maximum_duration")
     parser.add_argument("--tail-ms", type=int, required=True)
     parser.add_argument("--seed", type=int, required=True)
+    parser.add_argument("--steps", type=int, default=8)
+    parser.add_argument("--minimum-crest", type=float, default=1.3)
     parser.add_argument("--volume", type=float, required=True)
     parser.add_argument("--cooldown-ms", type=int, required=True)
     parser.add_argument("--pool", type=int, required=True)
@@ -176,6 +182,16 @@ def main() -> int:
         sf.write(wav_path, processed, SAMPLE_RATE, subtype="PCM_24")
         encode_mp3(wav_path, mp3_path)
         metrics, failures, warnings = inspect(mp3_path, contract.kind)
+        if contract.maximum_duration is not None and metrics.get("duration_seconds", math.inf) > contract.maximum_duration:
+            failures.append(
+                f"trimmed duration {metrics['duration_seconds']:.3f}s exceeds single-shot maximum "
+                f"{contract.maximum_duration:.3f}s"
+            )
+        if metrics.get("crest_factor", 0.0) < contract.minimum_crest:
+            failures.append(
+                f"crest factor {metrics.get('crest_factor', 0.0):.2f} is below requested transient minimum "
+                f"{contract.minimum_crest:.2f}"
+            )
         if failures:
             raise RuntimeError(f"Validation failed for {mp3_path}: {failures}")
         candidates.append(

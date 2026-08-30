@@ -60,7 +60,11 @@ export class TacticCardPresentationGameScene extends EnemyTurnPresentationGameSc
 
       const cardIndex = game.selectedCardIndex;
       const cardId = game.state.players[game.state.currentPlayer].hand[cardIndex] as CardDefinitionId | undefined;
-      const card = cardId ? CARD_DEFINITIONS[cardId] : undefined;
+      if (!cardId) {
+        await originalHandleHexClick(coord);
+        return;
+      }
+      const card = CARD_DEFINITIONS[cardId];
       if (!card || card.type !== 'tactic' || !this.isValidTacticTarget(game.state, cardId, coord)) {
         await originalHandleHexClick(coord);
         return;
@@ -126,7 +130,7 @@ export class TacticCardPresentationGameScene extends EnemyTurnPresentationGameSc
     destroy: () => void;
   } {
     const rect = source.getBoundingClientRect();
-    const target = this.coordToViewport(targetCoord, game);
+    const target = this.tacticCoordToViewport(targetCoord, game);
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const card = CARD_DEFINITIONS[cardId];
     const accent = card.faction === 'undead' ? '#b56cff' : card.faction === 'human' ? '#67d9ff' : '#f3c969';
@@ -243,7 +247,7 @@ export class TacticCardPresentationGameScene extends EnemyTurnPresentationGameSc
     };
   }
 
-  private coordToViewport(coord: Coord, game: TacticPresentationInternals): { x: number; y: number } {
+  private tacticCoordToViewport(coord: Coord, game: TacticPresentationInternals): { x: number; y: number } {
     const world = game.center(coord);
     const camera = this.cameras.main;
     const canvasRect = this.game.canvas.getBoundingClientRect();

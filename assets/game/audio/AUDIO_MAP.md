@@ -2,7 +2,7 @@
 
 This file is the runtime audio contract, acceptance registry, and **master audio work checklist**. Generated candidates remain outside the repository until accepted.
 
-Audit snapshot: **2026-08-29**.
+Audit snapshot: **2026-08-30**.
 
 ## Status legend
 
@@ -28,7 +28,6 @@ Audit snapshot: **2026-08-29**.
 - [x] `combat-hit-melee` — asset ✅ `sfx/combat-hit-melee.mp3`; runtime ✅ melee attack/retaliation impact.
 - [x] `combat-hit-ranged` — asset ✅ `sfx/combat-hit-ranged.mp3`; runtime ✅ ranged attack/retaliation impact.
 - [x] `combat-retaliation` — asset ✅ `sfx/combat-retaliation.mp3`; runtime ✅ retaliation start.
-- [x] `match-victory` — asset ✅ `sfx/match-victory.mp3`; runtime ✅ local-player victory commit.
 - [x] `music-match` — asset ✅ `music/battle-*.mp3`; runtime ✅ one randomly selected WorldXplore battle cue loops from match start until a winner is committed, with a persistent player-controlled volume slider in Settings.
 - [x] `music-victory` — assets ✅ `music/music-victory-02-dawn-over-the-hexfield.mp3` and `music/music-victory-04-the-grave-falls-silent.mp3`; runtime ✅ one randomly selected non-looping track starts after winner commit. User approved this two-track pool as sufficient on 2026-08-29.
 - [x] `location-village-heal` — asset ✅ `sfx/location-village-heal.mp3`; runtime ✅ actual `MPL8` Village healing at start of the active player's turn, including AI turns.
@@ -36,12 +35,12 @@ Audit snapshot: **2026-08-29**.
 - [x] `site-capture` — asset ✅ `sfx/site-capture.mp3`; runtime ✅ end-turn capture resolution with the duplicate synthesized cue removed.
 - [x] `trait-healing-aura` — asset ✅ `sfx/trait-healing-aura.mp3`; runtime ✅ grouped `UNT13` start-turn healing.
 - [x] `trait-dark-reflection` — asset ✅ `sfx/trait-dark-reflection.mp3`; runtime ✅ actual `UNT7` returned-damage presentation.
+- [x] `turn-start-human` / `turn-start-undead` — assets ✅ `sfx/turn-start-human.mp3` and `sfx/turn-start-undead.mp3`; runtime ✅ faction fanfare after a committed player handoff under `GRT7`.
 - [x] `unit-move-step` — asset ✅ `sfx/unit-move-step.mp3`; runtime ✅ each rendered movement-path arrival with cooldown.
 - [x] `unit-death-human` — asset ✅ `sfx/unit-death-human.mp3`; runtime ✅ Human unit death.
 - [x] `unit-death-undead` — asset ✅ `sfx/unit-death-undead.mp3`; runtime ✅ Undead unit death.
-- [x] `unit-summon-human` — asset ✅ `sfx/unit-summon-human.mp3`; runtime ✅ Human card summon and `UNT3` Invoked Beast summon from Thunder Mage.
+- [x] `unit-summon-human` — asset ✅ `sfx/unit-summon-human.mp3`; runtime ✅ Human card summon and `UNT3` Invoked Beast summon.
 - [x] `unit-summon-undead` — asset ✅ `sfx/unit-summon-undead.mp3`; runtime ✅ Undead card summon.
-- [x] `turn-end` — asset ✅ `sfx/turn-end.mp3`; runtime ✅ successful turn handoff.
 - [x] `ui-card-draw` — asset ✅ `sfx/ui-card-draw.mp3`; runtime ✅ successful start-turn card draw.
 - [x] `ui-card-play` — asset ✅ `sfx/ui-card-play.mp3`; runtime ✅ successful unit/tactic card play.
 - [x] `victory-countdown` — asset ✅ `sfx/victory-countdown.mp3`; runtime ✅ survival countdown checkpoint.
@@ -58,12 +57,12 @@ Audit snapshot: **2026-08-29**.
 - [x] `ui-card-hover/select` — runtime ✅ short synthesized UI tones in `PremiumFeedback`.
 - [x] `ui-button/board-confirm` — runtime ✅ short synthesized UI tones in `PremiumFeedback`.
 - [x] `ui-rejected-action` — runtime ✅ synthesized rejection cue when the status message reports an invalid/rejected action.
-- [x] `turn-start` — runtime ✅ Human/Undead synthesized turn-transition tones.
 - [x] `mana-gain` / `mana-spend` — runtime ✅ synthesized mana feedback. This currently also covers the new `ECM6` Ruin +1 mana reward, so a separate Ruin MP3 is **not required** unless playtesting shows the source is unclear.
 - [x] `invoke-beast` — covered by the accepted Human summon cue rather than a separate file.
 
 ### P0 — work left for core match readability
 
+- [ ] `turn-end` — current runtime cue rejected on 2026-08-29. Four distinct single-shot-gated concepts—battle horn, shield command, banner relay, and arcane signal—await audition.
 - [ ] `match-defeat` — asset ❌; runtime ❌. Trigger when the opposing player becomes the winner. Short restrained defeat/failure finale sting.
 
 ### P1 — unit abilities and traits
@@ -91,25 +90,25 @@ Audit snapshot: **2026-08-29**.
 | `ability-displace` | `sfx/ability-displace.mp3` | Displace successfully commits its target to the selected destination. | sting | 0.68 | Action-serialized / pool 1 | Converted from WorldXplore runtime `arrow-fly.mp3`; user approved 2026-08-28. |
 | `ability-rally` | `sfx/ability-rally.mp3` | Rally successfully resolves under `UNB7`. | sting | 0.66 | Action-serialized / pool 1 | Candidate A; user approved 2026-08-29; runtime integrated. |
 | `ability-thunder` | `sfx/ability-thunder.mp3` | Thunder successfully commits under `UNB6`, immediately before its area VFX presentation. | sting | 0.78 | Action-serialized / pool 1 | Three-second strike and natural rumble excerpt from Pixabay `Thunder Strike (Wav)`; user approved 2026-08-29. |
-| `commander-death` | `sfx/commander-death.mp3` | A Commander is removed under `GRV2` or `GRV3`, including end-turn Curse damage. | sting | 0.86 | Action-serialized / pool 1 | Composite of approved WorldXplore runtime `heavy-stomp.wav` and `tree-fall.wav`; replaces the ordinary faction death cue for Commanders; user approved 2026-08-23. |
+| `commander-death` | `sfx/commander-death.mp3` | A Commander is removed under `GRV2` or `GRV3`, including end-turn Curse damage. | sting | 0.86 | Action-serialized / pool 1 | `commander-death-r3-20260829-a.mp3`; short single-shot-gated replacement selected by user 2026-08-30. |
 | `combat-assist` | `sfx/combat-assist.mp3` | An Assist unit's supporting strike reaches its target and contributes damage. | impact | 0.62 | Animation-serialized / pool 1 | Derived from approved `crit-crack.mp3`; user approved 2026-08-23. |
 | `combat-hit-melee` | `sfx/combat-hit-melee.mp3` | A close-range attack or retaliation reaches its visual impact after successfully dealing damage. | impact | 0.85 | Animation-serialized / pool 1 | Adapted from WorldXplore `crit-crack.mp3`; user approved 2026-08-23. |
 | `combat-hit-ranged` | `sfx/combat-hit-ranged.mp3` | A ranged attack or retaliation reaches its visual impact after successfully dealing damage. | impact | 0.78 | Animation-serialized / pool 1 | Stable Audio candidate A; user approved 2026-08-23. |
 | `combat-retaliation` | `sfx/combat-retaliation.mp3` | A defender begins a valid retaliation after the initiating attack successfully deals damage. | impact | 0.58 | Animation-serialized / pool 1 | Adapted from WorldXplore `sword-draw.mp3`; user approved 2026-08-23. |
-| `match-victory` | `sfx/match-victory.mp3` | `winner` changes to local Player 1 under `GRV1`; opposing-player wins use the separate defeat cue. | sting | 0.78 | Match-serialized / pool 1 | Five-second excerpt from WorldXplore runtime `reward-chime.mp3`; user approved 2026-08-28. |
 | `music-match` | `music/battle-*.mp3` (13 tracks) | Match scene starts; one randomly selected track loops until either player becomes the winner. `?music=off` disables this lifecycle. | music | Player setting; 0.25 default | One track per match | Exact accepted WorldXplore runtime battle playlist; Settings persists and applies a 0–100% player volume, including mute at 0%; user requested reuse 2026-08-29. |
-| `music-victory` | `music/music-victory-02-dawn-over-the-hexfield.mp3`, `music/music-victory-04-the-grave-falls-silent.mp3` | After `GRV1` winner commit, one track is selected for the result presentation and does not loop. `?music=off` disables this lifecycle. | music | 0.34 | One track per result | User approved both existing tracks as sufficient on 2026-08-29; two-track pool integrated. |
+| `music-victory` | `music/music-victory-02-dawn-over-the-hexfield.mp3`, `music/music-victory-04-the-grave-falls-silent.mp3` | After `GRV1` winner commit, one track is selected for the result presentation and does not loop. `?music=off` disables this lifecycle. | music | 0.34 | One track per result | Sole local-victory result audio. User approved both existing tracks as sufficient and removed the separate `match-victory` sting on 2026-08-29. |
 | `ability-soul-link` | `sfx/ability-soul-link.mp3` | Soul Link successfully attaches under `UNB8`. | sting | 0.64 | Action-serialized / pool 1 | Candidate B; user approved 2026-08-29; runtime integrated. |
 | `location-village-heal` | `sfx/location-village-heal.mp3` | At `MPL8`, a unit standing on a Village actually gains HP at the start of its owner's turn. | sting | 0.58 | Turn-serialized / pool 1 | Candidate B; user approved 2026-08-29; runtime integrated. |
 | `site-capture` | `sfx/site-capture.mp3` | One or more existing site owners change during the active player's end-turn `MPC1`–`MPC3` capture resolution. | sting | 0.68 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `build-place.mp3`; one cue per capture group; user approved 2026-08-26. |
 | `trait-healing-aura` | `sfx/trait-healing-aura.mp3` | At least one adjacent ally actually gains HP from `UNT13` at start of turn. | sting | 0.64 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `respawn-chime.mp3`; grouped once per start-turn healing resolution; user approved 2026-08-28. |
 | `trait-dark-reflection` | `sfx/trait-dark-reflection.mp3` | `UNT7` actually returns at least 1 damage to the direct attacker, at the reflection presentation. | sting | 0.70 | Action-serialized / pool 1 | Converted from WorldXplore runtime `arrow-impact.mp3`; user approved 2026-08-29. |
+| `turn-start-human` | `sfx/turn-start-human.mp3` | After `GRT7` commits control to a Human player and no winner exists. | sting | 0.68 | Turn-serialized / pool 1 | Two-second ACE-Step cut `Sunlit Keep`; user approved 2026-08-30; replaces the synthesized Human turn tone. |
+| `turn-start-undead` | `sfx/turn-start-undead.mp3` | After `GRT7` commits control to an Undead player and no winner exists. | sting | 0.68 | Turn-serialized / pool 1 | Two-second ACE-Step cut `Grave Moon`; user approved 2026-08-30; replaces the synthesized Undead turn tone. |
 | `unit-move-step` | `sfx/unit-move-step.mp3` | A rendered unit reaches each movement path hex after leaving its source. | footstep | 0.34 | 100 ms / pool 1 | Converted from WorldXplore runtime `footstep-dirt-b.mp3`; user approved 2026-08-28. |
 | `unit-death-human` | `sfx/unit-death-human.mp3` | A Human unit's zero-HP removal reaches its death animation. | impact | 0.70 | Animation-serialized / pool 1 | De-clipped and converted from WorldXplore runtime `heavy-stomp.wav`; user approved 2026-08-23. |
 | `unit-death-undead` | `sfx/unit-death-undead.mp3` | An Undead unit's zero-HP removal reaches its death animation. | impact | 0.74 | Animation-serialized / pool 1 | Converted from WorldXplore runtime `bone-break.wav`; user approved 2026-08-23. |
-| `unit-summon-human` | `sfx/unit-summon-human.mp3` | A Human unit is successfully created from a unit card or Thunder Mage creates an Invoked Beast under `UNT3`. | sting | 0.72 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-confirm.mp3`; user approved 2026-08-23. |
-| `unit-summon-undead` | `sfx/unit-summon-undead.mp3` | An Undead unit is successfully created from a unit card. | sting | 0.62 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-fail.mp3`; user approved 2026-08-23. |
-| `turn-end` | `sfx/turn-end.mp3` | End Turn succeeds and control is handed to the other player. | ui | 0.52 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-select.mp3`; user approved 2026-08-23. |
+| `unit-summon-human` | `sfx/unit-summon-human.mp3` | A Human unit is successfully created from a Unit Card or an Invoked Beast is created under `UNT3`. | sting | 0.72 | Action-serialized / pool 1 | `unit-summon-human-r2-20260829-b.mp3`; short single-shot-gated replacement selected by user 2026-08-30. |
+| `unit-summon-undead` | `sfx/unit-summon-undead.mp3` | An Undead unit is successfully created from a Unit Card. | sting | 0.66 | Action-serialized / pool 1 | `unit-summon-undead-r5-20260829-b.mp3`; short single-shot-gated replacement selected by user 2026-08-30. |
 | `ui-card-draw` | `sfx/ui-card-draw.mp3` | A card is successfully added to the newly active player's hand. | ui | 0.58 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `ui-paper-slide.wav`; user approved 2026-08-23. |
 | `ui-card-play` | `sfx/ui-card-play.mp3` | A successful card play removes its card from the active player's hand. | ui | 0.62 | Action-serialized / pool 1 | Converted from WorldXplore runtime `ui-paper-full.mp3`; user approved 2026-08-23. |
 | `victory-countdown` | `sfx/victory-countdown.mp3` | An existing `GRV2` countdown advances by one nonfinal end-turn checkpoint; the final checkpoint uses the result sting. | ui | 0.72 | Turn-serialized / pool 1 | Converted from WorldXplore runtime `thunder-distant.mp3`; user approved 2026-08-26. |
@@ -123,9 +122,10 @@ Audit snapshot: **2026-08-29**.
 
 ## Recommended work order
 
-1. Validate and accept regenerated `match-defeat`.
-2. Validate and accept regenerated `ability-curse-tick` and `trait-necromancy` candidates.
-3. Validate and accept regenerated battlefield ambience.
+1. Decide whether `turn-end` still needs a separate cue now that the faction turn-start fanfares are integrated.
+2. Validate and accept regenerated `match-defeat`.
+3. Validate and accept regenerated `ability-curse-tick` and `trait-necromancy` candidates.
+4. Validate and accept regenerated battlefield ambience.
 
 ## Remaining work by expected trigger count
 

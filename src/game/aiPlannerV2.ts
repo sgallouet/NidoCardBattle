@@ -273,7 +273,7 @@ const iterativeTurnSearch = (initialState: GameState, actor: PlayerId, perspecti
         const childActions = [...node.actions, action];
         const utility = actionSequenceUtility(initialState, child, childActions, actor);
         const score = evaluateV2(child, perspective).outlook + (actor === perspective ? utility : -utility);
-        const signature = stateSignature(child, includeHand);
+        const signature = stateSignature(child, includeCards);
         const previous = visited.get(signature);
         if (previous !== undefined && !(maximize ? score > previous : score < previous)) continue;
         visited.set(signature, score);

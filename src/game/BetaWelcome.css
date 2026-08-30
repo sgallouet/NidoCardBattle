@@ -1,270 +1,88 @@
-.beta-welcome-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 7000;
+.beta-welcome-notice {
+  position: absolute;
+  z-index: 28;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(14px, env(safe-area-inset-bottom));
   display: grid;
-  place-items: center;
-  padding: 28px;
-  overflow: auto;
+  grid-template-columns: auto minmax(0, 1fr) 28px;
+  gap: 10px;
+  align-items: center;
+  width: min(440px, calc(100% - 28px));
+  padding: 10px 10px 10px 12px;
+  border: 1px solid rgba(236, 202, 124, .38);
+  border-radius: 13px;
   color: #f8efd9;
-  background:
-    radial-gradient(circle at 50% 43%, rgba(72, 94, 139, .2), transparent 38%),
-    rgba(2, 6, 18, .86);
-  backdrop-filter: blur(12px) saturate(.75);
-  animation: beta-welcome-overlay-in .42s ease-out both;
+  background: rgba(7, 13, 22, .94);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .48), inset 0 1px rgba(255,255,255,.05);
+  opacity: 0;
+  transform: translateY(8px) scale(.985);
+  backdrop-filter: blur(10px) saturate(.9);
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(.18,.75,.2,1);
 }
 
-.beta-welcome-overlay.is-leaving {
+.beta-welcome-notice.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.beta-welcome-notice.is-leaving {
   pointer-events: none;
-  animation: beta-welcome-overlay-out .26s ease-in both;
-}
-
-.beta-welcome-dialog {
-  position: relative;
-  isolation: isolate;
-  width: min(780px, calc(100vw - 40px));
-  min-height: 520px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid rgba(236, 202, 124, .48);
-  border-radius: 30px;
-  background: linear-gradient(145deg, rgba(28, 35, 47, .98), rgba(9, 14, 26, .99) 62%);
-  box-shadow:
-    0 35px 100px rgba(0, 0, 0, .68),
-    0 0 0 1px rgba(255, 255, 255, .04) inset,
-    0 0 70px rgba(90, 157, 224, .12);
-  animation: beta-welcome-dialog-in .58s cubic-bezier(.16, .86, .28, 1.08) both;
-}
-
-.beta-welcome-dialog::before,
-.beta-welcome-dialog::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  width: 360px;
-  height: 360px;
-  border-radius: 50%;
-  filter: blur(40px);
-  opacity: .22;
-}
-
-.beta-welcome-dialog::before {
-  top: -150px;
-  left: -135px;
-  background: #258de4;
-}
-
-.beta-welcome-dialog::after {
-  right: -145px;
-  bottom: -170px;
-  background: #8d35c6;
-}
-
-.beta-welcome-glow {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  opacity: .22;
-  background-image:
-    radial-gradient(circle, rgba(255, 244, 206, .7) 0 1px, transparent 1.5px),
-    linear-gradient(90deg, transparent 49.8%, rgba(232, 200, 126, .18) 50%, transparent 50.2%);
-  background-size: 62px 62px, 100% 100%;
-  mask-image: linear-gradient(to bottom, black, transparent 75%);
-}
-
-.beta-welcome-content {
-  position: relative;
-  z-index: 2;
-  width: min(480px, 68%);
-  padding: 48px 24px 40px;
-  text-align: center;
+  opacity: 0;
+  transform: translateY(6px) scale(.985);
 }
 
 .beta-welcome-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 13px;
-  border: 1px solid rgba(238, 200, 111, .5);
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid rgba(238, 200, 111, .45);
   border-radius: 999px;
   color: #f1cd7b;
-  background: rgba(111, 77, 28, .28);
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .16em;
+  background: rgba(111, 77, 28, .24);
+  font: 900 9px/1 Inter, ui-sans-serif, sans-serif;
+  letter-spacing: .12em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.beta-welcome-badge::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #f4cd70;
-  box-shadow: 0 0 10px #f4cd70;
-}
-
-.beta-welcome-content h1 {
-  margin: 17px 0 10px;
+.beta-welcome-copy { min-width: 0; }
+.beta-welcome-copy strong,
+.beta-welcome-copy span { display: block; }
+.beta-welcome-copy strong {
   color: #fff8e8;
-  font: 700 clamp(34px, 5vw, 48px)/1 Georgia, serif;
-  letter-spacing: -.025em;
-  text-shadow: 0 3px 16px rgba(0, 0, 0, .55);
+  font: 700 13px/1.2 Georgia, serif;
+}
+.beta-welcome-copy span {
+  margin-top: 2px;
+  color: rgba(228, 235, 240, .72);
+  font: 600 10px/1.35 Inter, ui-sans-serif, sans-serif;
 }
 
-.beta-welcome-lead {
-  margin: 0 auto 22px;
-  color: rgba(238, 239, 244, .8);
-  font-size: 16px;
-  line-height: 1.55;
-}
-
-.beta-welcome-note {
-  display: grid;
-  grid-template-columns: 42px 1fr;
-  gap: 13px;
-  align-items: center;
-  padding: 14px 16px;
-  border: 1px solid rgba(107, 200, 240, .22);
-  border-radius: 16px;
-  text-align: left;
-  background: rgba(48, 111, 146, .12);
-}
-
-.beta-welcome-monitor {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  color: #70d8f3;
-  background: rgba(64, 180, 219, .13);
-}
-
-.beta-welcome-monitor svg {
-  width: 25px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
-.beta-welcome-note strong,
-.beta-welcome-note span { display: block; }
-
-.beta-welcome-note strong {
-  margin-bottom: 3px;
-  color: #eefbff;
-  font-size: 14px;
-}
-
-.beta-welcome-note div > span {
-  color: rgba(220, 235, 243, .68);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.beta-welcome-feedback {
-  margin: 19px 0 22px;
-  color: rgba(235, 232, 224, .74);
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.beta-welcome-start {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  min-width: 210px;
-  min-height: 49px;
-  padding: 12px 24px;
-  border: 1px solid #efd184;
-  border-radius: 13px;
-  color: #181206;
-  background: linear-gradient(180deg, #ffe8a8, #d9a844);
-  box-shadow: 0 9px 28px rgba(218, 168, 68, .2), 0 1px 0 #fff5cf inset;
-  font-weight: 900;
+.beta-welcome-notice button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: rgba(244, 240, 228, .72);
+  background: rgba(255,255,255,.06);
+  font: 700 18px/1 sans-serif;
   cursor: pointer;
-  transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
 }
 
-.beta-welcome-start:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.06);
-  box-shadow: 0 13px 32px rgba(218, 168, 68, .28), 0 1px 0 #fff5cf inset;
-}
+.beta-welcome-notice button:hover { background: rgba(255,255,255,.12); }
 
-.beta-welcome-start:active { transform: translateY(0); }
-
-.beta-welcome-content small {
-  display: block;
-  margin-top: 14px;
-  color: rgba(220, 214, 200, .5);
-  font-size: 11px;
-}
-
-.beta-welcome-commander {
-  position: absolute;
-  z-index: 1;
-  bottom: -4px;
-  width: 245px;
-  max-height: 440px;
-  object-fit: contain;
-  pointer-events: none;
-  user-select: none;
-  filter: drop-shadow(0 18px 22px rgba(0, 0, 0, .62));
-}
-
-.beta-welcome-commander-human { left: -57px; }
-.beta-welcome-commander-undead { right: -58px; }
-
-@keyframes beta-welcome-overlay-in {
-  from { opacity: 0; }
-}
-
-@keyframes beta-welcome-overlay-out {
-  to { opacity: 0; }
-}
-
-@keyframes beta-welcome-dialog-in {
-  from { opacity: 0; transform: translateY(22px) scale(.97); }
-}
-
-@media (max-width: 700px), (max-height: 590px) {
-  .beta-welcome-overlay { padding: 16px; }
-
-  .beta-welcome-dialog {
-    min-height: 0;
-    border-radius: 24px;
+@media (max-width: 600px), (max-height: 500px) {
+  .beta-welcome-notice {
+    right: 8px;
+    bottom: 8px;
+    width: calc(100% - 16px);
+    grid-template-columns: minmax(0, 1fr) 28px;
   }
-
-  .beta-welcome-content {
-    width: min(480px, 100%);
-    padding: 30px 30px 26px;
-  }
-
-  .beta-welcome-commander {
-    width: 150px;
-    opacity: .22;
-  }
-
-  .beta-welcome-commander-human { left: -38px; }
-  .beta-welcome-commander-undead { right: -38px; }
-}
-
-@media (max-width: 420px) {
-  .beta-welcome-content { padding-inline: 20px; }
-  .beta-welcome-content h1 { font-size: 31px; }
-  .beta-welcome-lead { font-size: 14px; }
-  .beta-welcome-feedback { font-size: 13px; }
+  .beta-welcome-badge { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .beta-welcome-overlay,
-  .beta-welcome-overlay.is-leaving,
-  .beta-welcome-dialog { animation-duration: .01ms; }
-
-  .beta-welcome-start { transition: none; }
+  .beta-welcome-notice { transition: none; }
 }

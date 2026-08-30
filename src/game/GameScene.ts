@@ -667,7 +667,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.clearSelectionHexFx();
     this.destroyBoardObjects(this.effectBoardObjects);
     const highlight = this.highlights();
-    this.refreshHexGraphics(highlight);
+    this.refreshHexGraphics();
     const premiumSelections: Array<{
       center: Phaser.Math.Vector2;
       points: Phaser.Geom.Point[];
@@ -854,7 +854,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.staticBoardDirty = false;
   }
 
-  private refreshHexGraphics(highlight: ReturnType<GameScene['highlights']>): void {
+  private refreshHexGraphics(): void {
     for (const [key, geometry] of this.hexGeometry) {
       const hex = this.hexGraphics.get(key);
       if (!hex?.active) continue;

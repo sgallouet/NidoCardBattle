@@ -1,0 +1,21 @@
+.card[data-mana-blocked='true'] {
+  opacity: .5;
+  filter: saturate(.38) brightness(.67);
+  cursor: var(--faction-cursor, not-allowed);
+}
+
+.card[data-mana-blocked='true']:hover {
+  border-color: transparent;
+  filter: saturate(.38) brightness(.67);
+}
+
+.card[data-mana-blocked='true'] .card-surface,
+.card[data-mana-blocked='true']:hover .card-surface {
+  box-shadow: 0 8px 18px #000b !important;
+  transform: perspective(850px) rotateX(0deg) rotateY(0deg) !important;
+}
+
+.card[data-mana-blocked='true'] .card-holo,
+.card[data-mana-blocked='true'] .card-glare {
+  opacity: 0 !important;
+}

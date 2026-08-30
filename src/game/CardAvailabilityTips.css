@@ -1,21 +1,21 @@
-.card[data-mana-blocked='true'] {
+.card[data-availability-blocked] {
   opacity: .5;
   filter: saturate(.38) brightness(.67);
   cursor: var(--faction-cursor, not-allowed);
 }
 
-.card[data-mana-blocked='true']:hover {
+.card[data-availability-blocked]:hover {
   border-color: transparent;
   filter: saturate(.38) brightness(.67);
 }
 
-.card[data-mana-blocked='true'] .card-surface,
-.card[data-mana-blocked='true']:hover .card-surface {
+.card[data-availability-blocked] .card-surface,
+.card[data-availability-blocked]:hover .card-surface {
   box-shadow: 0 8px 18px #000b !important;
   transform: perspective(850px) rotateX(0deg) rotateY(0deg) !important;
 }
 
-.card[data-mana-blocked='true'] .card-holo,
-.card[data-mana-blocked='true'] .card-glare {
+.card[data-availability-blocked] .card-holo,
+.card[data-availability-blocked] .card-glare {
   opacity: 0 !important;
 }

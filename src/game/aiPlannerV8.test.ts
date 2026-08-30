@@ -96,12 +96,55 @@ describe('Planner V8 control conversion profile', () => {
       objective('owned-well-a', 'well', { q: 13, r: 4 }, 2),
       objective('owned-well-b', 'well', { q: 11, r: 10 }, 2),
       objective('owned-fort', 'fort', { q: 9, r: 9 }, 2),
+      objective('enemy-well', 'well', { q: 13, r: 8 }, 1),
       objective('enemy-fort', 'fort', defender.coord, 1),
     ]);
 
     expect(planAiTurnV8(state, QUICK_OPTIONS).actions).toContainEqual({
       kind: 'attack', unitId: attacker.id, targetId: defender.id,
     });
+  });
+
+  it('does not declare control conversion while merely tied at three strategic sites', () => {
+    const runner = makeUnit('neutral-runner', 'skeletalInfantry', 2, { q: 10, r: 4 });
+    const neutralWell = objective('neutral-well', 'well', { q: 8, r: 4 });
+    const state = isolatedState([runner], [
+      objective('owned-well-a', 'well', { q: 13, r: 4 }, 2),
+      objective('owned-well-b', 'well', { q: 11, r: 10 }, 2),
+      objective('owned-fort', 'fort', { q: 9, r: 9 }, 2),
+      objective('enemy-well-a', 'well', { q: 4, r: 4 }, 1),
+      objective('enemy-well-b', 'well', { q: 4, r: 6 }, 1),
+      objective('enemy-fort', 'fort', { q: 4, r: 8 }, 1),
+      neutralWell,
+    ]);
+
+    const move = firstMoveFor(planAiTurnV8(state, QUICK_OPTIONS), runner.id);
+
+    expect(move).toBeDefined();
+    expect(hexDistance(move!.destination, neutralWell.coord)).toBeLessThan(hexDistance(runner.coord, neutralWell.coord));
+  });
+
+  it('keeps a runner assigned to a neutral objective after gaining a control lead', () => {
+    const enemyRunner = makeUnit('enemy-runner', 'skeletalInfantry', 2, { q: 11, r: 4 });
+    const neutralRunner = makeUnit('neutral-runner', 'banshee', 2, { q: 11, r: 6 });
+    const enemyFort = objective('enemy-fort', 'fort', { q: 9, r: 4 }, 1);
+    const neutralWell = objective('neutral-well', 'well', { q: 10, r: 9 });
+    const state = isolatedState([enemyRunner, neutralRunner], [
+      objective('owned-well-a', 'well', { q: 13, r: 4 }, 2),
+      objective('owned-well-b', 'well', { q: 11, r: 10 }, 2),
+      objective('owned-fort', 'fort', { q: 9, r: 9 }, 2),
+      enemyFort,
+      neutralWell,
+    ]);
+
+    const plan = planAiTurnV8(state, QUICK_OPTIONS);
+    const enemyMove = firstMoveFor(plan, enemyRunner.id);
+    const neutralMove = firstMoveFor(plan, neutralRunner.id);
+
+    expect(enemyMove).toBeDefined();
+    expect(neutralMove).toBeDefined();
+    expect(hexDistance(enemyMove!.destination, enemyFort.coord)).toBeLessThan(hexDistance(enemyRunner.coord, enemyFort.coord));
+    expect(hexDistance(neutralMove!.destination, neutralWell.coord)).toBeLessThan(hexDistance(neutralRunner.coord, neutralWell.coord));
   });
 
   it('does not abandon the turn for Village healing after only minor damage', () => {

@@ -29,6 +29,8 @@ interface MapBounds {
  * behind the same renderer boundary instead of being created and hidden.
  */
 export class AuthoredMapPresentation {
+  private layer?: Phaser.GameObjects.Container;
+
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly mode: MapRenderMode,
@@ -40,54 +42,25 @@ export class AuthoredMapPresentation {
     if (!board) return;
 
     this.hideTiledTerrainArtwork(board);
+    if (this.layer?.active) return;
 
-    const layer = this.scene.add.container(0, 0);
+    const layer = this.scene.add.container(0, 0).setDepth(-1);
     this.drawNeutralGrassBase(layer, game);
     this.drawBridgeOverlays(layer, game);
 
     // GameScene adds backdrop then backdrop-detail Graphics first. Insert the broad
     // authored terrain immediately after those, below all interactive hexes,
     // decorations, gameplay locations and units.
-    board.addAt(layer, Math.min(2, board.list.length));
+    board.addAt(layer, 0);
+    this.layer = layer;
   }
 
   private hideTiledTerrainArtwork(board: Phaser.GameObjects.Container): void {
-    // GameScene child order is deterministic: backdrop + backdrop details, followed
-    // by each hex's terrain artwork and interactive highlight Graphics.
-    let cursor = 2;
-
-    for (let r = 0; r < MAP_HEIGHT; r += 1) {
-      for (let q = 0; q < MAP_WIDTH; q += 1) {
-        const terrain = terrainAt({ q, r });
-
-        if (terrain === 'plain') {
-          this.hideChild(board, cursor); // shadow/base
-          this.hideChild(board, cursor + 1); // meadow texture
-          cursor += 3; // keep the interactive hex Graphics visible
-          continue;
-        }
-
-        if (terrain === 'forest') {
-          this.hideChild(board, cursor); // shadow/base
-          this.hideChild(board, cursor + 1); // forest ground
-          this.hideChild(board, cursor + 2); // forest canopy
-          cursor += 4; // keep the interactive hex Graphics visible
-          continue;
-        }
-
-        this.hideChild(board, cursor); // colored terrain base
-        this.hideChild(board, cursor + 2); // hill/water/cliff/bridge detail
-        cursor += 3; // keep the interactive hex Graphics visible
-      }
-    }
-
-  }
-
-  private hideChild(board: Phaser.GameObjects.Container, index: number): void {
-    const child = board.list[index] as (Phaser.GameObjects.GameObject & {
+    for (const child of board.list as Array<Phaser.GameObjects.GameObject & {
       setVisible?: (visible: boolean) => unknown;
-    }) | undefined;
-    child?.setVisible?.(false);
+    }>) {
+      if (child.name === 'tiled-terrain') child.setVisible?.(false);
+    }
   }
 
   private drawNeutralGrassBase(

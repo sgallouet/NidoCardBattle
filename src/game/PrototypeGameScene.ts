@@ -51,6 +51,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
   private spellHud?: SpellHud;
   private factionCursor?: FactionCursor;
   private authoredMap?: AuthoredMapPresentation;
+  private tacticPlaceholders: Phaser.GameObjects.GameObject[] = [];
 
   create(): void {
     super.create();
@@ -90,6 +91,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
       this.spellHud = undefined;
       this.factionCursor = undefined;
       this.authoredMap = undefined;
+      this.clearTacticPlaceholders();
     });
 
     // The base scene has already rendered once during create(). Redraw once so
@@ -98,6 +100,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
   }
 
   private renderTacticPlaceholders(scene: PrototypeSceneInternals): void {
+    this.clearTacticPlaceholders();
     const board = scene.boardLayer;
     if (!board) return;
 
@@ -112,6 +115,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
     let terrainOffset = 0;
     const addTerrainObject = (object: Phaser.GameObjects.GameObject): void => {
       board.addAt(object, Math.min(terrainLayerIndex + terrainOffset, board.list.length));
+      this.tacticPlaceholders.push(object);
       terrainOffset += 1;
     };
 
@@ -139,6 +143,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
     for (const site of scene.state.sites.filter((candidate) => candidate.id.startsWith('built-fort-'))) {
       const marker = this.drawRaisedFortMarker(scene, site.coord);
       board.addAt(marker, Math.min(firstUnitIndex + terrainOffset, board.list.length));
+      this.tacticPlaceholders.push(marker);
     }
 
     // Grave Lock may contain a unit, so render only an edge/rune overlay above units.
@@ -147,7 +152,15 @@ export class PrototypeGameScene extends PersistentAiGameScene {
       const { graphics, label } = this.drawGraveLock(scene, effect.coord);
       board.add(graphics);
       board.add(label);
+      this.tacticPlaceholders.push(graphics, label);
     }
+  }
+
+  private clearTacticPlaceholders(): void {
+    for (const object of this.tacticPlaceholders) {
+      if (object.active) object.destroy();
+    }
+    this.tacticPlaceholders = [];
   }
 
   private drawBuiltBridge(scene: PrototypeSceneInternals, coord: Coord): Phaser.GameObjects.Image {

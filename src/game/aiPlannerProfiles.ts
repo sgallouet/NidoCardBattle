@@ -62,6 +62,7 @@ export interface PortfolioHabitWeights {
   lowPayoffTacticPenalty: number;
   coordinateObjectives: boolean;
   controlConversionSiteThreshold: number;
+  controlConversionLead: number;
   assignedObjectiveApproach: number;
   unassignedObjectiveApproachPenalty: number;
   conversionAttackBonus: number;
@@ -130,6 +131,7 @@ const ZERO_HABITS: PortfolioHabitWeights = {
   lowPayoffTacticPenalty: 0,
   coordinateObjectives: false,
   controlConversionSiteThreshold: 99,
+  controlConversionLead: 99,
   assignedObjectiveApproach: 0,
   unassignedObjectiveApproachPenalty: 0,
   conversionAttackBonus: 0,
@@ -248,6 +250,7 @@ export const PLANNER_V4_PROFILE: PortfolioPlannerProfile = {
       lowPayoffTacticPenalty: 0,
       coordinateObjectives: false,
       controlConversionSiteThreshold: 99,
+      controlConversionLead: 99,
       assignedObjectiveApproach: 0,
       unassignedObjectiveApproachPenalty: 0,
       conversionAttackBonus: 0,
@@ -304,6 +307,7 @@ export const PLANNER_V5_PROFILE: PortfolioPlannerProfile = {
       lowPayoffTacticPenalty: 0,
       coordinateObjectives: false,
       controlConversionSiteThreshold: 99,
+      controlConversionLead: 99,
       assignedObjectiveApproach: 0,
       unassignedObjectiveApproachPenalty: 0,
       conversionAttackBonus: 0,
@@ -383,6 +387,8 @@ export const PLANNER_V8_PROFILE: PortfolioPlannerProfile = {
   },
   scoring: {
     ...PLANNER_V7_PROFILE.scoring,
+    action: 90,
+    responseOutlook: 120,
     doctrines: {
       ...PLANNER_V7_PROFILE.scoring.doctrines,
     },
@@ -392,11 +398,12 @@ export const PLANNER_V8_PROFILE: PortfolioPlannerProfile = {
       villageHealPlanBonus: 20_000,
       villageHealMaxHealthRatio: 0.6,
       siteApproach: 1_000,
-      mapControlPressure: 175,
+      mapControlPressure: 300,
       coordinateObjectives: true,
       controlConversionSiteThreshold: 3,
-      assignedObjectiveApproach: 2_600,
-      unassignedObjectiveApproachPenalty: 1_200,
+      controlConversionLead: 1,
+      assignedObjectiveApproach: 3_400,
+      unassignedObjectiveApproachPenalty: 250,
       conversionAttackBonus: 3_500,
       conversionLethalBonus: 9_000,
       conversionSiteDenialBonus: 5_000,

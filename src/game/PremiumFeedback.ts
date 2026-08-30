@@ -261,7 +261,7 @@ export class PremiumFeedback {
     const target = event.target instanceof Element ? event.target : null;
     if (!target) return;
     if (target.closest('.card:not(:disabled)')) {
-      this.playUiTone(410, 650, 0.045, 0.024);
+      this.playUiTone(410, 650, 0.045, 0.03);
       return;
     }
     if (target.closest('button:not(:disabled)')) this.playUiTone(540, 680, 0.032, 0.018);
@@ -283,7 +283,7 @@ export class PremiumFeedback {
 
   private readonly handleBoardObjectUp = (): void => {
     this.ensureAudioContext();
-    this.playUiTone(500, 590, 0.025, 0.01);
+    this.playUiTone(500, 590, 0.025, 0.013);
   };
 
   private ensureAudioContext(): AudioContext | undefined {

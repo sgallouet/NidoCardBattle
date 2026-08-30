@@ -9,6 +9,7 @@ Thumbs.db
 .codex-remote-attachments/
 *.log
 reports/battle-logs/
+reports/ai-audits/
 __pycache__/
 release/itch/*.zip
 release/itch/*.next.zip

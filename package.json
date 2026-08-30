@@ -15,6 +15,7 @@
     "simulate:v7": "node tools/run-planner-simulation.mjs --planner-a v5 --planner-b v7",
     "simulate:v8": "node tools/run-planner-simulation.mjs --planner-a v7 --planner-b v8",
     "audit:v8": "vite-node tools/audit-v8-opening.mjs",
+    "audit:best": "vite-node tools/audit-best-ai-battle.mjs",
     "battlelog": "vite-node tools/generate-battle-log.mjs"
   },
   "dependencies": {

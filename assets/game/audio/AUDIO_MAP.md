@@ -54,7 +54,7 @@ Audit snapshot: **2026-08-30**.
 
 ### Complete — code-generated feedback, no dedicated file currently required
 
-- [x] `ui-card-hover/select` — runtime ✅ short synthesized UI tones in `PremiumFeedback`.
+- [x] `ui-card-hover/select` — runtime ✅ short synthesized UI tones in `PremiumFeedback`; selection gain is 0.030 for cards and 0.013 for board objects.
 - [x] `ui-button/board-confirm` — runtime ✅ short synthesized UI tones in `PremiumFeedback`.
 - [x] `ui-rejected-action` — runtime ✅ synthesized rejection cue when the status message reports an invalid/rejected action.
 - [x] `mana-gain` / `mana-spend` — runtime ✅ synthesized mana feedback. This currently also covers the new `ECM6` Ruin +1 mana reward, so a separate Ruin MP3 is **not required** unless playtesting shows the source is unclear.
@@ -104,7 +104,7 @@ Audit snapshot: **2026-08-30**.
 | `trait-dark-reflection` | `sfx/trait-dark-reflection.mp3` | `UNT7` actually returns at least 1 damage to the direct attacker, at the reflection presentation. | sting | 0.70 | Action-serialized / pool 1 | Converted from WorldXplore runtime `arrow-impact.mp3`; user approved 2026-08-29. |
 | `turn-start-human` | `sfx/turn-start-human.mp3` | After `GRT7` commits control to a Human player and no winner exists. | sting | 0.68 | Turn-serialized / pool 1 | Two-second ACE-Step cut `Sunlit Keep`; user approved 2026-08-30; replaces the synthesized Human turn tone. |
 | `turn-start-undead` | `sfx/turn-start-undead.mp3` | After `GRT7` commits control to an Undead player and no winner exists. | sting | 0.68 | Turn-serialized / pool 1 | Two-second ACE-Step cut `Grave Moon`; user approved 2026-08-30; replaces the synthesized Undead turn tone. |
-| `unit-move-step` | `sfx/unit-move-step.mp3` | A rendered unit reaches each movement path hex after leaving its source. | footstep | 0.34 | 100 ms / pool 1 | Converted from WorldXplore runtime `footstep-dirt-b.mp3`; user approved 2026-08-28. |
+| `unit-move-step` | `sfx/unit-move-step.mp3` | A rendered unit reaches each movement path hex after leaving its source. | footstep | 0.42 | 100 ms / pool 1 | Converted from WorldXplore runtime `footstep-dirt-b.mp3`; user approved 2026-08-28. |
 | `unit-death-human` | `sfx/unit-death-human.mp3` | A Human unit's zero-HP removal reaches its death animation. | impact | 0.70 | Animation-serialized / pool 1 | De-clipped and converted from WorldXplore runtime `heavy-stomp.wav`; user approved 2026-08-23. |
 | `unit-death-undead` | `sfx/unit-death-undead.mp3` | An Undead unit's zero-HP removal reaches its death animation. | impact | 0.74 | Animation-serialized / pool 1 | Converted from WorldXplore runtime `bone-break.wav`; user approved 2026-08-23. |
 | `unit-summon-human` | `sfx/unit-summon-human.mp3` | A Human unit is successfully created from a Unit Card or an Invoked Beast is created under `UNT3`. | sting | 0.72 | Action-serialized / pool 1 | `unit-summon-human-r2-20260829-b.mp3`; short single-shot-gated replacement selected by user 2026-08-30. |

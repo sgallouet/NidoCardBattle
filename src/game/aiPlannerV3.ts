@@ -194,7 +194,12 @@ const controlConversionActive = (
   state: GameState,
   player: PlayerId,
   habits: PortfolioPlannerProfile['scoring']['habits'],
-): boolean => controlledStrategicSiteCount(state, player) >= habits.controlConversionSiteThreshold;
+): boolean => {
+  const enemy = opponentOf(player);
+  const controlled = controlledStrategicSiteCount(state, player);
+  return controlled >= habits.controlConversionSiteThreshold
+    && controlled - controlledStrategicSiteCount(state, enemy) >= habits.controlConversionLead;
+};
 const objectiveAssignments = (
   state: GameState,
   actor: PlayerId,
@@ -206,10 +211,11 @@ const objectiveAssignments = (
   const converting = controlConversionActive(state, actor, habits);
   const available = state.units.filter((unit) => unit.owner === actor && unit.definitionId !== 'commander');
   const candidates = state.sites.filter((site) => site.owner !== actor
-    && (site.type === 'well' || site.type === 'fort')
-    && (!converting || site.owner === enemy));
+    && (site.type === 'well' || site.type === 'fort'));
   candidates.sort((left, right) => {
-    const ownership = Number(right.owner === enemy) - Number(left.owner === enemy);
+    const ownership = converting
+      ? Number(right.owner === enemy) - Number(left.owner === enemy)
+      : 0;
     if (ownership !== 0) return ownership;
     const siteKind = Number(right.type === 'well') - Number(left.type === 'well');
     if (siteKind !== 0) return siteKind;
@@ -1065,6 +1071,12 @@ const compareV7Candidates = (
   return compareV4Candidates(left, right, profile);
 };
 
+const compareV8Candidates = (
+  left: AuditedCandidate,
+  right: AuditedCandidate,
+  profile: PortfolioPlannerProfile,
+): number => compareV6Candidates(left, right, profile);
+
 const proportionalBudgets = (total: number, weights: number[], minimum: number): number[] => {
   const count = Math.max(1, weights.length);
   const base = Math.min(minimum, Math.floor(total / count));
@@ -1155,8 +1167,10 @@ export const planPortfolioAiTurn = (
     ? compareAuditedCandidates
     : profile.id === 'v6-portfolio'
       ? (left, right) => compareV6Candidates(left, right, profile)
-      : profile.id === 'v7-portfolio' || profile.id === 'v8-portfolio'
+      : profile.id === 'v7-portfolio'
         ? (left, right) => compareV7Candidates(left, right, profile, state)
+        : profile.id === 'v8-portfolio'
+          ? (left, right) => compareV8Candidates(left, right, profile)
         : (left, right) => compareV4Candidates(left, right, profile));
   const best = audited[0];
   const diagnostics: PortfolioDiagnostics = {

@@ -28,6 +28,7 @@ const PALETTES: Record<TacticalHexFxKind, TacticalHexFxPalette> = {
   deploy: { fill: 0xe9ad32, glow: 0xffb82f, core: 0xffdc72, hot: 0xfff5be },
   spell: { fill: 0x8438ff, glow: 0xa23fff, core: 0xe16dff, hot: 0xffdcff },
 };
+const TRACER_FRAME_MS = 50;
 
 const drawHexCorners = (
   graphics: Phaser.GameObjects.Graphics,
@@ -176,7 +177,7 @@ export class TacticalHexFxLayer {
   private readonly handleUpdate = (_time: number, delta: number): void => {
     this.elapsed += Math.min(delta, 50);
     const seconds = this.elapsed / 1000;
-    const tracerFrame = Math.floor(this.elapsed / 34);
+    const tracerFrame = Math.floor(this.elapsed / TRACER_FRAME_MS);
     const redrawTracers = tracerFrame !== this.lastTracerFrame;
     this.lastTracerFrame = tracerFrame;
 

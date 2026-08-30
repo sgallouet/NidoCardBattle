@@ -61,7 +61,7 @@ export class CelShadedRiverSurface {
     this.assignFlowAngles(cells);
 
     const bounds = this.boundsFor(cells);
-    const root = this.scene.add.container(0, 0);
+    const root = this.scene.add.container(0, 0).setName('tiled-terrain');
     const surface = this.scene.add.container(0, 0);
 
     const base = this.scene.add.graphics();

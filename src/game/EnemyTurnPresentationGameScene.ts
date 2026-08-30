@@ -7,6 +7,13 @@ import './EnemyTurnPresentation.css';
 
 const ENEMY_ANIMATION_STORAGE_KEY = 'nido.enemyTurnAnimations';
 const CAMERA_FOCUS_MS = 220;
+const CAMERA_RETURN_MS = 420;
+
+interface CameraView {
+  centerX: number;
+  centerY: number;
+  zoom: number;
+}
 
 const ACTION_PACING: Record<AiAction['kind'], { leadIn: number; settle: number }> = {
   summon: { leadIn: 260, settle: 400 },
@@ -42,6 +49,7 @@ interface EnemyPresentationInternals {
 export class EnemyTurnPresentationGameScene extends StableInputGameScene {
   private enemyAnimationsEnabled = true;
   private forceInstant = false;
+  private playerCameraView?: CameraView;
   private enemyActionBanner?: HTMLElement;
   private enemyAnimationToggle?: HTMLButtonElement;
 
@@ -58,6 +66,7 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
     this.installPresentationUi();
 
     game.presentAiThinking = () => {
+      this.rememberPlayerCameraView();
       const commander = game.state.units.find((unit) =>
         unit.owner === 2 && unit.definitionId === 'commander');
       this.showEnemyAction('Enemy thinking…');
@@ -73,7 +82,7 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
 
     game.finishAiUi = (scene) => {
       this.hideEnemyAction();
-      baseFinishAiUi(scene);
+      this.returnCameraToPlayer(scene, () => baseFinishAiUi(scene));
     };
 
     if (animatedAiAction) {
@@ -104,8 +113,56 @@ export class EnemyTurnPresentationGameScene extends StableInputGameScene {
       this.enemyAnimationToggle?.removeEventListener('click', this.handleAnimationToggle);
       this.enemyAnimationToggle?.remove();
       this.enemyActionBanner?.remove();
+      this.playerCameraView = undefined;
       this.enemyAnimationToggle = undefined;
       this.enemyActionBanner = undefined;
+    });
+  }
+
+  private rememberPlayerCameraView(): void {
+    if (this.playerCameraView) return;
+    const camera = this.cameras.main;
+    this.playerCameraView = {
+      centerX: camera.worldView.centerX,
+      centerY: camera.worldView.centerY,
+      zoom: camera.zoom,
+    };
+  }
+
+  private returnCameraToPlayer(
+    game: EnemyPresentationInternals,
+    complete: () => void,
+  ): void {
+    const view = this.playerCameraView;
+    this.playerCameraView = undefined;
+    if (!view || game.state.winner || game.state.currentPlayer !== 1) {
+      complete();
+      return;
+    }
+
+    const camera = this.cameras.main;
+    const distance = Math.hypot(
+      camera.worldView.centerX - view.centerX,
+      camera.worldView.centerY - view.centerY,
+    );
+    const zoomChanged = Math.abs(camera.zoom - view.zoom) > 0.001;
+    if (distance < 0.5 / camera.zoom && !zoomChanged) {
+      complete();
+      return;
+    }
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!this.enemyAnimationsEnabled || reducedMotion) {
+      camera.setZoom(view.zoom).centerOn(view.centerX, view.centerY);
+      complete();
+      return;
+    }
+
+    camera.pan(view.centerX, view.centerY, CAMERA_RETURN_MS, 'Sine.easeInOut', true);
+    if (zoomChanged) camera.zoomTo(view.zoom, CAMERA_RETURN_MS, 'Sine.easeInOut', true);
+    this.time.delayedCall(CAMERA_RETURN_MS, () => {
+      camera.setZoom(view.zoom).centerOn(view.centerX, view.centerY);
+      complete();
     });
   }
 

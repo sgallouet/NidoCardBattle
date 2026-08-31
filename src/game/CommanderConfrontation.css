@@ -13,7 +13,7 @@
   box-shadow: 0 15px 34px #000b, 0 0 22px color-mix(in srgb, var(--commander-bubble-accent) 22%, transparent);
   pointer-events: none;
   opacity: 0;
-  transform: translate(-50%, -100%) translateY(-14px) scale(.94);
+  transform: translate(-50%, -100%) translateY(-30px) scale(.94);
   transform-origin: 50% 100%;
   transition: opacity 160ms ease, transform 220ms cubic-bezier(.16,.82,.22,1);
   backdrop-filter: blur(10px) saturate(1.1);
@@ -25,7 +25,7 @@
 
 .commander-confrontation-bubble.is-visible {
   opacity: 1;
-  transform: translate(-50%, -100%) translateY(-14px) scale(1);
+  transform: translate(-50%, -100%) translateY(-30px) scale(1);
 }
 
 .commander-confrontation-bubble.is-below {

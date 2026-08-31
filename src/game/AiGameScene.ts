@@ -56,7 +56,6 @@ interface GameSceneInternals {
   playHealingAura: () => void;
   playVillageHeal: () => void;
   playSiteCapture: () => void;
-  playTurnEnd: () => void;
   playUnitDeath: (owner: PlayerId, commander?: boolean) => void;
   playVictoryCountdown: () => void;
   presentAbilityVfx: (event: AbilityVfxEvent) => Promise<void>;
@@ -444,7 +443,6 @@ export class AiGameScene extends GameScene {
           && scene.state.countdown.checkpoints > countdownBefore.checkpoints;
         if (countdownAdvanced && !scene.state.winner) scene.playVictoryCountdown();
         if (scene.state.currentPlayer !== endingPlayer) {
-          scene.playTurnEnd();
           const healedTargets = scene.state.units.filter(
             (unit) => unit.hp > (healingAuraTargetHpBefore.get(unit.id) ?? unit.hp),
           );

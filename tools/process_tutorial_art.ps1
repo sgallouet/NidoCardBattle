@@ -9,8 +9,9 @@ $sourceDirectory = Join-Path $repoRoot 'assets/source/ui/tutorial'
 $outputDirectory = Join-Path $repoRoot 'assets/game/ui/tutorial'
 
 $variants = @(
-  @{ Source = 'how-to-play-mobile.png'; Output = 'how-to-play-mobile.webp' },
-  @{ Source = 'how-to-play-wide.png'; Output = 'how-to-play-wide.webp' }
+  @{ Source = 'tutorial-battle-grid-v2.png'; Output = 'tutorial-battle-grid-v2.webp' },
+  @{ Source = 'tutorial-card-invocation-v2.png'; Output = 'tutorial-card-invocation-v2.webp' },
+  @{ Source = 'tutorial-mana-sources-v2.png'; Output = 'tutorial-mana-sources-v2.webp' }
 )
 
 New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null

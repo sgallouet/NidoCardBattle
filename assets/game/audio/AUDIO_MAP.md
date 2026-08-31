@@ -62,7 +62,7 @@ Audit snapshot: **2026-08-30**.
 
 ### P0 — work left for core match readability
 
-- [ ] `turn-end` — current runtime cue rejected on 2026-08-29. Four distinct single-shot-gated concepts—battle horn, shield command, banner relay, and arcane signal—await audition.
+- [ ] `turn-end` — legacy cue removed on 2026-08-31 because it duplicated the accepted faction turn-start fanfares. Keep a separate end-turn cue only if a distinct concept is later selected.
 - [ ] `match-defeat` — asset ❌; runtime ❌. Trigger when the opposing player becomes the winner. Short restrained defeat/failure finale sting.
 
 ### P1 — unit abilities and traits
@@ -122,7 +122,7 @@ Audit snapshot: **2026-08-30**.
 
 ## Recommended work order
 
-1. Decide whether `turn-end` still needs a separate cue now that the faction turn-start fanfares are integrated.
+1. Decide whether `turn-end` still needs a separate cue; no legacy turn-end audio currently plays, so any replacement must be intentionally distinct from the faction turn-start fanfares.
 2. Validate and accept regenerated `match-defeat`.
 3. Validate and accept regenerated `ability-curse-tick` and `trait-necromancy` candidates.
 4. Validate and accept regenerated battlefield ambience.

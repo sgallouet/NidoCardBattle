@@ -20,7 +20,6 @@ import unitDeathHumanUrl from '../../assets/game/audio/sfx/unit-death-human.mp3?
 import unitDeathUndeadUrl from '../../assets/game/audio/sfx/unit-death-undead.mp3?url';
 import unitSummonHumanUrl from '../../assets/game/audio/sfx/unit-summon-human.mp3?url';
 import unitSummonUndeadUrl from '../../assets/game/audio/sfx/unit-summon-undead.mp3?url';
-import turnEndUrl from '../../assets/game/audio/sfx/turn-end.mp3?url';
 import uiCardDrawUrl from '../../assets/game/audio/sfx/ui-card-draw.mp3?url';
 import uiCardPlayUrl from '../../assets/game/audio/sfx/ui-card-play.mp3?url';
 import victoryCountdownUrl from '../../assets/game/audio/sfx/victory-countdown.mp3?url';
@@ -156,8 +155,6 @@ const UNIT_SUMMON_HUMAN_AUDIO_KEY = 'unit-summon-human';
 const UNIT_SUMMON_HUMAN_VOLUME = 0.72;
 const UNIT_SUMMON_UNDEAD_AUDIO_KEY = 'unit-summon-undead';
 const UNIT_SUMMON_UNDEAD_VOLUME = 0.66;
-const TURN_END_AUDIO_KEY = 'turn-end';
-const TURN_END_VOLUME = 0.52;
 const UI_CARD_DRAW_AUDIO_KEY = 'ui-card-draw';
 const UI_CARD_DRAW_VOLUME = 0.58;
 const UI_CARD_PLAY_AUDIO_KEY = 'ui-card-play';
@@ -282,7 +279,6 @@ export class GameScene extends Phaser.Scene {
     this.load.audio(UNIT_DEATH_UNDEAD_AUDIO_KEY, unitDeathUndeadUrl);
     this.load.audio(UNIT_SUMMON_HUMAN_AUDIO_KEY, unitSummonHumanUrl);
     this.load.audio(UNIT_SUMMON_UNDEAD_AUDIO_KEY, unitSummonUndeadUrl);
-    this.load.audio(TURN_END_AUDIO_KEY, turnEndUrl);
     this.load.audio(UI_CARD_DRAW_AUDIO_KEY, uiCardDrawUrl);
     this.load.audio(UI_CARD_PLAY_AUDIO_KEY, uiCardPlayUrl);
     this.load.audio(VICTORY_COUNTDOWN_AUDIO_KEY, victoryCountdownUrl);
@@ -1491,10 +1487,6 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.sound.play(UI_CARD_PLAY_AUDIO_KEY, { volume: UI_CARD_PLAY_VOLUME });
   }
 
-  playTurnEnd(): void {
-    this.sound.play(TURN_END_AUDIO_KEY, { volume: TURN_END_VOLUME });
-  }
-
   playSiteCapture(): void {
     this.sound.play(SITE_CAPTURE_AUDIO_KEY, { volume: SITE_CAPTURE_VOLUME });
   }
@@ -1934,7 +1926,6 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
         && this.state.countdown.checkpoints > countdownBefore.checkpoints;
       if (countdownAdvanced && !this.state.winner) this.playVictoryCountdown();
       if (this.state.currentPlayer !== endingPlayer) {
-        this.playTurnEnd();
         const healedTargets = this.state.units.filter(
           (unit) => unit.hp > (healingAuraTargetHpBefore.get(unit.id) ?? unit.hp),
         );

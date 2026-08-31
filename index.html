@@ -5,29 +5,113 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#141119" />
     <title>NidoCardBattle Prototype</title>
-    <link rel="preload" as="image" href="./assets/game/ui/tutorial/how-to-play-mobile.webp" type="image/webp" media="(orientation: portrait)" fetchpriority="high" />
-    <link rel="preload" as="image" href="./assets/game/ui/tutorial/how-to-play-wide.webp" type="image/webp" media="(orientation: landscape)" fetchpriority="high" />
+    <link rel="preload" as="image" href="./assets/game/ui/tutorial/tutorial-battle-grid-v2.webp" type="image/webp" fetchpriority="high" />
     <style>
       html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #02091a; }
       .loading-screen { position: fixed; inset: 0; z-index: 1000; overflow: hidden; background: #02091a; }
-      .loading-tutorial { position: absolute; inset: 0 0 44px; display: block; }
-      .loading-tutorial-image { display: block; width: 100%; height: 100%; object-fit: contain; }
+      .loading-tutorial { position: absolute; inset: 0 0 44px; }
+      .loading-slide { position: absolute; inset: 0; visibility: hidden; opacity: 0; }
+      .loading-slide.is-active { visibility: visible; opacity: 1; }
+      .loading-slide-backdrop { display: block; width: 100%; height: 100%; object-fit: cover; }
     </style>
   </head>
   <body>
-    <div id="loading-screen" class="loading-screen" style="--loading-progress: 0%" aria-label="Loading NidoCardBattle">
-      <picture class="loading-tutorial">
-        <source media="(orientation: portrait)" srcset="./assets/game/ui/tutorial/how-to-play-mobile.webp" />
-        <img
-          class="loading-tutorial-image"
-          src="./assets/game/ui/tutorial/how-to-play-wide.webp"
-          alt="How to play NidoCardBattle: play cards with mana, move and attack, capture sites, and defeat the enemy commander."
-          width="1672"
-          height="941"
-          fetchpriority="high"
-          decoding="sync"
-        />
-      </picture>
+    <div id="loading-screen" class="loading-screen" style="--loading-progress: 0%" role="dialog" aria-modal="true" aria-labelledby="loading-tutorial-title-1">
+      <section class="loading-tutorial" aria-label="How to play NidoCardBattle">
+        <article class="loading-slide loading-slide-copy-left is-active" data-loading-slide data-rule-ids="UNA1 UNA2 UNC1 MPT2 MPT3 MPT4" aria-hidden="false">
+          <img
+            class="loading-slide-backdrop"
+            src="./assets/game/ui/tutorial/tutorial-battle-grid-v2.webp"
+            alt="The Human Commander advances across glowing blue hexes toward an Undead Grave Knight on a violet target hex."
+            width="1536"
+            height="1024"
+            fetchpriority="high"
+            decoding="sync"
+          />
+          <div class="loading-slide-vignette" aria-hidden="true"></div>
+          <div class="loading-slide-copy">
+            <span class="loading-slide-eyebrow">Field Guide · 01</span>
+            <h1 id="loading-tutorial-title-1">Command the Battle Grid</h1>
+            <p class="loading-slide-lead">Choose a unit, read the glowing hexes, then commit your move.</p>
+            <ul class="loading-rule-list">
+              <li><span class="loading-rule-glyph is-move" aria-hidden="true"></span><span><strong>Blue hexes</strong> show where your unit can move.</span></li>
+              <li><span class="loading-rule-glyph is-attack" aria-hidden="true"></span><span><strong>Red targets</strong> are in attack range. Damage never misses.</span></li>
+              <li><span class="loading-rule-glyph is-terrain" aria-hidden="true">▲</span><span><strong>Terrain matters.</strong> Forests protect from ranged fire; hills extend ranged attacks.</span></li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="loading-slide loading-slide-copy-right" data-loading-slide data-rule-ids="CRT2 CRT3 CRU1 CRU2 CRU3 CRU4" aria-hidden="true">
+          <img
+            class="loading-slide-backdrop"
+            src="./assets/game/ui/tutorial/tutorial-card-invocation-v2.webp"
+            alt="A Thunder Mage is invoked from a radiant blue and gold card portal above a Human fort."
+            width="1536"
+            height="1024"
+            loading="eager"
+            decoding="async"
+          />
+          <div class="loading-slide-vignette" aria-hidden="true"></div>
+          <div class="loading-slide-copy">
+            <span class="loading-slide-eyebrow">Field Guide · 02</span>
+            <h1 id="loading-tutorial-title-2">Invoke Your Army</h1>
+            <p class="loading-slide-lead">Spend mana on Unit cards and battlefield-changing Tactics.</p>
+            <ul class="loading-rule-list">
+              <li><span class="loading-rule-number">1</span><span><strong>Choose a Unit card</strong> from your hand and pay its crystal cost.</span></li>
+              <li><span class="loading-rule-number">2</span><span><strong>Summon on an empty controlled</strong> Keep, Fort, or linked Garrison.</span></li>
+              <li><span class="loading-rule-number">3</span><span><strong>Plan one turn ahead.</strong> New units enter Exhausted; Tactics resolve immediately.</span></li>
+            </ul>
+            <div class="loading-card-cameos" aria-label="Examples of real Human and Undead cards">
+              <img src="./assets/game/cards/thunder-mage.webp" alt="Thunder Mage card, costing 4 mana" />
+              <img src="./assets/game/cards/skeletal-infantry.webp" alt="Skeletal Infantry card, costing 1 mana" />
+              <span><strong>Every card has its own cost.</strong><small>Build the right turn from the mana you saved.</small></span>
+            </div>
+          </div>
+        </article>
+
+        <article class="loading-slide loading-slide-copy-left" data-loading-slide data-rule-ids="ECM1 ECM2 ECM3 ECM4 ECM5 ECM6" aria-hidden="true">
+          <img
+            class="loading-slide-backdrop"
+            src="./assets/game/ui/tutorial/tutorial-mana-sources-v2.webp"
+            alt="Blue mana streams flow from a Keep, Mana Well, and occupied Ruin into a brilliant mana crystal."
+            width="1536"
+            height="1024"
+            loading="eager"
+            decoding="async"
+          />
+          <div class="loading-slide-vignette" aria-hidden="true"></div>
+          <div class="loading-slide-copy">
+            <span class="loading-slide-eyebrow">Field Guide · 03</span>
+            <h1 id="loading-tutorial-title-3">Master Your Mana</h1>
+            <p class="loading-slide-lead">Start with <strong>3 mana</strong>. Unspent mana carries over, up to <strong>10</strong>.</p>
+            <div class="loading-mana-sources">
+              <div class="loading-mana-source">
+                <img src="./assets/game/sites/keep.webp" alt="" />
+                <span><strong>Home Keep · +1</strong><small>At the start of your turns, beginning on turn 2.</small></span>
+              </div>
+              <div class="loading-mana-source">
+                <img src="./assets/game/sites/well-neutral-v3.webp" alt="" />
+                <span><strong>Mana Well · +2</strong><small>On every third turn you take: 3, 6, 9…</small></span>
+              </div>
+              <div class="loading-mana-source">
+                <img src="./assets/game/decorations/ruin.webp" alt="" />
+                <span><strong>Occupied Ruin · +1</strong><small>Keep one of your units standing there.</small></span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <nav class="loading-tutorial-navigation" aria-label="Tutorial slides">
+          <button class="loading-tutorial-back" type="button" data-loading-prev aria-label="Previous tutorial slide" disabled>←</button>
+          <div class="loading-tutorial-dots" aria-hidden="true">
+            <span class="is-active"></span><span></span><span></span>
+          </div>
+          <span class="sr-only" data-loading-slide-status aria-live="polite">Slide 1 of 3</span>
+          <button class="loading-tutorial-next" type="button" data-loading-next>
+            <span data-loading-action>Next</span><span aria-hidden="true">→</span>
+          </button>
+        </nav>
+      </section>
       <div class="loading-progress-panel">
         <div class="loading-bar-frame" aria-hidden="true">
           <div class="loading-bar-fill"></div>

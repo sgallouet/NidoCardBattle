@@ -13,6 +13,9 @@ interface CameraSnapshot {
   zoom: number;
 }
 
+const ENEMY_LINE_HOLD_MS = 3400;
+const FRIENDLY_LINE_HOLD_MS = 2300;
+
 export class CommanderConfrontation {
   private bubble?: HTMLElement;
   private destroyed = false;
@@ -36,14 +39,14 @@ export class CommanderConfrontation {
     await this.focus(enemy.coord, Math.max(camera.zoom, 1.48), 620);
     if (this.destroyed) return;
     this.showBubble(enemy.coord, 'Enemy Commander', 'Come for me, little hero. Your bones will serve me when this is over.', false);
-    await this.wait(1550);
+    await this.wait(ENEMY_LINE_HOLD_MS);
     this.hideBubble();
     await this.wait(140);
 
     await this.focus(friendly.coord, Math.max(returnView.zoom, 1.42), 560);
     if (this.destroyed) return;
     this.showBubble(friendly.coord, 'Your Commander', 'Then I’d better end you first.', true);
-    await this.wait(1350);
+    await this.wait(FRIENDLY_LINE_HOLD_MS);
     this.hideBubble();
     await this.wait(120);
 

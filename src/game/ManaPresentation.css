@@ -1,44 +1,69 @@
-#app .mana-count {
+#app .turn-control .mana-count {
+  position: relative;
   z-index: 9;
-  bottom: 68px;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  display: flex;
+  width: max-content;
+  margin: 7px auto 0;
   padding: 4px 9px 4px 6px;
-  border: 1px solid rgba(105, 207, 255, .18);
+  border: 1px solid rgba(105, 207, 255, .22);
   border-radius: 999px;
-  background: rgba(4, 12, 18, .62);
-  box-shadow: 0 5px 16px rgba(0, 0, 0, .34), inset 0 1px rgba(255, 255, 255, .035);
+  color: #e7faff;
+  background: linear-gradient(180deg, rgba(8, 23, 33, .86), rgba(3, 11, 17, .8));
+  box-shadow:
+    0 5px 16px rgba(0, 0, 0, .34),
+    0 0 16px rgba(57, 183, 255, .08),
+    inset 0 1px rgba(255, 255, 255, .05);
   backdrop-filter: blur(6px);
   overflow: visible;
+  font-size: 20px;
   transition: filter 150ms ease, transform 150ms ease;
 }
 
+#app .turn-control .mana-gem {
+  width: 19px;
+  height: 23px;
+  filter: drop-shadow(0 0 6px rgba(84, 211, 255, .45));
+}
+
 .mana-delivery-schedule {
-  position: absolute;
+  position: relative;
   z-index: 8;
-  left: 28px;
-  bottom: 14px;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  width: 100%;
   min-width: 0;
-  max-width: min(310px, calc(100vw - 44px));
-  padding: 4px 7px 5px;
-  border: 1px solid rgba(109, 202, 255, .17);
+  max-width: 178px;
+  margin: 5px auto 0;
+  padding: 5px 7px 6px;
+  border: 1px solid rgba(109, 202, 255, .15);
   border-radius: 7px;
   color: #cdd5d9;
-  background: linear-gradient(180deg, rgba(7, 15, 21, .76), rgba(5, 10, 14, .68));
-  box-shadow: 0 5px 15px rgba(0, 0, 0, .34), inset 0 1px rgba(255, 255, 255, .03);
+  background: linear-gradient(180deg, rgba(7, 15, 21, .7), rgba(5, 10, 14, .62));
+  box-shadow: 0 5px 15px rgba(0, 0, 0, .27), inset 0 1px rgba(255, 255, 255, .025);
   backdrop-filter: blur(6px);
-  font: 650 9.5px/1.28 Arial, sans-serif;
-  letter-spacing: .01em;
+  font: 650 8px/1.28 Arial, sans-serif;
+  letter-spacing: .005em;
+  text-align: left;
   text-shadow: 0 1px 2px #000;
   pointer-events: none;
-  transform-origin: left bottom;
+  transform-origin: center top;
 }
 
 .mana-schedule-line {
   display: block;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .mana-schedule-line + .mana-schedule-line {
-  margin-top: 1px;
+  margin-top: 2px;
+  padding-top: 2px;
+  border-top: 1px solid rgba(103, 207, 255, .09);
 }
 
 .mana-schedule-number {
@@ -50,7 +75,7 @@
 .mana-delivery-schedule.is-well-delivery {
   border-color: rgba(103, 184, 255, .46);
   box-shadow:
-    0 5px 15px rgba(0, 0, 0, .34),
+    0 5px 15px rgba(0, 0, 0, .3),
     0 0 14px rgba(64, 169, 255, .16),
     inset 0 1px rgba(255, 255, 255, .05);
   animation: mana-schedule-well-pulse 1.15s ease-in-out infinite alternate;
@@ -161,28 +186,33 @@
   to { filter: brightness(1.12) drop-shadow(0 0 5px rgba(67, 175, 255, .22)); }
 }
 
-@media (max-height: 720px), (max-width: 900px) {
-  #app .mana-count {
-    top: max(9px, env(safe-area-inset-top));
-    bottom: auto;
-    left: max(10px, env(safe-area-inset-left));
-  }
-
+@media (max-width: 1150px) {
   .mana-delivery-schedule {
-    top: calc(max(9px, env(safe-area-inset-top)) + 43px);
-    bottom: auto;
-    left: max(10px, env(safe-area-inset-left));
-    max-width: min(300px, calc(100vw - 20px));
-    padding: 4px 6px 5px;
-    font-size: 9px;
-    transform-origin: left top;
+    max-width: 140px;
+    font-size: 7.5px;
   }
 }
 
-@media (max-width: 520px) {
+@media (max-height: 720px), (max-width: 900px) {
+  #app .turn-control .mana-count {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    margin: 4px auto 0;
+    gap: 6px;
+    padding: 3px 7px 3px 5px;
+    font-size: 16px;
+  }
+
+  #app .turn-control .mana-gem {
+    width: 15px;
+    height: 18px;
+  }
+
   .mana-delivery-schedule {
-    max-width: calc(100vw - 20px);
-    font-size: 8.5px;
+    display: none;
   }
 }
 

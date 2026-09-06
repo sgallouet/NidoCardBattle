@@ -253,29 +253,29 @@ export class UnitInfoInspector {
   }
 
   private statusFor(unit: UnitState): InspectorTag[] {
+    const tags: InspectorTag[] = [];
+    if (unit.exhausted) tags.push({ label: 'Exhausted', kind: 'status' });
+    if (unit.moved) tags.push({ label: 'Moved', kind: 'status' });
+    if (unit.attacked) tags.push({ label: 'Attacked', kind: 'status' });
+    if (unit.pendingAdvance && getReachableCoords(this.game.state, unit.id).has(coordKey(unit.pendingAdvance))) {
+      tags.push({ label: 'Reposition available', kind: 'status' });
+    }
+    if (hasActiveCurseFrom(this.game.state, unit.id)) {
+      tags.push({
+        label: 'Curse active',
+        kind: 'status',
+        description: 'This Necromancer already maintains a Curse and cannot cast another until it ends or its target leaves the battlefield.',
+      });
+    }
     const activeBeast = unit.invokedPetId ? findUnit(this.game.state, unit.invokedPetId) : undefined;
-    return [
-      unit.exhausted ? { label: 'Exhausted', kind: 'status' as const } : undefined,
-      unit.moved ? { label: 'Moved', kind: 'status' as const } : undefined,
-      unit.attacked ? { label: 'Attacked', kind: 'status' as const } : undefined,
-      unit.pendingAdvance && getReachableCoords(this.game.state, unit.id).has(coordKey(unit.pendingAdvance))
-        ? { label: 'Reposition available', kind: 'status' as const }
-        : undefined,
-      hasActiveCurseFrom(this.game.state, unit.id)
-        ? {
-          label: 'Curse active',
-          kind: 'status' as const,
-          description: 'This Necromancer already maintains a Curse and cannot cast another until it ends or its target leaves the battlefield.',
-        }
-        : undefined,
-      activeBeast
-        ? {
-          label: 'Beast active',
-          kind: 'status' as const,
-          description: 'This Mage already has a living Invoked Beast and cannot invoke another until it is destroyed.',
-        }
-        : undefined,
-    ].filter((tag): tag is InspectorTag => tag !== undefined);
+    if (activeBeast) {
+      tags.push({
+        label: 'Beast active',
+        kind: 'status',
+        description: 'This Mage already has a living Invoked Beast and cannot invoke another until it is destroyed.',
+      });
+    }
+    return tags;
   }
 
   private escape(value: string): string {

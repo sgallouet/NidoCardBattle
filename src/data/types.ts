@@ -49,6 +49,8 @@ export interface UnitDefinition {
 
 export interface CurseStatus {
   sourcePlayer: PlayerId;
+  /** Optional so old persisted battles without per-Necromancer ownership still load. */
+  sourceUnitId?: string;
   remainingTurns: number;
 }
 

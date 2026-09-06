@@ -42,13 +42,15 @@ import {
   MatchIntroPresentation,
   type MatchIntroSceneInternals,
 } from './MatchIntroPresentation';
+import { ManaPresentation, type ManaPresentationSceneInternals } from './ManaPresentation';
 
 interface ProductionSceneInternals extends
   CelShadedRiverSceneInternals,
   PremiumFeedbackSceneInternals,
   FirstTurnGuideSceneInternals,
   ActionAvailabilitySceneInternals,
-  UnitInfoInspectorSceneInternals {
+  UnitInfoInspectorSceneInternals,
+  ManaPresentationSceneInternals {
   addRiverSurface: () => void;
   clearRiverSurface: () => void;
   renderAll: () => void;
@@ -86,6 +88,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private victoryMusicStarted = false;
   private demoVideo?: DemoVideoRecorder;
   private matchIntro?: MatchIntroPresentation;
+  private manaPresentation?: ManaPresentation;
 
   create(): void {
     const game = this as unknown as ProductionSceneInternals;
@@ -104,6 +107,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
 
     super.create();
 
+    this.manaPresentation = new ManaPresentation(this, game);
+    this.manaPresentation.install();
     this.cardAvailabilityTips = new CardAvailabilityTips({
       getState: () => game.state,
       tileTipsEnabled: () => this.areTileTipsEnabled(),
@@ -227,6 +232,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     this.events.once('shutdown', () => {
       this.matchIntro?.destroy();
       this.matchIntro = undefined;
+      this.manaPresentation?.destroy();
+      this.manaPresentation = undefined;
       this.firstTurnGuide?.destroy();
       this.firstTurnGuide = undefined;
       this.victoryObjective?.destroy();

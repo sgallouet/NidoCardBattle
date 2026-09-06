@@ -66,7 +66,7 @@ export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
   },
   necromancer: {
     id: 'necromancer', name: 'Necromancer', faction: 'undead', cost: 5, maxHp: 4, attack: 1, move: 2, range: 3,
-    traits: ['Ranged', 'Necromancy'], ability: 'Curse', mark: 'N',
+    traits: ['Ranged', 'Necromancy', 'SetShot'], ability: 'Curse', mark: 'N',
   },
   banshee: {
     id: 'banshee', name: 'Banshee', faction: 'undead', cost: 4, maxHp: 3, attack: 2, move: 3, range: 1,

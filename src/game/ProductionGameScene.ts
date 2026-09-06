@@ -47,10 +47,7 @@ import {
   ManaPresentation,
   type ManaPresentationSceneInternals,
 } from './ManaPresentation';
-import {
-  reconsiderationPreviewCoordPaths,
-  shortestReconsiderationPresentationPath,
-} from './MovementReconsiderationPresentation';
+import { shortestReconsiderationPresentationPath } from './MovementReconsiderationPresentation';
 
 interface ProductionSceneInternals extends
   CelShadedRiverSceneInternals,
@@ -144,15 +141,23 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     );
     const originalMovementHighlightPaths = game.movementHighlightPaths.bind(this);
     game.movementHighlightPaths = () => {
+      const paths = originalMovementHighlightPaths();
       const selected = game.selectedUnitId
         ? game.state.units.find((unit) => unit.id === game.selectedUnitId)
         : undefined;
-      if (!selected?.movementOrigin || selected.attacked) return originalMovementHighlightPaths();
-      const coordPaths = reconsiderationPreviewCoordPaths(game.state, selected.id);
-      return new Map([...coordPaths].map(([key, path]) => [
-        key,
-        path.map((coord) => game.center(coord)),
-      ]));
+      if (!selected?.movementOrigin || selected.attacked) return paths;
+
+      // The engine's reconsideration path intentionally contains current -> original -> replacement
+      // so the action can describe the logical undo/redo. For the tactical preview, hide that undo
+      // prefix: the arrows should look exactly like the player's original choice, rooted at the
+      // original movement hex. The actual token animation still uses the short current -> replacement path.
+      const origin = game.center(selected.movementOrigin);
+      return new Map([...paths].map(([key, path]) => {
+        const originIndex = path.findIndex((point) =>
+          Phaser.Math.Distance.Between(point.x, point.y, origin.x, origin.y) < 0.5);
+        if (originIndex >= 0) return [key, path.slice(originIndex)];
+        return [key, [origin.clone(), ...path]];
+      }));
     };
 
     this.manaPresentation = new ManaPresentation(this, game);

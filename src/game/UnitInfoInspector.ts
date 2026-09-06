@@ -1,7 +1,14 @@
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
-import type { GameState, Trait, UnitDefinition, UnitState } from '../data/types';
+import type { Ability, GameState, Trait, UnitDefinition, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
-import { coordKey, effectiveRange, findUnit, getReachableCoords, unitDefinition } from './engine';
+import {
+  coordKey,
+  effectiveRange,
+  findUnit,
+  getReachableCoords,
+  hasActiveCurseFrom,
+  unitDefinition,
+} from './engine';
 import './UnitInfoInspector.css';
 
 export interface UnitInfoInspectorSceneInternals {
@@ -40,13 +47,24 @@ const TRAIT_DESCRIPTIONS: Record<Trait, string> = {
   Invoker: 'Instead of attacking, summon one Exhausted Invoked Beast on a free adjacent hex. This unit can have only one living Beast at a time.',
   HealingAura: 'At the start of this unit owner’s turn, every adjacent ally restores 1 HP. The aura bearer does not heal itself.',
   Ranged: 'Uses ranged attack rules. Base Range is 3, and standing on a Hill grants +1 Range.',
-  SetShot: 'After this unit spends any movement during its turn, it cannot make a normal attack that turn. It can still Assist.',
+  SetShot: 'After this unit spends any movement during its turn, it cannot make a normal attack that turn. It can still use eligible abilities and still Assist.',
   Flying: 'Ignores terrain movement restrictions except Mountains. Every terrain hex it can enter costs 1 movement point.',
   AgileAssault: 'May move up to its Move before attacking, then move up to its Move again after attacking. Retaliation damage is reduced by 50%, rounded up.',
   DarkReflection: 'When an enemy directly damages this unit, that attacker immediately takes 30% of the damage actually dealt, rounded to the nearest HP.',
-  Necromancy: 'When this unit personally kills an enemy with its attack, summon an Exhausted Skeletal Infantry on the defeated hex if it is free.',
+  Necromancy: 'When this unit personally kills an enemy with its normal attack, raise an Exhausted Skeletal Infantry with exactly 1 HP on the defeated hex if it is free.',
   Phase: 'Ignores enemy Blocking while moving. Normal occupancy, destination, Grave Lock, and impassable-terrain rules still apply.',
   Assist: 'When an ally makes an adjacent close normal attack, add 1 damage if the target is within this unit’s Range, or 2 from directly opposite the attacker. Assist does not consume actions.',
+};
+
+const ABILITY_DESCRIPTIONS: Record<Ability, string> = {
+  Displace: 'Instead of attacking, move one adjacent unit to another free hex adjacent to this unit.',
+  Restore: 'Restore HP to an eligible adjacent ally.',
+  Thunder: 'Strike one enemy within Range for 1 damage, then chain through every enemy connected by adjacent occupied hexes. Each enemy is struck once; allies are safe.',
+  Rally: 'Instead of attacking, give eligible adjacent allies +1 Move for the current turn.',
+  SoulLink: 'Instead of attacking, link the Commander to one adjacent allied Undead unit so incoming Commander damage is redirected to it.',
+  Curse: 'Curse one enemy within Range for 1 damage at the end of its next 3 turns. Each Necromancer may maintain only one active Curse at a time.',
+  BloodDrain: 'After dealing damage with a normal attack, restore 1 HP to this unit, up to its maximum.',
+  Cleave: 'A normal attack also deals this unit’s Attack damage to every other enemy adjacent to the attacker.',
 };
 
 export class UnitInfoInspector {
@@ -150,13 +168,17 @@ export class UnitInfoInspector {
     const attack = definition.normalAttack === false ? '—' : `${definition.attack}`;
     const status = mode.kind === 'selected' ? this.statusFor(mode.unit) : [];
     const tags: InspectorTag[] = [
-      ...(definition.ability ? [{ label: definition.ability, kind: 'ability' as const }] : []),
+      ...(definition.ability ? [{
+        label: definition.ability,
+        kind: 'ability' as const,
+        description: ABILITY_DESCRIPTIONS[definition.ability],
+      }] : []),
       ...definition.traits.map((trait) => ({
         label: TRAIT_LABELS[trait],
         kind: 'trait' as const,
         description: TRAIT_DESCRIPTIONS[trait],
       })),
-      ...status.map((label) => ({ label, kind: 'status' as const })),
+      ...status,
     ];
     const enemyPreview = mode.kind === 'selected' && mode.unit.owner !== this.game.state.currentPlayer;
 
@@ -230,13 +252,30 @@ export class UnitInfoInspector {
     return `<div class="unit-sheet-stat" title="${this.escape(title)}"><span>${label}</span><strong>${this.escape(value)}</strong></div>`;
   }
 
-  private statusFor(unit: UnitState): string[] {
+  private statusFor(unit: UnitState): InspectorTag[] {
+    const activeBeast = unit.invokedPetId ? findUnit(this.game.state, unit.invokedPetId) : undefined;
     return [
-      unit.exhausted ? 'Exhausted' : '',
-      unit.moved ? 'Moved' : '',
-      unit.attacked ? 'Attacked' : '',
-      unit.pendingAdvance && getReachableCoords(this.game.state, unit.id).has(coordKey(unit.pendingAdvance)) ? 'Reposition available' : '',
-    ].filter(Boolean);
+      unit.exhausted ? { label: 'Exhausted', kind: 'status' as const } : undefined,
+      unit.moved ? { label: 'Moved', kind: 'status' as const } : undefined,
+      unit.attacked ? { label: 'Attacked', kind: 'status' as const } : undefined,
+      unit.pendingAdvance && getReachableCoords(this.game.state, unit.id).has(coordKey(unit.pendingAdvance))
+        ? { label: 'Reposition available', kind: 'status' as const }
+        : undefined,
+      hasActiveCurseFrom(this.game.state, unit.id)
+        ? {
+          label: 'Curse active',
+          kind: 'status' as const,
+          description: 'This Necromancer already maintains a Curse and cannot cast another until it ends or its target leaves the battlefield.',
+        }
+        : undefined,
+      activeBeast
+        ? {
+          label: 'Beast active',
+          kind: 'status' as const,
+          description: 'This Mage already has a living Invoked Beast and cannot invoke another until it is destroyed.',
+        }
+        : undefined,
+    ].filter((tag): tag is InspectorTag => tag !== undefined);
   }
 
   private escape(value: string): string {

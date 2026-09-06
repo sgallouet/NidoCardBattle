@@ -22,15 +22,15 @@ export type UnitDefinitionId =
 export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
   commander: {
     id: 'commander', name: 'Commander', faction: 'shared', cost: 0, maxHp: 10, attack: 3, move: 2, range: 1,
-    traits: ['Blocking'], mark: 'C',
+    traits: ['Blocking', 'Assist'], mark: 'C',
   },
   humanCommander: {
     id: 'commander', name: 'Human Commander', faction: 'human', cost: 0, maxHp: 10, attack: 3, move: 2, range: 1,
-    traits: ['Blocking', 'Retaliates'], ability: 'Rally', mark: 'C',
+    traits: ['Blocking', 'Retaliates', 'Assist'], ability: 'Rally', mark: 'C',
   },
   undeadCommander: {
     id: 'commander', name: 'Undead Commander', faction: 'undead', cost: 0, maxHp: 10, attack: 3, move: 2, range: 1,
-    traits: ['Blocking', 'DarkReflection'], ability: 'SoulLink', mark: 'C',
+    traits: ['Blocking', 'DarkReflection', 'Assist'], ability: 'SoulLink', mark: 'C',
   },
   royalGuard: {
     id: 'royalGuard', name: 'Royal Guard', faction: 'human', cost: 2, maxHp: 3, attack: 2, move: 2, range: 1,

@@ -87,17 +87,19 @@ export class ActionReadabilityLayer {
     this.scene.events.on('update', this.handleUpdate);
     this.scene.events.once('shutdown', () => {
       this.scene.events.off('update', this.handleUpdate);
+      this.clearActionAuras();
       this.lethalMarkers = [];
-      this.actionAuras = [];
       this.healthBadges = [];
       this.layer = undefined;
     });
   }
 
   render(): void {
+    // Action auras live directly in the board display list below their units, while the
+    // regular readability layer stays above units for HP and combat information.
+    this.clearActionAuras();
     if (this.layer?.active) this.layer.destroy(true);
     this.lethalMarkers = [];
-    this.actionAuras = [];
     this.healthBadges = [];
 
     // Never dim the unit sprite itself. Action state is communicated by the low aurora
@@ -151,6 +153,14 @@ export class ActionReadabilityLayer {
     }
   };
 
+  private clearActionAuras(): void {
+    for (const aura of this.actionAuras) {
+      if (aura.graphics.active) aura.graphics.destroy();
+      if (aura.shimmer.active) aura.shimmer.destroy();
+    }
+    this.actionAuras = [];
+  }
+
   private renderActionStates(): void {
     for (const unit of this.game.state.units) {
       if (unit.owner !== this.game.state.currentPlayer) continue;
@@ -189,7 +199,8 @@ export class ActionReadabilityLayer {
   private drawActionAura(unit: UnitState, canMove: boolean, canAct: boolean): void {
     const center = this.game.center(unit.coord);
     const graphics = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
-    const y = center.y + 35;
+    // Keep the bowl tucked directly under the unit's feet rather than hanging below the hex.
+    const y = center.y + 24;
 
     if (canMove) {
       this.drawAuroraBand(graphics, center.x, y, 74, MOVE_COLOR, MOVE_HOT, 1);
@@ -221,7 +232,18 @@ export class ActionReadabilityLayer {
     shimmer.lineBetween(-4.8, 0, 4.8, 0);
     shimmer.lineBetween(0, -3.8, 0, 3.8);
 
-    this.layer?.add([graphics, shimmer]);
+    // Exact z-order: terrain -> readiness aura -> unit sprite -> HP/readability overlay.
+    const board = this.game.boardLayer;
+    const view = this.game.renderedUnits.get(unit.id);
+    if (board && view) {
+      const unitIndex = board.getIndex(view.container);
+      board.addAt(graphics, unitIndex >= 0 ? unitIndex : board.list.length);
+      const shiftedUnitIndex = board.getIndex(view.container);
+      board.addAt(shimmer, shiftedUnitIndex >= 0 ? shiftedUnitIndex : board.list.length);
+    } else {
+      this.layer?.add([graphics, shimmer]);
+    }
+
     this.actionAuras.push({
       graphics,
       shimmer,

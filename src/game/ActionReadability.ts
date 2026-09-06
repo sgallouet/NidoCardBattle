@@ -88,19 +88,19 @@ export class ActionReadabilityLayer {
     this.scene.events.once('shutdown', () => {
       this.scene.events.off('update', this.handleUpdate);
       this.clearActionAuras();
+      this.clearHealthBadges();
       this.lethalMarkers = [];
-      this.healthBadges = [];
       this.layer = undefined;
     });
   }
 
   render(): void {
-    // Action auras live directly in the board display list below their units, while the
-    // regular readability layer stays above units for HP and combat information.
+    // Auras and HP badges are interleaved with the board's unit display order. This keeps
+    // one unit's UI from painting over a unit that stands visually in front of it.
     this.clearActionAuras();
+    this.clearHealthBadges();
     if (this.layer?.active) this.layer.destroy(true);
     this.lethalMarkers = [];
-    this.healthBadges = [];
 
     // Never dim the unit sprite itself. Action state is communicated by the low aurora
     // under its feet while the unit art stays crisp.
@@ -120,7 +120,7 @@ export class ActionReadabilityLayer {
   private readonly handleUpdate = (): void => {
     const seconds = this.scene.time.now / 1000;
 
-    // Keep the aura anchored to the lower slice of the hex. Only its light intensity and
+    // Keep the aura anchored to the lower slice of the unit. Only its light intensity and
     // one small travelling glint move, so readiness feels alive without the marker itself
     // sliding around under the unit.
     for (const aura of this.actionAuras) {
@@ -161,6 +161,14 @@ export class ActionReadabilityLayer {
     this.actionAuras = [];
   }
 
+  private clearHealthBadges(): void {
+    for (const badge of this.healthBadges) {
+      if (badge.graphics.active) badge.graphics.destroy();
+      if (badge.text.active) badge.text.destroy();
+    }
+    this.healthBadges = [];
+  }
+
   private renderActionStates(): void {
     for (const unit of this.game.state.units) {
       if (unit.owner !== this.game.state.currentPlayer) continue;
@@ -192,15 +200,16 @@ export class ActionReadabilityLayer {
   }
 
   /**
-   * A fixed aurora crescent hugs roughly the bottom fifth of the hex. Movement always owns
-   * the full light-blue base so it remains immediately readable; when an action is also
-   * available, a smaller red inner crescent layers on top instead of splitting the blue cue.
+   * A fixed aurora crescent hugs the unit's feet. Movement always owns the full light-blue
+   * base so it remains immediately readable; when an action is also available, a smaller
+   * red inner crescent layers on top instead of splitting the blue cue.
    */
   private drawActionAura(unit: UnitState, canMove: boolean, canAct: boolean): void {
     const center = this.game.center(unit.coord);
     const graphics = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
-    // Keep the bowl tucked directly under the unit's feet rather than hanging below the hex.
-    const y = center.y + 24;
+    // The previous +24 position still read as a tile marker. Pull it another 12 px upward
+    // so the bowl visually belongs to the unit rather than the bottom edge of the hex.
+    const y = center.y + 12;
 
     if (canMove) {
       this.drawAuroraBand(graphics, center.x, y, 74, MOVE_COLOR, MOVE_HOT, 1);
@@ -232,7 +241,8 @@ export class ActionReadabilityLayer {
     shimmer.lineBetween(-4.8, 0, 4.8, 0);
     shimmer.lineBetween(0, -3.8, 0, 3.8);
 
-    // Exact z-order: terrain -> readiness aura -> unit sprite -> HP/readability overlay.
+    // Exact per-unit z-order: terrain -> aura -> unit -> that unit's HP. The next unit in
+    // depth order is still allowed to cover all three, which is important on crowded hexes.
     const board = this.game.boardLayer;
     const view = this.game.renderedUnits.get(unit.id);
     if (board && view) {
@@ -329,7 +339,7 @@ export class ActionReadabilityLayer {
       const view = this.game.renderedUnits.get(unit.id);
       if (!view) continue;
       this.hideLegacyHealthBadge(view);
-      this.drawHealthBadge(unit);
+      this.drawHealthBadge(unit, view);
     }
   }
 
@@ -342,7 +352,7 @@ export class ActionReadabilityLayer {
     }
   }
 
-  private drawHealthBadge(unit: UnitState): void {
+  private drawHealthBadge(unit: UnitState, view: RenderedUnitView): void {
     const center = this.game.center(unit.coord);
     const definition = unitDefinition(unit);
     const ratio = Phaser.Math.Clamp(unit.hp / Math.max(1, definition.maxHp), 0, 1);
@@ -405,7 +415,20 @@ export class ActionReadabilityLayer {
       strokeThickness: 2.4,
     }).setOrigin(0.5);
 
-    this.layer?.add([graphics, text]);
+    const board = this.game.boardLayer;
+    if (board) {
+      // Insert this badge immediately after its owner. A unit later in the board's depth
+      // order will therefore cover the badge naturally instead of being covered by it.
+      const unitIndex = board.getIndex(view.container);
+      const graphicsIndex = unitIndex >= 0 ? unitIndex + 1 : board.list.length;
+      board.addAt(graphics, Math.min(graphicsIndex, board.list.length));
+      const shiftedUnitIndex = board.getIndex(view.container);
+      const textIndex = shiftedUnitIndex >= 0 ? shiftedUnitIndex + 2 : board.list.length;
+      board.addAt(text, Math.min(textIndex, board.list.length));
+    } else {
+      this.layer?.add([graphics, text]);
+    }
+
     this.healthBadges.push({
       graphics,
       text,

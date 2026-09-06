@@ -143,6 +143,9 @@ export class EnemyUnitThreatPreview {
     unit.moved = false;
     unit.attacked = false;
     unit.movementSpent = 0;
+    // movementOrigin only exists while a unit may reconsider a move during its current turn.
+    // Never carry that previous-turn origin into an enemy next-turn threat preview.
+    delete unit.movementOrigin;
     unit.postAttackMoved = false;
     unit.moveBonus = 0;
     delete unit.pendingAdvance;

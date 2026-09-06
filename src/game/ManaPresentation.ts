@@ -103,7 +103,9 @@ export class ManaPresentation {
     const schedule = document.createElement('div');
     schedule.className = 'mana-delivery-schedule';
     schedule.setAttribute('aria-live', 'polite');
-    app.append(schedule);
+    const manaShell = manaCount.closest<HTMLElement>('.mana-count');
+    if (manaShell) manaShell.insertAdjacentElement('afterend', schedule);
+    else app.append(schedule);
     this.schedule = schedule;
 
     const flightLayer = document.createElement('div');

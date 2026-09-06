@@ -3,6 +3,7 @@ import type { WavedashSDK } from '@wvdsh/sdk-js';
 import './style.css';
 import './cardHitAreaFix.css';
 import './game/TileInsightSelectionFix.css';
+import './game/BattleFinaleFx.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
 import { loadingScreen } from './game/LoadingScreen';
 import { ProductionGameScene } from './game/ProductionGameScene';

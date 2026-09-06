@@ -1,0 +1,22 @@
+/* Keep resting cards off a transformed/composited layer so baked-in card text stays crisp.
+   Premium 3D tilt/foil still activates on hover, touch-hover, selection, and play animations. */
+.card {
+  transform: none;
+}
+
+.card-surface {
+  transform: none;
+  transform-style: flat;
+  will-change: auto;
+}
+
+.card-art {
+  image-rendering: auto;
+}
+
+.card:hover:not(:disabled) .card-surface,
+.card.touch-hover:not(:disabled) .card-surface,
+.card.selected .card-surface,
+.card-play-ghost .card-surface {
+  will-change: transform;
+}

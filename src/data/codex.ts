@@ -1,5 +1,5 @@
 import { CARD_DEFINITIONS } from './cards';
-import type { Ability, Faction, Trait, UnitCard, UnitDefinition } from './types';
+import type { Ability, Faction, Trait, UnitDefinition } from './types';
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from './units';
 
 export type CodexUnitId = Exclude<
@@ -121,13 +121,9 @@ export const UNIT_CODEX: Record<CodexUnitId, UnitCodexEntry> = {
   },
 };
 
-const isUnitCard = (card: (typeof CARD_DEFINITIONS)[keyof typeof CARD_DEFINITIONS]): card is UnitCard =>
-  card.type === 'unit';
-
 export const getCodexUnitIds = (): CodexUnitId[] =>
-  Object.values(CARD_DEFINITIONS)
-    .filter(isUnitCard)
-    .map((card) => card.unitId as CodexUnitId);
+  Object.values(CARD_DEFINITIONS).flatMap((card) =>
+    card.type === 'unit' ? [card.unitId as CodexUnitId] : []);
 
 export const getCodexUnitsByFaction = (faction: Faction): CodexUnitId[] =>
   getCodexUnitIds().filter((id) => UNIT_DEFINITIONS[id].faction === faction);

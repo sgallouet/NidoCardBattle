@@ -57,7 +57,7 @@ export class EnemyUnitThreatPreview {
 
     const moveReach = getReachableCoords(preview, previewUnit.id);
     const moveKeys = new Set(moveReach.keys());
-    const attackKeys = this.attackThreatKeys(preview, previewUnit, moveKeys);
+    const attackKeys = this.attackThreatKeys(previewUnit, moveKeys);
     const layer = new TacticalHexFxLayer(this.scene, THREAT_FX_DEPTH);
     this.layer = layer;
     this.game.boardLayer.add(layer.container);
@@ -150,7 +150,6 @@ export class EnemyUnitThreatPreview {
   }
 
   private attackThreatKeys(
-    preview: GameState,
     unit: UnitState,
     moveKeys: Set<string>,
   ): Set<string> {

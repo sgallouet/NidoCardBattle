@@ -9,12 +9,13 @@ import {
   getCurseTargets,
   getDisplaceDestinations,
   getDisplaceTargets,
+  getInvokeDestinations,
   getRallyTargets,
   getSoulLinkTargets,
+  getThunderChainCoords,
   getThunderTargetCoords,
-  neighbors,
+  hasActiveCurseFrom,
   rallyAdjacentAllies,
-  sameCoord,
   soulLinkUnit,
   thunderAtCoord,
   unitAt,
@@ -76,18 +77,7 @@ export class SpellHud {
     this.originalInvokeButtonParent = invokeButton?.parentElement ?? undefined;
     this.button = button;
     this.invokeButton = invokeButton ?? undefined;
-    if (invokeButton) {
-      const image = document.createElement('img');
-      image.src = SPELL_UI.InvokeBeast.art;
-      image.alt = '';
-      image.draggable = false;
-      const label = document.createElement('span');
-      label.textContent = SPELL_UI.InvokeBeast.name;
-      invokeButton.className = 'spell-button invoke-spell-button';
-      invokeButton.replaceChildren(image, label);
-      invokeButton.setAttribute('aria-label', `${SPELL_UI.InvokeBeast.name}. ${SPELL_UI.InvokeBeast.description}`);
-      invokeButton.title = `${SPELL_UI.InvokeBeast.name} — ${SPELL_UI.InvokeBeast.description}`;
-    }
+    if (invokeButton) this.decorateInvokeButton(invokeButton);
     this.buildDock(app, button, invokeButton ?? undefined);
 
     const originalBeginAbility = this.game.beginDisplace.bind(this.scene);
@@ -120,6 +110,7 @@ export class SpellHud {
       }
       return highlight;
     };
+
     this.game.handleHexClick = async (coord: Coord) => {
       const selected = this.game.selectedUnitId ? findUnit(this.game.state, this.game.selectedUnitId) : undefined;
       if (this.game.mode === 'rally-target' && selected) {
@@ -133,6 +124,7 @@ export class SpellHud {
         }
         return;
       }
+
       if (this.game.mode === 'soul-link-target' && selected) {
         const occupant = unitAt(this.game.state, coord);
         const source = { ...selected.coord };
@@ -145,10 +137,10 @@ export class SpellHud {
         if (result.ok && target) {
           this.game.playAbilitySoulLink();
           await this.present({ kind: 'soulLink', source, target });
-        }
-        else this.game.renderAll();
+        } else this.game.renderAll();
         return;
       }
+
       if (this.game.mode === 'curse-target' && selected) {
         const occupant = unitAt(this.game.state, coord);
         const source = { ...selected.coord };
@@ -161,16 +153,16 @@ export class SpellHud {
         if (result.ok && target) {
           this.game.playAbilityCurse();
           await this.present({ kind: 'curse', source, target });
-        }
-        else this.game.renderAll();
+        } else this.game.renderAll();
         return;
       }
+
       if (this.game.mode === 'thunder-target' && selected) {
-        const valid = getThunderTargetCoords(this.game.state, selected.id)
-          .some((target) => sameCoord(target, coord));
-        const result = valid
+        // Capture the chain before damage removes any 1 HP units so presentation exactly mirrors resolution.
+        const chain = getThunderChainCoords(this.game.state, selected.id, coord);
+        const result = chain.length > 0
           ? thunderAtCoord(this.game.state, selected.id, coord)
-          : { ok: false, message: 'Choose a highlighted battlefield hex within Thunder range.' };
+          : { ok: false, message: 'Choose a highlighted enemy within Thunder range.' };
         this.game.message = result.message;
         if (result.ok) this.game.mode = 'unit';
         if (result.ok) {
@@ -178,19 +170,34 @@ export class SpellHud {
           await this.present({
             kind: 'thunder',
             destination: { ...coord },
-            affected: [{ ...coord }, ...neighbors(coord).map((neighbor) => ({ ...neighbor }))],
+            affected: chain.map((target) => ({ ...target })),
           });
         } else this.game.renderAll();
         return;
       }
+
       await originalHandleHexClick(coord);
     };
+
     this.game.renderHud = () => {
       originalRenderHud();
       this.sync();
     };
 
     this.scene.events.once('shutdown', () => this.destroy());
+  }
+
+  private decorateInvokeButton(button: HTMLButtonElement): void {
+    const image = document.createElement('img');
+    image.src = SPELL_UI.InvokeBeast.art;
+    image.alt = '';
+    image.draggable = false;
+    const label = document.createElement('span');
+    label.textContent = SPELL_UI.InvokeBeast.name;
+    button.className = 'spell-button invoke-spell-button';
+    button.replaceChildren(image, label);
+    button.setAttribute('aria-label', `${SPELL_UI.InvokeBeast.name}. ${SPELL_UI.InvokeBeast.description}`);
+    button.title = `${SPELL_UI.InvokeBeast.name} — ${SPELL_UI.InvokeBeast.description}`;
   }
 
   private buildDock(app: HTMLElement, button: HTMLButtonElement, invokeButton?: HTMLButtonElement): void {
@@ -279,6 +286,11 @@ export class SpellHud {
     }
 
     if (ability === 'Curse') {
+      if (hasActiveCurseFrom(this.game.state, selected.id)) {
+        this.game.message = 'This Necromancer already has an active Curse. It can cast again after that Curse ends or its target is destroyed.';
+        this.game.renderAll();
+        return;
+      }
       const targets = getCurseTargets(this.game.state, selected.id);
       if (targets.length === 0) {
         this.game.message = 'No enemy is within Curse range.';
@@ -294,12 +306,12 @@ export class SpellHud {
     if (ability === 'Thunder') {
       const targets = getThunderTargetCoords(this.game.state, selected.id);
       if (targets.length === 0) {
-        this.game.message = 'No battlefield hex is within Thunder range.';
+        this.game.message = 'No enemy is within Thunder range.';
         this.game.renderAll();
         return;
       }
       this.game.mode = 'thunder-target';
-      this.game.message = 'Choose a highlighted hex. Thunder deals 1 damage there and to all adjacent units, allies included.';
+      this.game.message = 'Choose a highlighted enemy. Thunder strikes it, then chains through every connected adjacent enemy.';
       this.game.renderAll();
       return;
     }
@@ -373,6 +385,7 @@ export class SpellHud {
       || selected.attacked
       || this.game.state.winner !== null
       || this.game.animationInProgress;
+    const curseActive = ability === 'Curse' && hasActiveCurseFrom(this.game.state, selected.id);
     const hasTarget = targeting || this.hasLegalTarget(selected, ability);
     const blocked = !used && !hasTarget;
 
@@ -383,8 +396,12 @@ export class SpellHud {
     this.button.disabled = used || blocked;
     this.button.classList.toggle('targeting', targeting);
     this.button.setAttribute('aria-pressed', targeting ? 'true' : 'false');
-    this.button.setAttribute('aria-label', `${ui.name}. ${ui.description}`);
-    this.button.title = `${ui.name} — ${ui.description}`;
+
+    const abilityReason = curseActive
+      ? 'This Necromancer already has an active Curse. Wait for it to end or for its target to leave the battlefield.'
+      : ui.description;
+    this.button.setAttribute('aria-label', `${ui.name}. ${abilityReason}`);
+    this.button.title = `${ui.name} — ${abilityReason}`;
 
     if (this.currentSpell !== ability) {
       const image = document.createElement('img');
@@ -396,11 +413,63 @@ export class SpellHud {
     }
 
     this.title.textContent = ui.name;
-    this.description.textContent = ability === 'Rally' && targeting
-      ? `${ui.description} Tap again or tap a highlighted ally to cast.`
-      : ui.description;
-    this.copy.hidden = !targeting;
-    this.cooldown.textContent = used ? 'USED' : blocked ? 'NO TARGET' : targeting ? 'TARGETING' : 'READY';
+    this.description.textContent = curseActive
+      ? 'One of this Necromancer’s Curses is still active. It cannot cast another yet.'
+      : ability === 'Rally' && targeting
+        ? `${ui.description} Tap again or tap a highlighted ally to cast.`
+        : ui.description;
+    this.copy.hidden = !(targeting || curseActive);
+    this.cooldown.textContent = used
+      ? 'USED'
+      : curseActive
+        ? 'CURSE ACTIVE'
+        : blocked
+          ? 'NO TARGET'
+          : targeting
+            ? 'TARGETING'
+            : 'READY';
+
+    this.syncInvokeButton(selected);
+  }
+
+  private syncInvokeButton(selected: UnitState): void {
+    const button = this.invokeButton;
+    if (!button) return;
+    const isInvoker = selected.owner === this.game.state.currentPlayer
+      && unitDefinition(selected).traits.includes('Invoker');
+    if (!isInvoker) {
+      button.hidden = true;
+      return;
+    }
+
+    button.hidden = false;
+    const activeBeast = selected.invokedPetId ? findUnit(this.game.state, selected.invokedPetId) : undefined;
+    const used = selected.exhausted
+      || selected.attacked
+      || this.game.state.winner !== null
+      || this.game.animationInProgress;
+    const destinations = activeBeast ? [] : getInvokeDestinations(this.game.state, selected.id);
+    const noSpace = !activeBeast && !used && destinations.length === 0;
+    const blocked = Boolean(activeBeast) || noSpace || used;
+    button.disabled = blocked;
+    button.dataset.state = activeBeast ? 'blocked' : used ? 'used' : noSpace ? 'blocked' : 'ready';
+
+    const label = button.querySelector<HTMLSpanElement>('span');
+    if (label) {
+      label.textContent = activeBeast
+        ? 'Beast Active'
+        : noSpace
+          ? 'No Space'
+          : SPELL_UI.InvokeBeast.name;
+    }
+
+    const reason = activeBeast
+      ? 'This Mage already has a living Invoked Beast. It can invoke another only after that Beast is destroyed.'
+      : noSpace
+        ? 'No free adjacent hex is available for an Invoked Beast.'
+        : SPELL_UI.InvokeBeast.description;
+    button.setAttribute('aria-label', `${SPELL_UI.InvokeBeast.name}. ${reason}`);
+    button.title = `${SPELL_UI.InvokeBeast.name} — ${reason}`;
   }
 
   private destroy(): void {
@@ -414,6 +483,7 @@ export class SpellHud {
       this.invokeButton.className = 'secondary';
       this.invokeButton.textContent = 'Invoke Beast';
       this.invokeButton.removeAttribute('title');
+      this.invokeButton.removeAttribute('data-state');
       this.originalInvokeButtonParent?.append(this.invokeButton);
     }
     this.dock = undefined;

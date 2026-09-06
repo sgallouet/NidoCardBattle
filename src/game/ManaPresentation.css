@@ -1,0 +1,187 @@
+.mana-count.mana-schedule-anchor {
+  bottom: 67px;
+  overflow: visible;
+  transition: filter 150ms ease, transform 150ms ease;
+}
+
+.mana-delivery-schedule {
+  position: absolute;
+  z-index: 8;
+  left: 28px;
+  bottom: 12px;
+  min-width: 285px;
+  max-width: min(470px, calc(100vw - 44px));
+  padding: 6px 9px 7px;
+  border: 1px solid rgba(109, 202, 255, .2);
+  border-radius: 8px;
+  color: #d8dde0;
+  background: linear-gradient(180deg, rgba(7, 15, 21, .82), rgba(5, 10, 14, .74));
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .42), inset 0 1px rgba(255, 255, 255, .035);
+  backdrop-filter: blur(7px);
+  font: 650 10px/1.38 Arial, sans-serif;
+  letter-spacing: .015em;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+  transform-origin: left bottom;
+}
+
+.mana-schedule-line {
+  display: block;
+  white-space: nowrap;
+}
+
+.mana-schedule-number {
+  color: #63cfff;
+  font-weight: 900;
+  text-shadow: 0 0 7px rgba(69, 190, 255, .38), 0 1px 2px #000;
+}
+
+.mana-delivery-schedule.is-well-delivery {
+  border-color: rgba(103, 184, 255, .52);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, .42),
+    0 0 16px rgba(64, 169, 255, .18),
+    inset 0 1px rgba(255, 255, 255, .06);
+  animation: mana-schedule-well-pulse 1.15s ease-in-out infinite alternate;
+}
+
+.mana-flight-layer {
+  position: absolute;
+  z-index: 42;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.mana-flight {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #f5feff 0 17%, #7be3ff 28%, #269eea 58%, rgba(15, 89, 190, .2) 78%, transparent 80%);
+  box-shadow:
+    0 0 5px #e8fbff,
+    0 0 12px rgba(84, 211, 255, .95),
+    0 0 26px rgba(44, 149, 255, .65);
+  will-change: transform, opacity;
+}
+
+.mana-flight::before,
+.mana-flight::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 65%;
+  width: 31px;
+  height: 4px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  transform-origin: right center;
+  background: linear-gradient(90deg, transparent, rgba(82, 199, 255, .12), rgba(173, 237, 255, .72));
+  filter: blur(.4px);
+}
+
+.mana-flight::after {
+  width: 18px;
+  height: 2px;
+  opacity: .88;
+  background: linear-gradient(90deg, transparent, #eafcff);
+}
+
+.mana-flight.is-well {
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  background: radial-gradient(circle at 37% 28%, #fff 0 15%, #b7efff 24%, #62b8ff 48%, #466cff 67%, rgba(59, 68, 210, .08) 82%, transparent 84%);
+  box-shadow:
+    0 0 7px #fff,
+    0 0 18px rgba(93, 191, 255, 1),
+    0 0 34px rgba(69, 91, 255, .82),
+    0 0 55px rgba(61, 134, 255, .35);
+}
+
+.mana-flight.is-well::before {
+  width: 46px;
+  height: 6px;
+}
+
+.mana-flight.is-ruin {
+  filter: saturate(.75) brightness(1.06);
+}
+
+.mana-flight-core {
+  position: absolute;
+  inset: 34%;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px #fff;
+}
+
+.mana-count.mana-counter-impact {
+  animation: mana-counter-impact 420ms cubic-bezier(.17,.8,.25,1);
+}
+
+.mana-gain-pop {
+  position: absolute;
+  z-index: 43;
+  color: #83dcff;
+  font: 900 20px/1 Georgia, serif;
+  letter-spacing: -.03em;
+  text-shadow: 0 2px 3px #00131f, 0 0 11px rgba(57, 186, 255, .92);
+  pointer-events: none;
+}
+
+.mana-gain-pop.is-well {
+  color: #c9efff;
+  font-size: 24px;
+  text-shadow: 0 2px 3px #00131f, 0 0 12px #5bcaff, 0 0 25px rgba(75, 103, 255, .8);
+}
+
+@keyframes mana-counter-impact {
+  0% { transform: scale(1); filter: brightness(1); }
+  36% { transform: scale(1.22); filter: brightness(1.65) drop-shadow(0 0 12px #55ccff); }
+  63% { transform: scale(.97); filter: brightness(1.2) drop-shadow(0 0 7px #55ccff); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+@keyframes mana-schedule-well-pulse {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.12) drop-shadow(0 0 5px rgba(67, 175, 255, .22)); }
+}
+
+@media (max-height: 720px), (max-width: 900px) {
+  .mana-count.mana-schedule-anchor {
+    top: max(9px, env(safe-area-inset-top));
+    bottom: auto;
+  }
+
+  .mana-delivery-schedule {
+    top: calc(max(9px, env(safe-area-inset-top)) + 37px);
+    bottom: auto;
+    left: max(10px, env(safe-area-inset-left));
+    min-width: 0;
+    max-width: min(390px, calc(100vw - 20px));
+    padding: 5px 7px 6px;
+    font-size: 9px;
+    transform-origin: left top;
+  }
+}
+
+@media (max-width: 520px) {
+  .mana-delivery-schedule {
+    max-width: calc(100vw - 20px);
+    font-size: 8.5px;
+  }
+
+  .mana-schedule-line {
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mana-delivery-schedule.is-well-delivery,
+  .mana-count.mana-counter-impact {
+    animation: none;
+  }
+}

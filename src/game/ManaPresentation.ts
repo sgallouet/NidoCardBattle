@@ -184,14 +184,14 @@ export class ManaPresentation {
     const schedule = getManaDeliverySchedule(this.game.state);
     const turnsWord = schedule.wellTurnsRemaining === 1 ? 'turn' : 'turns';
     const wellTiming = schedule.wellDeliveryNow
-      ? `delivery <span class="mana-schedule-number">now</span> · next in <span class="mana-schedule-number">3</span> turns`
+      ? `delivery now · next in <span class="mana-schedule-number">3</span> turns`
       : `next delivery in <span class="mana-schedule-number">${schedule.wellTurnsRemaining}</span> ${turnsWord}`;
     const ruinText = schedule.ruins > 0
       ? ` · Ruin <span class="mana-schedule-number">+1</span>/turn × <span class="mana-schedule-number">${schedule.ruins}</span>`
       : '';
 
     element.innerHTML = `
-      <span class="mana-schedule-line">Keep <span class="mana-schedule-number">+1</span>/turn × <span class="mana-schedule-number">${schedule.keeps}</span>${ruinText}</span>
+      <span class="mana-schedule-line">Mana delivery · Keep <span class="mana-schedule-number">+1</span>/turn × <span class="mana-schedule-number">${schedule.keeps}</span>${ruinText}</span>
       <span class="mana-schedule-line">Mana Well <span class="mana-schedule-number">+2</span> every <span class="mana-schedule-number">3</span> turns × <span class="mana-schedule-number">${schedule.wells}</span> · ${wellTiming}</span>`;
     element.classList.toggle('is-well-delivery', schedule.wellDeliveryNow && schedule.wells > 0);
     element.setAttribute(

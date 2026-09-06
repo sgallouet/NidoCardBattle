@@ -4,8 +4,15 @@ import forestGround from '../../assets/game/terrain/forest-ground-hex.png?url';
 import hillOverlay from '../../assets/game/terrain/hill-overlay.webp?url';
 import mountainMassif from '../../assets/game/terrain/mountain-massif-hex.png?url';
 import plainMeadow from '../../assets/game/terrain/plain-meadow-hex.png?url';
-import riverWaterPainted from '../../assets/game/terrain/river-water-painted.png?url';
-import riverWaveDisplacement from '../../assets/game/vfx/environment/river-wave-displacement.png?url';
+import seaBase01 from '../../assets/game/terrain/sea-base-01.png?url';
+import seaBase02 from '../../assets/game/terrain/sea-base-02.png?url';
+import seaBase03 from '../../assets/game/terrain/sea-base-03.png?url';
+import seaBase04 from '../../assets/game/terrain/sea-base-04.png?url';
+import seaEdge from '../../assets/game/terrain/sea-edge.png?url';
+import seaEdgeCap from '../../assets/game/terrain/sea-edge-cap.png?url';
+import seaWaveCalm from '../../assets/game/vfx/environment/sea-wave-calm.png?url';
+import seaWaveDouble from '../../assets/game/vfx/environment/sea-wave-double.png?url';
+import seaWaveGlint from '../../assets/game/vfx/environment/sea-wave-glint.png?url';
 
 export const PLAIN_TERRAIN_ART = {
   textureKey: 'terrain-plain-meadow',
@@ -43,31 +50,58 @@ export const MOUNTAIN_TERRAIN_ART = {
   url: mountainMassif,
 } as const;
 
-export const RIVER_WATER_ART = {
-  base: {
-    textureKey: 'terrain-river-water-painted',
-    url: riverWaterPainted,
-    tileScale: 0.38,
+export const SEA_TERRAIN_ART = {
+  bases: [
+    { textureKey: 'terrain-sea-base-01', url: seaBase01 },
+    { textureKey: 'terrain-sea-base-02', url: seaBase02 },
+    { textureKey: 'terrain-sea-base-03', url: seaBase03 },
+    { textureKey: 'terrain-sea-base-04', url: seaBase04 },
+  ],
+  edge: {
+    textureKey: 'terrain-sea-edge',
+    url: seaEdge,
+    displayWidth: 86,
+    displayHeight: 26,
   },
-  displacement: {
-    textureKey: 'vfx-river-wave-displacement',
-    url: riverWaveDisplacement,
-    strengthX: 0.002,
-    strengthY: 0.0045,
-    pulseStrengthX: 0.0035,
-    pulseStrengthY: 0.0065,
-    pulseHalfPeriodMs: 11_000,
+  edgeCap: {
+    textureKey: 'terrain-sea-edge-cap',
+    url: seaEdgeCap,
+    displayWidth: 58,
+    displayHeight: 24,
   },
-  scroll: {
-    x: 512,
-    y: 160,
-    durationMs: 90_000,
-  },
-  highlight: {
-    alpha: 0.035,
-    tint: 0x78cde0,
-    x: -512,
-    y: 96,
-    durationMs: 120_000,
+  animations: {
+    calm: {
+      textureKey: 'vfx-sea-wave-calm',
+      animationKey: 'sea-wave-calm',
+      url: seaWaveCalm,
+      frameWidth: 401,
+      frameHeight: 130,
+      frameCount: 8,
+      frameRate: 6,
+      displayWidth: 52,
+      displayHeight: 17,
+    },
+    double: {
+      textureKey: 'vfx-sea-wave-double',
+      animationKey: 'sea-wave-double',
+      url: seaWaveDouble,
+      frameWidth: 360,
+      frameHeight: 121,
+      frameCount: 8,
+      frameRate: 6,
+      displayWidth: 48,
+      displayHeight: 16,
+    },
+    glint: {
+      textureKey: 'vfx-sea-wave-glint',
+      animationKey: 'sea-wave-glint',
+      url: seaWaveGlint,
+      frameWidth: 390,
+      frameHeight: 112,
+      frameCount: 8,
+      frameRate: 6,
+      displayWidth: 46,
+      displayHeight: 13,
+    },
   },
 } as const;

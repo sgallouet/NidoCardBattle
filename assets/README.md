@@ -3,6 +3,7 @@
 - `assets/source/cards/` contains user-supplied card images, copied without image processing. Rule-aligned revisions use descriptive suffixes instead of overwriting earlier source art.
 - `assets/source/generated/` contains generated source sheets, copied without image processing.
 - `assets/source/terrain/` contains user-supplied terrain paintings, copied without image processing.
+- `assets/source/terrain/sea/` contains untouched hexagonal sea bases, coastline pieces, and 8-frame wave sheets. Normalize with `python tools/process_sea_art.py`.
 - `assets/source/units/` contains user-supplied battlefield unit art, copied without image processing.
 - `assets/source/sites/` contains user-supplied keep, fort, and Mana Well art, copied without image processing.
 - `assets/source/decorations/` contains user-supplied non-gameplay map decoration art, copied without image processing.
@@ -17,6 +18,7 @@
 - `assets/game/sites/` contains cropped, compact battlefield site art.
 - `assets/game/decorations/` contains cropped, compact non-gameplay map decorations.
 - Other `assets/game/` folders contain processed, cropped, or exported game-ready assets for their named systems.
+- `assets/game/terrain/sea-base-*.png` and `assets/game/vfx/environment/sea-wave-*.png` are normalized runtime sea tiles and 4×2 wave sheets. Frame sizes live in `src/data/terrainArt.ts`.
 - `assets/game/ui/tutorial/` contains responsive WebP loading-screen tutorials. Regenerate them with `tools/process_tutorial_art.ps1`.
 - `assets/game/ui/endgame/` contains the runtime transparent army illustrations used by the match-result screen.
 

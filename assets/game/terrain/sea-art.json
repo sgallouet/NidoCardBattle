@@ -1,0 +1,66 @@
+{
+  "bases": [
+    {
+      "file": "sea-base-01.png",
+      "width": 1052,
+      "height": 1207
+    },
+    {
+      "file": "sea-base-02.png",
+      "width": 1048,
+      "height": 1212
+    },
+    {
+      "file": "sea-base-03.png",
+      "width": 1061,
+      "height": 1225
+    },
+    {
+      "file": "sea-base-04.png",
+      "width": 1062,
+      "height": 1214
+    }
+  ],
+  "waves": {
+    "calm": {
+      "file": "sea-wave-calm.png",
+      "frameWidth": 401,
+      "frameHeight": 130,
+      "frameCount": 8,
+      "columns": 4,
+      "rows": 2,
+      "sheetWidth": 1604,
+      "sheetHeight": 260
+    },
+    "double": {
+      "file": "sea-wave-double.png",
+      "frameWidth": 360,
+      "frameHeight": 121,
+      "frameCount": 8,
+      "columns": 4,
+      "rows": 2,
+      "sheetWidth": 1440,
+      "sheetHeight": 242
+    },
+    "glint": {
+      "file": "sea-wave-glint.png",
+      "frameWidth": 390,
+      "frameHeight": 112,
+      "frameCount": 8,
+      "columns": 4,
+      "rows": 2,
+      "sheetWidth": 1560,
+      "sheetHeight": 224
+    }
+  },
+  "sea-edge": {
+    "file": "sea-edge.png",
+    "width": 1198,
+    "height": 362
+  },
+  "sea-edge-cap": {
+    "file": "sea-edge-cap.png",
+    "width": 859,
+    "height": 351
+  }
+}

@@ -73,4 +73,4 @@ NidoCardBattle is deliberately small. Prefer the simplest implementation that ma
 
 ## Token-Efficient Work
 
-- For AI/simulation work or requests to conserve tokens, use [nidocardbattle-token-efficient-work](.agents/skills/nidocardbattle-token-efficient-work/SKILL.md).
+- Always use [nidocardbattle-token-efficient-work](.agents/skills/nidocardbattle-token-efficient-work/SKILL.md). The user is token-poor; treat every task as token-constrained.

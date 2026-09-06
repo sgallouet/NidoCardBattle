@@ -1,24 +1,44 @@
 ---
 name: nidocardbattle-token-efficient-work
-description: Keep NidoCardBattle implementation, AI reviews and simulation testing economical in tokens through bounded inspection and automated summaries. Use for AI/simulation work or when the user asks to conserve tokens.
+description: Keep every NidoCardBattle task cheap in tokens. Use on all work in this repo; the user is token-poor.
 ---
 
 # Token-efficient project work
 
-The user has repeatedly run short of tokens. Reduce information entering context and repeated reasoning, while completing the authorized task and required checks.
+The user runs short of tokens. Finish the authorized task with the smallest context, fewest tool payloads, and one short summary.
 
-## Warning checklist before a tool read
+## Hard limits
 
-- Name the decision this read will inform. Request only the fields or source range needed for it.
-- Parse reports in code before returning output. A single JSON line can contain thousands of tokens: `Tail 1` is not a safe summary. Output truncation does not replace filtering.
-- Locate symbols with `rg`; read bounded ranges. Do not dump several complete source files together. Read required instructions once and retain their conclusions; reread only after relevant changes or genuinely missing context.
-- Default to about 800 output tokens for routine inspection; expand deliberately for a specific failure. Do not repeatedly print unchanged code, histories, rules, or telemetry containing unused planners.
+- Do not load skills that do not apply. This is Vite/Phaser/HTML/CSS, not Unity. Skip Imagine unless generating/editing images. Skip TDD/long-running/browser-debug skill dumps; apply the one needed rule.
+- Do not multimodal-read labeled user images. Copy by filename mapping; check size/mode/alpha with one short script if needed.
+- Do not `git show --stat` or dump large commits. Resync is `fetch` + `pull --ff-only`/`rebase` + `status`.
+- Grep first. Read at most ~80–120 lines around the hit. Never dump several full files in one turn.
+- Default inspection budget: about 800 tokens of tool output. Expand only for a specific compile/test/layout failure.
+- Do not reread files already in context. Do not print unchanged code, CSS, or histories.
 
-## Implement and verify
+## One pass, then edit
 
-- Make one coherent correction, then run a focused regression before expanding it. Keep changes attributable to evidence; avoid combining unrelated tuning ideas and then guessing which mattered.
-- Put repeated analysis and testing into scripts. Save detailed logs to disk; return counts, failures and artifact paths. Reuse known baseline failures.
-- Inspect aggregate results first with `npm run battlelog:inspect -- <report.json>`. Use `--list`, then `--game N`, then a narrow `--from T --count 1 --steps 4` only when a particular game can answer a concrete question. Paginate if necessary.
-- Freeze code for benchmark runs and preserve source fingerprints. Earlier results do not validate later edits. Run a small regression/development check before a promotion tournament; do not start another tournament without a reason.
-- Wait on running jobs rather than repeatedly reading their files. Keep required progress updates brief and meaningful; avoid explaining unchanged polls.
-- Summarize the delivered change, validation and remaining uncertainty once. A token constraint does not justify claiming untested strength, skipping required checks, or leaving authorized work unfinished.
+Name the decision each read answers. Typical UI/feature path:
+
+1. `rg` the symbols (download button, finale, start side, asset import).
+2. Read the owner files only (`BattlePresentation`, helper, `NewGameSetup`/`map` slots, `GameScene` HUD line).
+3. Copy assets + write a focused helper test + implement + focused `vitest` + `tsc`/`npm run build`.
+
+Do not tour Settings, MatchIntro, loading screens, or adjacent HUD unless a failure points there.
+
+## Verify cheaply
+
+- Prefer a pure helper/unit test over driving Phaser, the tutorial, or match intro.
+- Do not start Chrome and walk the loading tutorial to prove layout. If a screenshot is required, inject the finale in-page after load (`state.winner` + `renderAll`) or skip the browser.
+- Run the new/changed test file, then `npm run build`. Do not paste a full `npm test` failure log of known baseline engine/AI failures; report `N failed, known baseline` unless a new file failed.
+- Put repeated analysis into scripts. Save logs to disk; return counts, failures, and paths.
+
+## AI / simulation extras
+
+- Parse reports in code before returning output. A JSON line can be thousands of tokens.
+- Inspect with `npm run battlelog:inspect -- <report.json>`: `--list`, then `--game N`, then a narrow `--from T --count 1 --steps 4`.
+- Freeze code for benchmarks. Small regression before any tournament.
+
+## Reply
+
+One short summary: what changed, how the logic works, what was verified. No tour of discarded approaches.

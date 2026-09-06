@@ -42,7 +42,6 @@ import {
   HILL_TERRAIN_ART,
   MOUNTAIN_TERRAIN_ART,
   PLAIN_TERRAIN_ART,
-  RIVER_WATER_ART,
 } from '../data/terrainArt';
 import type { ActionResult, Coord, GameState, PlayerId, SiteType, UnitState } from '../data/types';
 import { GALAXY_BACKGROUND_ART, GALAXY_BACKGROUND_CONTRACT } from '../data/vfxArt';
@@ -53,6 +52,8 @@ import {
   type UnitFacing,
 } from '../data/unitArt';
 import type { UnitDefinitionId } from '../data/units';
+import { SeaTerrainSurface } from './SeaTerrainSurface';
+import { isSeaTerrain } from './seaTerrain';
 import type { AbilityVfxEvent } from './AbilityVfxAnimator';
 import { setDebugStatus } from './DebugStatus';
 import type { AiAction, AiPlan } from './ai';
@@ -216,8 +217,7 @@ export class GameScene extends Phaser.Scene {
   private hexGeometry = new Map<string, HexRenderGeometry>();
   private staticBoardDirty = true;
   private renderedBoardStateSignature = '';
-  private riverMaskGraphics?: Phaser.GameObjects.Graphics;
-  private riverAnimationTargets: object[] = [];
+  private seaSurface?: SeaTerrainSurface;
   private selectedUnitId: string | null = null;
   private selectedCardIndex: number | null = null;
   private displaceTargetId: string | null = null;
@@ -293,8 +293,7 @@ export class GameScene extends Phaser.Scene {
     this.load.image(FOREST_TERRAIN_ART.overlay.textureKey, FOREST_TERRAIN_ART.overlay.url);
     this.load.image(HILL_TERRAIN_ART.textureKey, HILL_TERRAIN_ART.url);
     this.load.image(MOUNTAIN_TERRAIN_ART.textureKey, MOUNTAIN_TERRAIN_ART.url);
-    this.load.image(RIVER_WATER_ART.base.textureKey, RIVER_WATER_ART.base.url);
-    this.load.image(RIVER_WATER_ART.displacement.textureKey, RIVER_WATER_ART.displacement.url);
+    SeaTerrainSurface.preload(this);
     this.load.image(RUIN_ART.textureKey, RUIN_ART.url);
     this.load.image(RUIN_ART.shadow.textureKey, RUIN_ART.shadow.url);
     this.load.image(TOWN_ART.textureKey, TOWN_ART.url);
@@ -338,6 +337,7 @@ export class GameScene extends Phaser.Scene {
       this.hideTileInsight(true);
     });
     this.createUnitAnimations();
+    SeaTerrainSurface.createAnimations(this);
     this.setupCameraControls();
     this.createGalaxyBackdrop();
     this.renderAll();
@@ -783,8 +783,10 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
           const terrain = terrainAt(coord);
           this.hexGeometry.set(key, { coord, center, points, terrain });
           const base = this.add.graphics();
-          base.fillStyle(0x101a13, 0.42);
-          base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x + 4, center.y + 6), 0), true);
+          if (terrain !== 'water' && terrain !== 'bridge') {
+            base.fillStyle(0x101a13, 0.42);
+            base.fillPoints(this.hexPoints(new Phaser.Math.Vector2(center.x + 4, center.y + 6), 0), true);
+          }
           if (terrain === 'plain') {
             this.addRenderObject(base, true);
             const tile = this.add.image(center.x, center.y, PLAIN_TERRAIN_ART.textureKey)
@@ -811,7 +813,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
               .setDisplaySize(HEX_WIDTH * 1.035, HEX_SIZE * 2.07);
             this.addRenderObject(tile, true);
           } else if (terrain === 'water' || terrain === 'bridge') {
-            this.addRenderObject(base, true);
+            base.destroy();
           } else {
             const palette = TERRAIN_PALETTES[terrain];
             const fill = palette[(q * 17 + r * 31) % palette.length];
@@ -856,10 +858,14 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!hex?.active) continue;
       const stroke = 0x263828;
       const strokeWidth = 2;
-      const joinsTerrainSurface = (geometry.terrain === 'mountain' || geometry.terrain === 'water')
-        && strokeWidth === 2;
       hex.clear();
-      hex.lineStyle(joinsTerrainSurface ? 0 : strokeWidth, stroke, joinsTerrainSurface ? 0 : 0.95);
+      if (isSeaTerrain(geometry.terrain)) {
+        hex.lineStyle(1.35, 0x152433, 0.2);
+      } else if (geometry.terrain === 'mountain') {
+        hex.lineStyle(0, stroke, 0);
+      } else {
+        hex.lineStyle(strokeWidth, stroke, 0.95);
+      }
       hex.strokePoints(geometry.points, true);
     }
   }
@@ -1065,93 +1071,18 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
   }
 
   private clearRiverSurface(): void {
-    for (const target of this.riverAnimationTargets) this.tweens.killTweensOf(target);
-    this.riverAnimationTargets = [];
-    this.riverMaskGraphics?.destroy();
-    this.riverMaskGraphics = undefined;
+    this.seaSurface?.destroy();
+    this.seaSurface = undefined;
   }
 
   private addRiverSurface(): void {
-    const centers: Phaser.Math.Vector2[] = [];
-    for (let r = 0; r < MAP_HEIGHT; r += 1) {
-      for (let q = 0; q < MAP_WIDTH; q += 1) {
-        const terrain = terrainAt({ q, r });
-        if (terrain === 'water' || terrain === 'bridge') centers.push(this.center({ q, r }));
-      }
-    }
-    if (centers.length === 0) return;
-
-    const left = Math.min(...centers.map((point) => point.x)) - HEX_WIDTH / 2 - 3;
-    const right = Math.max(...centers.map((point) => point.x)) + HEX_WIDTH / 2 + 3;
-    const top = Math.min(...centers.map((point) => point.y)) - HEX_SIZE - 3;
-    const bottom = Math.max(...centers.map((point) => point.y)) + HEX_SIZE + 3;
-    const width = right - left;
-    const height = bottom - top;
-    const centerX = (left + right) / 2;
-    const centerY = (top + bottom) / 2;
-
-    const surface = this.add.container(0, 0);
-    const base = this.add.tileSprite(
-      centerX,
-      centerY,
-      width,
-      height,
-      RIVER_WATER_ART.base.textureKey,
-    ).setTileScale(RIVER_WATER_ART.base.tileScale);
-    const highlight = this.add.tileSprite(
-      centerX,
-      centerY,
-      width,
-      height,
-      RIVER_WATER_ART.base.textureKey,
-    )
-      .setTileScale(RIVER_WATER_ART.base.tileScale)
-      .setTilePosition(256, 192)
-      .setTint(RIVER_WATER_ART.highlight.tint)
-      .setAlpha(RIVER_WATER_ART.highlight.alpha)
-      .setBlendMode(Phaser.BlendModes.ADD);
-    surface.add([base, highlight]);
-
-    const maskGraphics = new Phaser.GameObjects.Graphics(this);
-    maskGraphics.fillStyle(0xffffff, 1);
-    for (const center of centers) maskGraphics.fillPoints(this.hexPoints(center, 0), true);
-    surface.setMask(maskGraphics.createGeometryMask());
-    this.riverMaskGraphics = maskGraphics;
-    this.addRenderObject(surface, true);
-
-    if (this.game.renderer.type !== Phaser.WEBGL || !base.preFX) return;
-
-    const wave = base.preFX.addDisplacement(
-      RIVER_WATER_ART.displacement.textureKey,
-      RIVER_WATER_ART.displacement.strengthX,
-      RIVER_WATER_ART.displacement.strengthY,
+    this.seaSurface?.destroy();
+    this.seaSurface = new SeaTerrainSurface(
+      this,
+      (object) => this.addRenderObject(object, true),
+      (coord) => this.center(coord),
     );
-    this.tweens.add({
-      targets: wave,
-      x: RIVER_WATER_ART.displacement.pulseStrengthX,
-      y: RIVER_WATER_ART.displacement.pulseStrengthY,
-      duration: RIVER_WATER_ART.displacement.pulseHalfPeriodMs,
-      ease: 'Sine.InOut',
-      yoyo: true,
-      repeat: -1,
-    });
-    this.tweens.add({
-      targets: base,
-      tilePositionX: RIVER_WATER_ART.scroll.x,
-      tilePositionY: RIVER_WATER_ART.scroll.y,
-      duration: RIVER_WATER_ART.scroll.durationMs,
-      ease: 'Linear',
-      repeat: -1,
-    });
-    this.tweens.add({
-      targets: highlight,
-      tilePositionX: 256 + RIVER_WATER_ART.highlight.x,
-      tilePositionY: 192 + RIVER_WATER_ART.highlight.y,
-      duration: RIVER_WATER_ART.highlight.durationMs,
-      ease: 'Linear',
-      repeat: -1,
-    });
-    this.riverAnimationTargets = [wave, base, highlight];
+    this.seaSurface.render();
   }
 
   private addTerrainDetail(coord: Coord, center: Phaser.Math.Vector2): void {

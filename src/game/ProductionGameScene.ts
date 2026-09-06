@@ -8,10 +8,6 @@ import {
 } from './ActionAvailabilityTips';
 import { CardAvailabilityTips } from './CardAvailabilityTips';
 import { CaptureHint } from './CaptureHint';
-import {
-  CelShadedRiverSurface,
-  type CelShadedRiverSceneInternals,
-} from './CelShadedRiverSurface';
 import { setDebugStatus } from './DebugStatus';
 import {
   DemoVideoRecorder,
@@ -50,14 +46,11 @@ import {
 import { shortestReconsiderationPresentationPath } from './MovementReconsiderationPresentation';
 
 interface ProductionSceneInternals extends
-  CelShadedRiverSceneInternals,
   PremiumFeedbackSceneInternals,
   FirstTurnGuideSceneInternals,
   ActionAvailabilitySceneInternals,
   UnitInfoInspectorSceneInternals,
   ManaPresentationSceneInternals {
-  addRiverSurface: () => void;
-  clearRiverSurface: () => void;
   renderAll: () => void;
   hideTileInsight: (clearHover?: boolean) => void;
   selectedUnitId: string | null;
@@ -98,7 +91,6 @@ const compactManaSchedule = (state: GameState): void => {
 
 export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private settingsMenu?: SettingsMenu;
-  private celRiver?: CelShadedRiverSurface;
   private premiumFeedback?: PremiumFeedback;
   private cardAvailabilityTips?: CardAvailabilityTips;
   private actionAvailabilityTips?: ActionAvailabilityTips;
@@ -116,18 +108,6 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
 
   create(): void {
     const game = this as unknown as ProductionSceneInternals;
-
-    // Replace only the visual river surface before GameScene performs its first render.
-    // Terrain topology, bridge rules and movement remain owned by the existing engine.
-    game.clearRiverSurface = () => {
-      this.celRiver?.destroy();
-      this.celRiver = undefined;
-    };
-    game.addRiverSurface = () => {
-      this.celRiver?.destroy();
-      this.celRiver = new CelShadedRiverSurface(this, game);
-      this.celRiver.render();
-    };
 
     super.create();
 
@@ -312,8 +292,6 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.victoryMusicStarted = false;
       this.demoVideo?.dispose();
       this.demoVideo = undefined;
-      this.celRiver?.destroy();
-      this.celRiver = undefined;
       this.settingsMenu?.destroy();
       this.settingsMenu = undefined;
     });

@@ -114,7 +114,7 @@ export type TacticEffect =
   }
   | {
     kind: 'scorch';
-    target: 'forest';
+    target: 'burnableLand';
   }
   | {
     kind: 'raiseFort';
@@ -157,7 +157,17 @@ export interface GraveLockTileEffect {
   expiresAtTurn: number;
 }
 
-export type TileEffect = GraveLockTileEffect;
+export interface BurningTileEffect {
+  kind: 'burning';
+  coord: Coord;
+  sourcePlayer: PlayerId;
+  remainingTurns: number;
+  startedAsForest: boolean;
+  /** Metadata for persistence/debugging; burn lifetime is resolved by remainingTurns. */
+  expiresAtTurn: number;
+}
+
+export type TileEffect = GraveLockTileEffect | BurningTileEffect;
 
 export interface PendingManaWell {
   id: string;

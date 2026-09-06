@@ -141,7 +141,10 @@ const drawCard = (state: GameState, playerId: PlayerId, random: () => number): v
 
 const beginTurn = (state: GameState, random: () => number): { villageHealed: boolean } => {
   let villageHealed = false;
-  state.tileEffects = state.tileEffects.filter((effect) => effect.expiresAtTurn > state.turnNumber);
+  // Grave Lock is wall-clocked by turn number. Burning tiles own their three damage
+  // ticks explicitly so a start-turn cleanup can never silently skip the final tick.
+  state.tileEffects = state.tileEffects.filter((effect) =>
+    effect.kind !== 'graveLock' || effect.expiresAtTurn > state.turnNumber);
   const playerId = state.currentPlayer;
   for (const unit of state.units) {
     if (unit.owner !== playerId) continue;
@@ -921,7 +924,12 @@ export const getTacticTargetCoords = (state: GameState, cardId: string): Coord[]
       } else if (card.effect.kind === 'buildBridge') {
         if (terrainAt(coord) === 'water' && !isBuiltBridge(state, coord) && !unitAt(state, coord)) targets.push(coord);
       } else if (card.effect.kind === 'scorch') {
-        if (effectiveTerrainAt(state, coord) === 'forest') targets.push(coord);
+        const terrain = effectiveTerrainAt(state, coord);
+        const alreadyBurning = state.tileEffects.some((effect) =>
+          effect.kind === 'burning' && sameCoord(effect.coord, coord));
+        if ((terrain === 'plain' || terrain === 'hill' || terrain === 'forest') && !alreadyBurning) {
+          targets.push(coord);
+        }
       } else if (card.effect.kind === 'raiseFort') {
         const terrain = effectiveTerrainAt(state, coord);
         if ((terrain === 'plain' || terrain === 'hill')
@@ -1028,7 +1036,14 @@ export const playTacticCardAtCoord = (state: GameState, handIndex: number, desti
   } else if (validation.effect.kind === 'buildBridge') {
     state.builtBridges.push({ ...destination });
   } else if (validation.effect.kind === 'scorch') {
-    state.scorchedForests.push({ ...destination });
+    state.tileEffects.push({
+      kind: 'burning',
+      coord: { ...destination },
+      sourcePlayer: playerId,
+      remainingTurns: 3,
+      startedAsForest: terrainAt(destination) === 'forest' && !isScorchedForest(state, destination),
+      expiresAtTurn: state.turnNumber + 3,
+    });
   } else if (validation.effect.kind === 'raiseFort') {
     state.sites.push({
       id: `built-fort-${state.nextSiteId}`,
@@ -1072,6 +1087,30 @@ const resolveCurses = (state: GameState, playerId: PlayerId): void => {
   }
 };
 
+const resolveBurningTiles = (state: GameState): void => {
+  const nextEffects: GameState['tileEffects'] = [];
+  for (const effect of state.tileEffects) {
+    if (effect.kind !== 'burning') {
+      nextEffects.push(effect);
+      continue;
+    }
+
+    const occupant = unitAt(state, effect.coord);
+    if (occupant) dealDamage(state, occupant, 1, false, effect.sourcePlayer);
+
+    const remainingTurns = effect.remainingTurns - 1;
+    if (remainingTurns > 0) {
+      nextEffects.push({ ...effect, remainingTurns });
+      continue;
+    }
+
+    if (effect.startedAsForest && !isScorchedForest(state, effect.coord)) {
+      state.scorchedForests.push({ ...effect.coord });
+    }
+  }
+  state.tileEffects = nextEffects;
+};
+
 const resolvePendingManaWells = (state: GameState, playerId: PlayerId): void => {
   const remaining = [];
   for (const pending of state.pendingManaWells) {
@@ -1103,6 +1142,8 @@ export const endTurn = (state: GameState, random: () => number = Math.random): A
   }
   resolveCaptures(state, endingPlayer);
   resolveCurses(state, endingPlayer);
+  if (state.winner) return { ok: true, message: `Player ${state.winner} wins the match.` };
+  resolveBurningTiles(state);
   if (state.winner) return { ok: true, message: `Player ${state.winner} wins the match.` };
   resolvePendingManaWells(state, endingPlayer);
   if (state.countdown?.player === endingPlayer && commanderAlive(state, endingPlayer)) {

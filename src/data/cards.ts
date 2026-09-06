@@ -52,7 +52,7 @@ export const CARD_DEFINITIONS = {
     faction: 'human',
     type: 'tactic',
     cost: 1,
-    effect: { kind: 'scorch', target: 'forest' },
+    effect: { kind: 'scorch', target: 'burnableLand' },
   },
   raiseFort: {
     id: 'raiseFort',

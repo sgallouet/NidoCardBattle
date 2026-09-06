@@ -127,6 +127,15 @@ export class PrototypeGameScene extends PersistentAiGameScene {
       addTerrainObject(this.drawScorchedForest(scene, coord));
     }
 
+    // Fire is terrain state, so keep it under units. The small turn pip remains readable
+    // without covering the occupant standing in the flames.
+    for (const effect of scene.state.tileEffects) {
+      if (effect.kind !== 'burning') continue;
+      const { graphics, label } = this.drawBurningTile(scene, effect.coord, effect.remainingTurns);
+      addTerrainObject(graphics);
+      addTerrainObject(label);
+    }
+
     for (const pending of scene.state.pendingManaWells) {
       const { graphics, label } = this.drawPendingManaWell(
         scene,
@@ -197,6 +206,67 @@ export class PrototypeGameScene extends PersistentAiGameScene {
     graphics.fillCircle(center.x - 9, center.y + 11, 2);
     graphics.fillCircle(center.x + 29, center.y + 14, 2);
     return graphics;
+  }
+
+  private drawBurningTile(
+    scene: PrototypeSceneInternals,
+    coord: Coord,
+    remainingTurns: number,
+  ): { graphics: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text } {
+    const center = scene.center(coord);
+    const graphics = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    const points = scene.hexPoints(center, 7);
+
+    graphics.fillStyle(0xff4b24, 0.075);
+    graphics.fillPoints(points, true);
+    graphics.lineStyle(3, 0xff6330, 0.46);
+    graphics.strokePoints(points, true);
+    graphics.lineStyle(1.2, 0xffd075, 0.45);
+    graphics.strokePoints(scene.hexPoints(center, 10), true);
+
+    graphics.fillStyle(0xff742e, 0.10);
+    graphics.fillEllipse(center.x, center.y + 28, 82, 22);
+    for (const [dx, height] of [[-31, 11], [-20, 18], [-8, 13], [5, 21], [18, 15], [31, 12]] as const) {
+      const baseY = center.y + 34;
+      graphics.fillStyle(0xff6b29, 0.48);
+      graphics.fillTriangle(
+        center.x + dx - 5,
+        baseY,
+        center.x + dx + 5,
+        baseY,
+        center.x + dx + 1,
+        baseY - height,
+      );
+      graphics.fillStyle(0xffd35a, 0.42);
+      graphics.fillTriangle(
+        center.x + dx - 2.5,
+        baseY,
+        center.x + dx + 2.5,
+        baseY,
+        center.x + dx + 1,
+        baseY - height * 0.62,
+      );
+    }
+
+    for (const [dx, dy, radius] of [[-25, -13, 2], [-5, -20, 1.5], [19, -15, 2], [29, -4, 1.4]] as const) {
+      graphics.fillStyle(0xffe3a0, 0.72);
+      graphics.fillCircle(center.x + dx, center.y + dy, radius);
+    }
+
+    graphics.fillStyle(0x190906, 0.88);
+    graphics.fillCircle(center.x - 35, center.y - 29, 11);
+    graphics.lineStyle(1.5, 0xff9c43, 0.9);
+    graphics.strokeCircle(center.x - 35, center.y - 29, 10);
+
+    const label = this.add.text(center.x - 35, center.y - 29, `${remainingTurns}`, {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '10px',
+      color: '#ffe4ad',
+      fontStyle: 'bold',
+      stroke: '#3a1007',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+    return { graphics, label };
   }
 
   private drawPendingManaWell(

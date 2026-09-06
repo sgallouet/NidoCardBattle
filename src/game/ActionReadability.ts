@@ -96,8 +96,8 @@ export class ActionReadabilityLayer {
     this.actionAuras = [];
     this.healthBadges = [];
 
-    // Retire the old "dim the whole unit when done" treatment. Readiness is now shown
-    // only by the light at the unit's feet, leaving the actual unit art crisp at all times.
+    // Never dim the unit sprite itself. Action state is communicated by the low aurora
+    // under its feet while the unit art stays crisp.
     for (const view of this.game.renderedUnits.values()) view.container.setAlpha(1);
 
     const board = this.game.boardLayer;
@@ -114,19 +114,19 @@ export class ActionReadabilityLayer {
   private readonly handleUpdate = (): void => {
     const seconds = this.scene.time.now / 1000;
 
+    // The readiness aurora is intentionally almost fixed. A tiny luminance breath keeps
+    // it feeling magical without making it look like a moving UI widget.
     for (const aura of this.actionAuras) {
       if (!aura.graphics.active) continue;
-      const breath = 0.5 + Math.sin(seconds * 3.1 + aura.phase) * 0.5;
-      aura.graphics.setAlpha(0.72 + breath * 0.24);
-      aura.graphics.setScale(0.985 + breath * 0.025, 0.96 + breath * 0.055);
+      const breath = 0.5 + Math.sin(seconds * 1.45 + aura.phase) * 0.5;
+      aura.graphics.setAlpha(0.91 + breath * 0.07);
     }
 
     for (const badge of this.healthBadges) {
-      if (!badge.graphics.active || !badge.text.active) continue;
-      if (!badge.critical) continue;
-      const pulse = 0.5 + Math.sin(seconds * 4.4 + badge.phase) * 0.5;
-      badge.graphics.setAlpha(0.86 + pulse * 0.14);
-      badge.text.setScale(1 + pulse * 0.045);
+      if (!badge.graphics.active || !badge.text.active || !badge.critical) continue;
+      const pulse = 0.5 + Math.sin(seconds * 3.3 + badge.phase) * 0.5;
+      badge.graphics.setAlpha(0.92 + pulse * 0.08);
+      badge.text.setAlpha(0.92 + pulse * 0.08);
     }
 
     if (this.lethalMarkers.length === 0) return;
@@ -167,59 +167,83 @@ export class ActionReadabilityLayer {
   }
 
   /**
-   * Two soft ground smears replace the old pair of HUD arcs. Blue means a real move is
-   * still unused; red means an attack/active ability is available. With both available,
-   * each foot carries one color. No light means the unit is genuinely finished.
+   * A fixed aurora strip hugs roughly the bottom fifth of the hex. Blue means a genuine
+   * movement action remains; red means an attack/active ability remains. Reconsidering a
+   * previous move does not count as fresh movement and therefore never lights this blue.
    */
   private drawActionAura(unit: UnitState, canMove: boolean, canAct: boolean): void {
     const center = this.game.center(unit.coord);
     const graphics = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
-    const y = center.y + 25;
-    const leftColor = canMove ? MOVE_COLOR : ATTACK_COLOR;
-    const leftHot = canMove ? MOVE_HOT : ATTACK_HOT;
-    const rightColor = canAct ? ATTACK_COLOR : MOVE_COLOR;
-    const rightHot = canAct ? ATTACK_HOT : MOVE_HOT;
+    const y = center.y + 35;
 
-    if (canMove) {
-      graphics.fillStyle(MOVE_COLOR, canAct ? 0.055 : 0.075);
-      graphics.fillEllipse(center.x - (canAct ? 8 : 0), y + 1, canAct ? 38 : 58, 13);
+    if (canMove && canAct) {
+      this.drawAuroraBand(graphics, center.x - 17, y, 38, MOVE_COLOR, MOVE_HOT);
+      this.drawAuroraBand(graphics, center.x + 17, y, 38, ATTACK_COLOR, ATTACK_HOT);
+    } else if (canMove) {
+      this.drawAuroraBand(graphics, center.x, y, 70, MOVE_COLOR, MOVE_HOT);
+    } else if (canAct) {
+      this.drawAuroraBand(graphics, center.x, y, 70, ATTACK_COLOR, ATTACK_HOT);
     }
-    if (canAct) {
-      graphics.fillStyle(ATTACK_COLOR, canMove ? 0.055 : 0.075);
-      graphics.fillEllipse(center.x + (canMove ? 8 : 0), y + 1, canMove ? 38 : 58, 13);
-    }
-
-    this.drawFootSmear(graphics, center.x - 8, y, leftColor, leftHot, -1);
-    this.drawFootSmear(graphics, center.x + 8, y, rightColor, rightHot, 1);
 
     this.layer?.add(graphics);
     this.actionAuras.push({
       graphics,
-      phase: [...unit.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) * 0.17,
+      phase: [...unit.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) * 0.13,
     });
   }
 
-  private drawFootSmear(
+  private drawAuroraBand(
     graphics: Phaser.GameObjects.Graphics,
     x: number,
     y: number,
+    width: number,
     color: number,
     hot: number,
-    direction: -1 | 1,
   ): void {
-    const tailX = x - direction * 14;
-    const tailY = y + 5;
-    const toeX = x + direction * 5;
-    const toeY = y - 3;
+    // Broad low glow stays inside the lower slice of the tile instead of chasing the feet.
+    graphics.fillStyle(color, 0.055);
+    graphics.fillEllipse(x, y + 1, width, 15);
+    graphics.fillStyle(color, 0.09);
+    graphics.fillEllipse(x, y + 3, width * 0.82, 9);
 
-    graphics.lineStyle(11, color, 0.08);
-    graphics.lineBetween(tailX - direction * 7, tailY + 2, toeX, toeY);
-    graphics.lineStyle(6, color, 0.19);
-    graphics.lineBetween(tailX, tailY, toeX, toeY);
-    graphics.lineStyle(2.2, hot, 0.84);
-    graphics.lineBetween(x - direction * 5, y + 2, toeX, toeY);
-    graphics.fillStyle(hot, 0.74);
-    graphics.fillCircle(toeX, toeY, 1.9);
+    graphics.lineStyle(5.5, color, 0.12);
+    graphics.beginPath();
+    graphics.arc(
+      x,
+      y + 4,
+      width * 0.43,
+      Phaser.Math.DegToRad(205),
+      Phaser.Math.DegToRad(335),
+      false,
+    );
+    graphics.strokePath();
+
+    graphics.lineStyle(1.7, hot, 0.62);
+    graphics.beginPath();
+    graphics.arc(
+      x,
+      y + 3,
+      width * 0.40,
+      Phaser.Math.DegToRad(207),
+      Phaser.Math.DegToRad(333),
+      false,
+    );
+    graphics.strokePath();
+
+    // Sparse fixed wisps make the band read as light/aurora rather than a progress bar.
+    const wispScale = width / 70;
+    for (const [dx, height, alpha] of [
+      [-22, 7, 0.22],
+      [-8, 11, 0.30],
+      [8, 8, 0.24],
+      [22, 10, 0.27],
+    ] as const) {
+      const wx = x + dx * wispScale;
+      graphics.lineStyle(2.2, color, alpha);
+      graphics.lineBetween(wx, y + 5, wx + 1.5 * wispScale, y + 5 - height);
+      graphics.lineStyle(0.9, hot, alpha * 1.3);
+      graphics.lineBetween(wx + 0.5, y + 4, wx + 1.4 * wispScale, y + 6 - height);
+    }
   }
 
   private renderHealthBadges(): void {
@@ -244,59 +268,70 @@ export class ActionReadabilityLayer {
     const center = this.game.center(unit.coord);
     const definition = unitDefinition(unit);
     const ratio = Phaser.Math.Clamp(unit.hp / Math.max(1, definition.maxHp), 0, 1);
-    const color = ratio > 0.6 ? 0x5de38d : ratio > 0.3 ? 0xffc857 : 0xff4d62;
-    const hot = ratio > 0.6 ? 0xd9ffe6 : ratio > 0.3 ? 0xffefb8 : 0xffd9de;
-    const x = center.x + 29;
-    const y = center.y + 24;
-    const radius = 15;
+    const accent = ratio > 0.6 ? 0x55dc82 : ratio > 0.3 ? 0xe5aa3a : 0xe13f54;
+    const accentHot = ratio > 0.6 ? 0xb9ffd0 : ratio > 0.3 ? 0xffe3a0 : 0xffb6c0;
+    const x = center.x + 28;
+    const y = center.y + 29;
+    const width = 50;
+    const height = 22;
+    const left = x - width / 2;
+    const top = y - height / 2;
     const graphics = this.scene.add.graphics();
 
-    // A small faceted RPG medallion: grounded shadow, metal rim, dark glass core,
-    // health ring, and a restrained specular highlight. It reads cleanly at map zoom.
-    graphics.fillStyle(0x020706, 0.48);
-    graphics.fillEllipse(x + 2, y + 5, 34, 18);
+    // Compact RPG health plaque: warm metal frame, inset leather/glass face, a proper
+    // heart emblem and a tiny health strip. It should look like part of the game art,
+    // not a circular debug counter pasted over the unit.
+    graphics.fillStyle(0x020302, 0.48);
+    graphics.fillRoundedRect(left + 2, top + 4, width, height, 7);
 
-    const outer = this.hexBadgePoints(x, y, radius + 2);
-    const inner = this.hexBadgePoints(x, y, radius - 2);
-    graphics.fillStyle(0x07100d, 0.98);
-    graphics.fillPoints(outer, true);
-    graphics.lineStyle(4.5, 0x020604, 0.88);
-    graphics.strokePoints(outer, true);
-    graphics.lineStyle(1.5, 0xcbd8cf, 0.62);
-    graphics.strokePoints(outer, true);
+    graphics.fillStyle(0x17100c, 0.98);
+    graphics.fillRoundedRect(left, top, width, height, 7);
+    graphics.lineStyle(3.5, 0x26160d, 0.95);
+    graphics.strokeRoundedRect(left, top, width, height, 7);
+    graphics.lineStyle(1.2, 0xd6b56f, 0.86);
+    graphics.strokeRoundedRect(left + 1.2, top + 1.2, width - 2.4, height - 2.4, 6);
 
-    graphics.fillStyle(0x0d1713, 0.96);
-    graphics.fillPoints(inner, true);
-    graphics.fillStyle(color, 0.09);
-    graphics.fillEllipse(x, y + 2, 21, 13);
+    graphics.fillStyle(0x3b0d12, 0.92);
+    graphics.fillRoundedRect(left + 3.5, top + 3.5, 18, height - 7, 4.5);
+    graphics.lineStyle(1, 0x7b342e, 0.7);
+    graphics.strokeRoundedRect(left + 3.5, top + 3.5, 18, height - 7, 4.5);
 
-    graphics.lineStyle(4.5, 0x16211c, 0.92);
-    graphics.beginPath();
-    graphics.arc(x, y, radius + 0.5, -Math.PI / 2, Math.PI * 1.5, false);
-    graphics.strokePath();
+    const heartX = left + 12.5;
+    const heartY = y - 1.5;
+    graphics.fillStyle(0xc62f45, 1);
+    graphics.fillCircle(heartX - 3.1, heartY - 2.2, 3.9);
+    graphics.fillCircle(heartX + 3.1, heartY - 2.2, 3.9);
+    graphics.fillTriangle(heartX - 6.3, heartY, heartX + 6.3, heartY, heartX, heartY + 7.7);
+    graphics.fillStyle(0xffd7dc, 0.76);
+    graphics.fillCircle(heartX - 3.2, heartY - 3.7, 1.15);
+
+    // The sliver of color gives health state at a glance without wrapping the number in
+    // another ring. It deliberately stays subordinate to the heart + numeric HP.
+    const meterLeft = left + 24;
+    const meterTop = top + height - 5;
+    const meterWidth = width - 28;
+    graphics.fillStyle(0x050504, 0.95);
+    graphics.fillRoundedRect(meterLeft, meterTop, meterWidth, 2.7, 1.3);
     if (ratio > 0) {
-      graphics.lineStyle(3.4, color, 0.96);
-      graphics.beginPath();
-      graphics.arc(x, y, radius + 0.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ratio, false);
-      graphics.strokePath();
-      graphics.lineStyle(1.2, hot, 0.82);
-      graphics.beginPath();
-      graphics.arc(x, y, radius + 0.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ratio, false);
-      graphics.strokePath();
+      graphics.fillStyle(accent, 0.95);
+      graphics.fillRoundedRect(meterLeft, meterTop, Math.max(1.5, meterWidth * ratio), 2.7, 1.3);
+      graphics.fillStyle(accentHot, 0.55);
+      graphics.fillRect(meterLeft, meterTop, Math.max(1, meterWidth * ratio), 0.8);
     }
 
-    graphics.fillStyle(0xffffff, 0.13);
-    graphics.fillTriangle(x - 7, y - 8, x + 6, y - 8, x - 4, y - 3);
-    graphics.fillStyle(hot, 0.62);
-    graphics.fillCircle(x - 10, y - 8, 1.5);
+    graphics.fillStyle(0xf3d48d, 0.9);
+    graphics.fillCircle(left + 3.2, y, 1.2);
+    graphics.fillCircle(left + width - 3.2, y, 1.2);
+    graphics.fillStyle(0xffffff, 0.08);
+    graphics.fillRoundedRect(left + 23, top + 3, width - 28, 3, 1.5);
 
-    const text = this.scene.add.text(x, y - 0.5, `${unit.hp}`, {
-      fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '12px',
-      color: '#fffdf2',
+    const text = this.scene.add.text(left + 34.5, y - 1.8, `${unit.hp}`, {
+      fontFamily: 'Georgia, serif',
+      fontSize: '13px',
+      color: '#fff4d4',
       fontStyle: 'bold',
-      stroke: '#030706',
-      strokeThickness: 4,
+      stroke: '#090502',
+      strokeThickness: 3.2,
     }).setOrigin(0.5);
 
     this.layer?.add([graphics, text]);
@@ -305,16 +340,6 @@ export class ActionReadabilityLayer {
       text,
       critical: ratio <= 0.3,
       phase: [...unit.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) * 0.11,
-    });
-  }
-
-  private hexBadgePoints(x: number, y: number, radius: number): Phaser.Geom.Point[] {
-    return Array.from({ length: 6 }, (_, index) => {
-      const angle = Phaser.Math.DegToRad(-90 + index * 60);
-      return new Phaser.Geom.Point(
-        x + Math.cos(angle) * radius,
-        y + Math.sin(angle) * radius,
-      );
     });
   }
 

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { Coord, PlayerId } from '../data/types';
+import { hexDistance } from './engine';
 import { ABILITY_VFX_CONTRACT } from './AbilityVfxContract';
 import type { AnimatedUnitView } from './UnitMotionAnimator';
 
@@ -53,6 +54,7 @@ export class AbilityVfxAnimator {
 
   private async thunder(destination: Coord, affected: Coord[]): Promise<void> {
     const contract = ABILITY_VFX_CONTRACT.thunder;
+    const chain = affected.length > 0 ? affected : [destination];
     const bolt = this.at(destination);
     const glow = this.scene.add.graphics();
     const core = this.scene.add.graphics();
@@ -73,40 +75,101 @@ export class AbilityVfxAnimator {
       onComplete: () => bolt.destroy(),
     });
 
-    for (const [index, coord] of affected.entries()) {
+    for (const [index, coord] of chain.entries()) {
+      const delay = index === 0 ? 45 : 90 + index * 115;
+      if (index > 0) {
+        const parent = [...chain.slice(0, index)]
+          .reverse()
+          .find((candidate) => hexDistance(candidate, coord) === 1)
+          ?? chain[index - 1];
+        this.drawThunderArc(parent, coord, delay - 35, contract.color);
+      }
+
       const impact = this.at(coord);
       const ring = this.scene.add.graphics();
       const strong = index === 0;
-      ring.fillStyle(contract.color, strong ? 0.22 : 0.11);
-      ring.fillCircle(0, 0, strong ? 31 : 24);
-      ring.lineStyle(strong ? 5 : 3, strong ? 0xd9f7ff : contract.color, strong ? 0.96 : 0.76);
+      ring.fillStyle(contract.color, strong ? 0.24 : 0.16);
+      ring.fillCircle(0, 0, strong ? 31 : 25);
+      ring.lineStyle(strong ? 5 : 4, strong ? 0xd9f7ff : 0x9fe6ff, strong ? 0.98 : 0.88);
       ring.strokeCircle(0, 0, strong ? 31 : 25);
+      ring.lineStyle(2, contract.color, 0.92);
+      ring.strokeCircle(0, 0, strong ? 20 : 17);
       for (let ray = 0; ray < 6; ray += 1) {
         const angle = Phaser.Math.DegToRad(ray * 60 - 30);
         ring.lineBetween(
-          Math.cos(angle) * 10,
-          Math.sin(angle) * 10,
-          Math.cos(angle) * (strong ? 39 : 32),
-          Math.sin(angle) * (strong ? 39 : 32),
+          Math.cos(angle) * 9,
+          Math.sin(angle) * 9,
+          Math.cos(angle) * (strong ? 39 : 33),
+          Math.sin(angle) * (strong ? 39 : 33),
         );
       }
       impact.add(ring);
-      impact.setScale(0.42).setAlpha(0);
+      impact.setScale(0.48).setAlpha(0);
       this.scene.tweens.add({
         targets: impact,
         alpha: 1,
-        scaleX: 1.35,
-        scaleY: 1.35,
-        duration: strong ? 340 : 300,
-        delay: strong ? 55 : 105,
+        scaleX: 1.22,
+        scaleY: 1.22,
+        duration: 115,
+        delay,
+        ease: 'Back.easeOut',
+      });
+      this.scene.tweens.add({
+        targets: impact,
+        alpha: 0,
+        scaleX: 1.55,
+        scaleY: 1.55,
+        duration: 155,
+        delay: delay + 145,
         ease: 'Cubic.easeOut',
         onComplete: () => impact.destroy(),
       });
-      this.scene.tweens.add({ targets: impact, alpha: 0, duration: 150, delay: strong ? 245 : 255 });
     }
 
     this.scene.cameras.main.shake(135, 0.0022);
-    await this.wait(contract.durationMs);
+    await this.wait(Math.max(contract.durationMs, 330 + Math.max(0, chain.length - 1) * 115));
+  }
+
+  private drawThunderArc(from: Coord, to: Coord, delay: number, color: number): void {
+    const start = this.center(from);
+    const end = this.center(to);
+    const direction = new Phaser.Math.Vector2(end.x - start.x, end.y - start.y);
+    const perpendicular = new Phaser.Math.Vector2(-direction.y, direction.x).normalize();
+    const glow = this.scene.add.graphics();
+    const core = this.scene.add.graphics();
+    const draw = (graphics: Phaser.GameObjects.Graphics, width: number, lineColor: number, alpha: number): void => {
+      graphics.lineStyle(width, lineColor, alpha);
+      graphics.beginPath();
+      graphics.moveTo(start.x, start.y - 8);
+      for (let step = 1; step < 4; step += 1) {
+        const fraction = step / 4;
+        const jitter = (step % 2 === 0 ? -1 : 1) * (4 + step * 1.5);
+        graphics.lineTo(
+          Phaser.Math.Linear(start.x, end.x, fraction) + perpendicular.x * jitter,
+          Phaser.Math.Linear(start.y - 8, end.y - 8, fraction) + perpendicular.y * jitter,
+        );
+      }
+      graphics.lineTo(end.x, end.y - 8);
+      graphics.strokePath();
+    };
+    draw(glow, 11, color, 0.35);
+    draw(core, 3, 0xf3fbff, 1);
+    glow.setAlpha(0);
+    core.setAlpha(0);
+    this.board()?.add([glow, core]);
+    this.scene.tweens.add({
+      targets: [glow, core],
+      alpha: 1,
+      duration: 45,
+      delay,
+      yoyo: true,
+      repeat: 1,
+      hold: 28,
+      onComplete: () => {
+        glow.destroy();
+        core.destroy();
+      },
+    });
   }
 
   private async invokeBeast(

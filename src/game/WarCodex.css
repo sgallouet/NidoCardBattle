@@ -1,0 +1,658 @@
+.turn-primary-actions {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+}
+
+.turn-control {
+  min-width: 276px;
+}
+
+.war-codex-launch {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 88px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 88px;
+  height: 68px;
+  padding: 5px 8px;
+  overflow: hidden;
+  border: 1px solid rgba(213, 180, 103, .7);
+  border-radius: 11px 3px 11px 3px;
+  color: #eadcae;
+  background:
+    linear-gradient(135deg, rgba(142, 99, 44, .18), transparent 42%),
+    linear-gradient(#32291d, #18150f);
+  box-shadow: 0 8px 18px #0008, inset 0 0 0 1px rgba(255, 240, 184, .07);
+  font: 800 10px/1 Georgia, serif;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.war-codex-launch::after {
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(230, 200, 121, .16);
+  border-radius: 7px 2px 7px 2px;
+  content: "";
+  pointer-events: none;
+}
+
+.war-codex-launch:hover:not(:disabled) {
+  border-color: #e5c574;
+  color: #fff0bb;
+  background:
+    linear-gradient(135deg, rgba(179, 126, 53, .25), transparent 42%),
+    linear-gradient(#413422, #211a10);
+}
+
+.war-codex-launch-icon {
+  font-size: 21px;
+  line-height: 1;
+  filter: sepia(.28) drop-shadow(0 2px 2px #000a);
+}
+
+.war-codex {
+  --codex-ink: #352514;
+  --codex-muted: #725b3f;
+  --codex-gold: #9c6f27;
+  --codex-accent: #705420;
+  position: absolute;
+  z-index: 500;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px 22px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.war-codex[hidden] { display: none; }
+.war-codex.is-open { opacity: 1; pointer-events: auto; }
+
+.war-codex[data-faction="human"] {
+  --codex-accent: #365889;
+  --codex-aura: rgba(80, 158, 230, .24);
+}
+
+.war-codex[data-faction="undead"] {
+  --codex-accent: #5c3f78;
+  --codex-aura: rgba(126, 75, 183, .3);
+}
+
+.war-codex-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(30, 22, 14, .22), rgba(2, 4, 7, .88) 72%),
+    rgba(1, 3, 6, .72);
+  backdrop-filter: blur(7px) saturate(.62);
+}
+
+.war-codex-book {
+  position: relative;
+  width: min(1190px, calc(100vw - 44px));
+  height: min(760px, calc(100vh - 36px));
+  min-height: 520px;
+  overflow: hidden;
+  border: 10px solid #382315;
+  border-radius: 24px 14px 18px 20px;
+  color: var(--codex-ink);
+  background:
+    radial-gradient(circle at 23% 16%, rgba(255, 248, 210, .68), transparent 25%),
+    radial-gradient(circle at 82% 74%, rgba(112, 77, 37, .10), transparent 30%),
+    linear-gradient(90deg,
+      #d7c18c 0%,
+      #ead9aa 4%,
+      #f0dfb3 45%,
+      #c5a972 49.2%,
+      #7d5c34 49.7%,
+      #583d25 50%,
+      #87683e 50.3%,
+      #d2b980 50.8%,
+      #ebd9aa 55%,
+      #e8d4a2 96%,
+      #c5a36a 100%);
+  box-shadow:
+    0 35px 90px #000e,
+    0 0 0 2px #b38a4c,
+    0 0 0 5px #1d110a,
+    inset 0 0 65px rgba(80, 45, 19, .30);
+  transform: perspective(1400px) rotateX(7deg) scale(.93);
+  transform-origin: 50% 58%;
+  transition: transform 330ms cubic-bezier(.17,.82,.25,1), filter 250ms ease;
+}
+
+.war-codex.is-open .war-codex-book {
+  transform: perspective(1400px) rotateX(0) scale(1);
+}
+
+.war-codex-book::before,
+.war-codex-book::after {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.war-codex-book::before {
+  left: 0;
+  background:
+    repeating-linear-gradient(8deg, transparent 0 27px, rgba(87, 55, 24, .025) 28px 29px),
+    radial-gradient(ellipse at 100% 50%, rgba(68, 40, 20, .22), transparent 15%);
+}
+
+.war-codex-book::after {
+  right: 0;
+  background:
+    repeating-linear-gradient(-7deg, transparent 0 31px, rgba(87, 55, 24, .024) 32px 33px),
+    radial-gradient(ellipse at 0 50%, rgba(68, 40, 20, .22), transparent 15%);
+}
+
+.war-codex-header {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  height: 92px;
+  padding: 10px 76px 0;
+  text-align: center;
+}
+
+.war-codex-kicker {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--codex-muted);
+  font: 700 9px/1.2 Georgia, serif;
+  letter-spacing: .23em;
+  text-transform: uppercase;
+}
+
+.war-codex-header h1 {
+  margin: 0;
+  color: #3c2813;
+  font: 700 clamp(27px, 3.1vw, 45px)/.95 Georgia, serif;
+  letter-spacing: .055em;
+  text-shadow: 0 1px rgba(255, 250, 216, .8);
+  text-transform: uppercase;
+}
+
+.war-codex-title-ornament {
+  color: var(--codex-gold);
+  font-size: 18px;
+  opacity: .75;
+}
+
+.war-codex-close {
+  position: absolute;
+  z-index: 8;
+  top: 18px;
+  right: 20px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0 0 3px;
+  border: 2px solid #84602c;
+  border-radius: 50%;
+  color: #f1d995;
+  background: radial-gradient(circle at 35% 30%, #79552b, #29180e 70%);
+  box-shadow: 0 5px 12px #0008, inset 0 0 0 2px #1c100a;
+  font: 700 26px/1 Georgia, serif;
+}
+
+.war-codex-body {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 182px minmax(260px, 350px) minmax(330px, 1fr);
+  gap: clamp(16px, 2vw, 29px);
+  height: calc(100% - 104px);
+  padding: 7px 32px 27px;
+}
+
+.war-codex-index {
+  min-width: 0;
+  overflow: auto;
+  padding: 8px 3px 18px 5px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(101, 69, 32, .42) transparent;
+}
+
+.war-codex-index-heading {
+  margin-bottom: 17px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid rgba(79, 52, 23, .32);
+}
+
+.war-codex-index-heading span,
+.war-codex-index-heading strong {
+  display: block;
+}
+
+.war-codex-index-heading span {
+  color: var(--codex-muted);
+  font: italic 11px/1.2 Georgia, serif;
+}
+
+.war-codex-index-heading strong {
+  margin-top: 2px;
+  color: #442d15;
+  font: 700 24px/1 Georgia, serif;
+  letter-spacing: .04em;
+}
+
+.war-codex-faction + .war-codex-faction { margin-top: 18px; }
+
+.war-codex-faction h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 7px;
+  color: var(--codex-accent);
+  font: 700 12px/1.2 Georgia, serif;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.war-codex-faction h3 span { font-size: 15px; }
+
+.war-codex-unit-list {
+  display: grid;
+  gap: 1px;
+}
+
+.war-codex-unit-link {
+  position: relative;
+  width: 100%;
+  padding: 6px 8px 6px 17px;
+  border: 0;
+  border-radius: 0;
+  color: #514129;
+  background: transparent;
+  font: 600 12px/1.2 Georgia, serif;
+  text-align: left;
+  transition: color 140ms ease, transform 140ms ease, background 140ms ease;
+}
+
+.war-codex-unit-link::before {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  color: #9b742f;
+  content: "·";
+  transform: translateY(-52%);
+}
+
+.war-codex-unit-link:hover,
+.war-codex-unit-link:focus-visible {
+  color: #24170c;
+  background: linear-gradient(90deg, rgba(142, 102, 43, .11), transparent);
+  filter: none;
+  transform: translateX(2px);
+}
+
+.war-codex-unit-link.is-selected {
+  color: var(--codex-accent);
+  background: linear-gradient(90deg, rgba(129, 89, 35, .16), transparent 90%);
+  font-weight: 800;
+}
+
+.war-codex-unit-link.is-selected::before {
+  content: "❧";
+  font-size: 12px;
+}
+
+.war-codex-showcase {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 12px 4px 31px;
+  perspective: 1400px;
+}
+
+.war-codex-card-aura {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 84%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--codex-aura) 0, rgba(173, 132, 63, .11) 34%, transparent 70%);
+  filter: blur(13px);
+  transform: translate(-50%, -50%);
+}
+
+.war-codex-card-frame {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 0;
+}
+
+.war-codex .codex-hero-card {
+  flex: none;
+  width: min(300px, 25vw);
+  max-width: 100%;
+  margin: 0;
+  aspect-ratio: 2 / 3;
+  cursor: default;
+  transform: none;
+  transform-origin: center;
+}
+
+.war-codex .codex-hero-card + .card { margin-left: 0; }
+
+.war-codex .codex-hero-card .card-surface {
+  box-shadow:
+    0 26px 38px rgba(30, 18, 9, .55),
+    0 0 0 1px rgba(255, 235, 173, .32),
+    0 0 30px var(--codex-aura);
+  transition: transform 105ms ease-out, box-shadow 220ms ease;
+}
+
+.war-codex .codex-hero-card:hover .card-surface,
+.war-codex .codex-hero-card:focus-visible .card-surface {
+  box-shadow:
+    0 30px 45px rgba(25, 14, 6, .65),
+    0 0 0 2px rgba(255, 238, 181, .5),
+    0 0 42px var(--codex-aura);
+  transform: perspective(1000px) scale(1.025) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+}
+
+.war-codex .codex-hero-card .card-holo { opacity: .10; }
+.war-codex .codex-hero-card .card-glare { opacity: .07; }
+.war-codex .codex-hero-card:hover .card-holo { opacity: .56; }
+.war-codex .codex-hero-card:hover .card-glare { opacity: .64; }
+
+.war-codex-card-caption {
+  position: absolute;
+  bottom: 8px;
+  color: rgba(92, 67, 36, .62);
+  font: italic 10px/1 Georgia, serif;
+  letter-spacing: .06em;
+}
+
+.war-codex-details {
+  min-width: 0;
+  overflow: auto;
+  padding: 9px 10px 22px 13px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(101, 69, 32, .42) transparent;
+}
+
+.war-codex-entry-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(73, 47, 22, .33);
+}
+
+.war-codex-entry-rune {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(112, 78, 34, .46);
+  border-radius: 50%;
+  color: var(--codex-accent);
+  background: rgba(103, 73, 31, .06);
+  font-size: 23px;
+}
+
+.war-codex-entry-header h2 {
+  margin: 0;
+  color: #38230f;
+  font: 700 clamp(25px, 2.2vw, 34px)/1 Georgia, serif;
+  letter-spacing: .035em;
+}
+
+.war-codex-entry-header p {
+  margin: 4px 0 0;
+  color: var(--codex-accent);
+  font: 700 10px/1.25 Georgia, serif;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.war-codex-tagline {
+  margin: 11px 0 13px;
+  color: #625039;
+  font: italic 13px/1.4 Georgia, serif;
+}
+
+.war-codex-section {
+  margin-top: 13px;
+}
+
+.war-codex-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 7px;
+  color: #473018;
+  font: 800 10px/1.1 Georgia, serif;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.war-codex-section h3 span { color: var(--codex-gold); }
+
+.war-codex-mechanics {
+  display: grid;
+  gap: 5px;
+}
+
+.war-codex-mechanic {
+  display: grid;
+  grid-template-columns: 25px 1fr;
+  gap: 7px;
+  align-items: center;
+  min-height: 36px;
+  padding: 4px 7px 4px 3px;
+  border-bottom: 1px solid rgba(71, 48, 25, .11);
+}
+
+.war-codex-mechanic-sigil {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  border: 1px solid rgba(116, 79, 33, .34);
+  border-radius: 50%;
+  color: var(--codex-accent);
+  font-size: 11px;
+}
+
+.war-codex-mechanic strong,
+.war-codex-mechanic span {
+  display: block;
+}
+
+.war-codex-mechanic strong {
+  color: #3e2b17;
+  font: 800 10px/1.15 Georgia, serif;
+  letter-spacing: .06em;
+}
+
+.war-codex-mechanic div > span {
+  margin-top: 2px;
+  color: #69543a;
+  font: 600 10px/1.25 Georgia, serif;
+}
+
+.war-codex-none {
+  margin: 4px 0;
+  color: var(--codex-muted);
+  font: italic 11px/1.3 Georgia, serif;
+}
+
+.war-codex-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border: 1px solid rgba(91, 62, 28, .24);
+  border-radius: 5px;
+  background: rgba(111, 78, 35, .055);
+}
+
+.war-codex-stat {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 7px 3px 6px;
+  border-right: 1px solid rgba(91, 62, 28, .15);
+  text-align: center;
+}
+
+.war-codex-stat:last-child { border-right: 0; }
+.war-codex-stat-icon { color: var(--codex-accent); font-size: 12px; }
+.war-codex-stat > span:nth-child(2) { color: #765e41; font: 700 8px/1.1 Georgia, serif; text-transform: uppercase; }
+.war-codex-stat strong { margin-top: 2px; color: #35220f; font: 800 16px/1 Georgia, serif; }
+
+.war-codex-matchups {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13px;
+}
+
+.war-codex-matchups ul {
+  display: grid;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.war-codex-matchups li {
+  position: relative;
+  padding-left: 15px;
+  color: #614e37;
+  font: 600 10px/1.25 Georgia, serif;
+}
+
+.war-codex-strong li::before,
+.war-codex-weak li::before {
+  position: absolute;
+  left: 1px;
+  color: var(--codex-accent);
+  content: "✓";
+  font-weight: 900;
+}
+
+.war-codex-weak li::before { color: #7b3d35; content: "×"; }
+
+.war-codex-spine {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 18px;
+  background: linear-gradient(90deg, transparent, rgba(51, 31, 17, .26) 42%, rgba(255, 244, 203, .16) 52%, transparent);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.war-codex-corner {
+  position: absolute;
+  z-index: 5;
+  width: 48px;
+  height: 48px;
+  border-color: #9d7536;
+  opacity: .68;
+  pointer-events: none;
+}
+
+.war-codex-corner-nw { top: 9px; left: 10px; border-top: 2px solid; border-left: 2px solid; }
+.war-codex-corner-ne { top: 9px; right: 10px; border-top: 2px solid; border-right: 2px solid; }
+.war-codex-corner-sw { bottom: 9px; left: 10px; border-bottom: 2px solid; border-left: 2px solid; }
+.war-codex-corner-se { right: 10px; bottom: 9px; border-right: 2px solid; border-bottom: 2px solid; }
+
+@media (max-width: 980px) {
+  .war-codex { padding: 10px; }
+  .war-codex-book { width: calc(100vw - 20px); height: calc(100vh - 20px); min-height: 0; }
+  .war-codex-body { grid-template-columns: 150px minmax(215px, 285px) minmax(280px, 1fr); gap: 12px; padding-right: 20px; padding-left: 20px; }
+  .war-codex .codex-hero-card { width: min(260px, 27vw); }
+  .war-codex-header { height: 78px; }
+  .war-codex-body { height: calc(100% - 88px); }
+  .war-codex-matchups { grid-template-columns: 1fr; gap: 0; }
+}
+
+@media (max-width: 720px) {
+  .turn-control { min-width: 0; }
+  .turn-primary-actions { gap: 5px; }
+  .war-codex-launch { flex-basis: 60px; width: 60px; height: 58px; font-size: 8px; }
+  .war-codex-launch-icon { font-size: 17px; }
+
+  .war-codex-book { border-width: 6px; border-radius: 13px; }
+  .war-codex-header { height: 61px; padding: 5px 49px 0; }
+  .war-codex-kicker { display: none; }
+  .war-codex-header h1 { font-size: 25px; }
+  .war-codex-title-ornament { display: none; }
+  .war-codex-close { top: 10px; right: 10px; width: 34px; height: 34px; }
+  .war-codex-body {
+    grid-template-columns: 126px minmax(210px, .75fr) minmax(260px, 1fr);
+    gap: 8px;
+    height: calc(100% - 66px);
+    padding: 2px 11px 12px;
+  }
+  .war-codex-index-heading { margin-bottom: 9px; }
+  .war-codex-index-heading strong { font-size: 18px; }
+  .war-codex-faction + .war-codex-faction { margin-top: 9px; }
+  .war-codex-unit-link { padding-top: 4px; padding-bottom: 4px; font-size: 10px; }
+  .war-codex .codex-hero-card { width: min(220px, 28vw); }
+  .war-codex-card-caption { display: none; }
+  .war-codex-entry-header h2 { font-size: 22px; }
+  .war-codex-entry-rune { display: none; }
+  .war-codex-tagline { margin: 7px 0 8px; font-size: 10px; }
+  .war-codex-section { margin-top: 8px; }
+  .war-codex-mechanic { min-height: 30px; }
+  .war-codex-stats { grid-template-columns: repeat(5, minmax(42px, 1fr)); }
+}
+
+@media (max-width: 560px) and (orientation: portrait) {
+  .war-codex { padding: 0; }
+  .war-codex-book { width: 100vw; height: 100vh; border: 0; border-radius: 0; overflow: auto; }
+  .war-codex-header { position: sticky; z-index: 7; top: 0; background: rgba(229, 211, 165, .93); box-shadow: 0 4px 12px rgba(58, 35, 17, .18); }
+  .war-codex-body { display: flex; height: auto; min-height: calc(100vh - 66px); flex-direction: column; padding: 10px 16px 28px; }
+  .war-codex-index { overflow: visible; padding: 0; }
+  .war-codex-index-heading { display: none; }
+  .war-codex-faction { margin: 0 0 7px !important; }
+  .war-codex-faction h3 { margin-bottom: 4px; }
+  .war-codex-unit-list { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 3px; }
+  .war-codex-unit-link { flex: 0 0 auto; width: auto; padding: 5px 8px; border: 1px solid rgba(84, 56, 25, .18); border-radius: 999px; }
+  .war-codex-unit-link::before { display: none; }
+  .war-codex-showcase { min-height: 385px; padding: 8px 0 11px; }
+  .war-codex .codex-hero-card { width: min(245px, 67vw); }
+  .war-codex-details { overflow: visible; padding: 4px 4px 20px; }
+  .war-codex-matchups { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .war-codex-spine { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .war-codex,
+  .war-codex-book,
+  .war-codex-unit-link,
+  .war-codex .codex-hero-card .card-surface {
+    transition: none !important;
+  }
+  .war-codex-book { transform: none !important; }
+  .war-codex .codex-hero-card:hover .card-surface,
+  .war-codex .codex-hero-card:focus-visible .card-surface {
+    transform: none !important;
+  }
+}

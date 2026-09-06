@@ -34,6 +34,7 @@ import {
   saveMatchMusicVolume,
 } from './MatchMusic';
 import { SettingsMenu } from './SettingsMenu';
+import { TacticalHexFxLayer } from './TacticalHexFx';
 import { UnitInfoInspector, type UnitInfoInspectorSceneInternals } from './UnitInfoInspector';
 import { VictoryMusicDirector } from './VictoryMusic';
 import { VictoryObjectiveHud } from './VictoryObjectiveHud';
@@ -52,6 +53,8 @@ interface ProductionSceneInternals extends
   clearRiverSurface: () => void;
   renderAll: () => void;
   hideTileInsight: (clearHover?: boolean) => void;
+  selectedUnitId: string | null;
+  tacticalHexFx?: TacticalHexFxLayer;
   boardLayer?: Phaser.GameObjects.Container;
   center: (coord: Coord) => Phaser.Math.Vector2;
   hexPoints: (center: Phaser.Math.Vector2, inset?: number) => Phaser.Geom.Point[];
@@ -181,6 +184,12 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     const originalRenderAll = game.renderAll.bind(this);
     game.renderAll = () => {
       originalRenderAll();
+      const selectedUnit = game.selectedUnitId
+        ? game.state.units.find((unit) => unit.id === game.selectedUnitId)
+        : undefined;
+      game.tacticalHexFx?.setMovePresentation(
+        selectedUnit?.movementOrigin && !selectedUnit.attacked ? 'reconsider' : 'active',
+      );
       this.premiumFeedback?.sync(game.state, game.message);
       this.victoryObjective?.sync(game.state);
       this.firstTurnGuide?.sync();

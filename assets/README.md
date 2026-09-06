@@ -11,7 +11,7 @@
 - `assets/source/ui/endgame/` contains untouched transparent Human/Undead victory and defeat army illustrations.
 - `assets/source/marketing/itch/` contains untouched generated/source candidates and briefs for itch.io promotional art. Approved publishing exports live under `release/itch/art/`, not under runtime assets.
 - Exact duplicate attachments were not copied a second time.
-- `assets/game/cards/` contains 512 × 768 lossless WebP cards selected for the live card-art map. Regenerate an accepted card with `tools/process_card_art.ps1`.
+- `assets/game/cards/` contains the processed WebP cards selected for the live card-art map. The current processing target is 1024 × 1536 lossless WebP. Regenerate one accepted card with `tools/process_card_art.ps1`, or all accepted cards with `tools/regenerate_card_art.ps1`. The Wavedash production build regenerates the high-resolution runtime cards from their accepted source files before Vite builds the game.
 - `assets/game/units/` contains compact game-ready battlefield art; animated units keep their state sheets in a unit-specific folder. Normalize supplied transparent unit art with `tools/process_transparent_unit.py`, or black-background unit art with `tools/process_black_background_unit.py`.
 - `assets/game/units/shadows/` contains static unit sprites with baked contact shadows. Install the tooling with `python -m pip install -r tools/requirements-shadows.txt`, then regenerate with `python tools/bake_unit_shadows.py`; generation settings and source mappings live in `manifest.json` beside the outputs. Animated units retain their authored frame shadows.
 - `assets/game/sites/` contains cropped, compact battlefield site art.

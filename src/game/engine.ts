@@ -551,7 +551,9 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
     && attackerDef.traits.includes('Necromancy')
     && !isGraveLocked(state, defenderCoord)
     && !unitAt(state, defenderCoord)) {
-    state.units.push(createUnit(state, 'skeletalInfantry', attacker.owner, defenderCoord, true));
+    const raised = createUnit(state, 'skeletalInfantry', attacker.owner, defenderCoord, true);
+    raised.hp = 1;
+    state.units.push(raised);
   }
 
   let cleaveDamaged = false;
@@ -671,28 +673,47 @@ export const getThunderTargetCoords = (state: GameState, actorId: string): Coord
     || actor.exhausted
     || actor.attacked
     || unitDefinition(actor).ability !== 'Thunder') return [];
-  const targets: Coord[] = [];
   const range = effectiveRange(actor);
-  for (let r = 0; r < MAP_HEIGHT; r += 1) {
-    for (let q = 0; q < MAP_WIDTH; q += 1) {
-      const coord = { q, r };
-      if (hexDistance(actor.coord, coord) <= range) targets.push(coord);
+  return state.units
+    .filter((target) => target.owner !== actor.owner && hexDistance(actor.coord, target.coord) <= range)
+    .map((target) => ({ ...target.coord }));
+};
+
+/** Ordered breadth-first list of enemies struck by Thunder, starting from the chosen target. */
+export const getThunderChainCoords = (state: GameState, actorId: string, destination: Coord): Coord[] => {
+  const actor = findUnit(state, actorId);
+  if (!actor || !getThunderTargetCoords(state, actorId).some((coord) => sameCoord(coord, destination))) return [];
+  const first = unitAt(state, destination);
+  if (!first || first.owner === actor.owner) return [];
+
+  const visited = new Set<string>([first.id]);
+  const queue: UnitState[] = [first];
+  const chain: Coord[] = [];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) break;
+    chain.push({ ...current.coord });
+    for (const candidate of state.units) {
+      if (candidate.owner === actor.owner || visited.has(candidate.id)) continue;
+      if (hexDistance(current.coord, candidate.coord) !== 1) continue;
+      visited.add(candidate.id);
+      queue.push(candidate);
     }
   }
-  return targets;
+  return chain;
 };
 
 export const thunderAtCoord = (state: GameState, actorId: string, destination: Coord): ActionResult => {
   const actor = findUnit(state, actorId);
-  if (!actor || !getThunderTargetCoords(state, actorId).some((coord) => sameCoord(coord, destination))) {
-    return { ok: false, message: 'Choose a battlefield hex within Thunder range.' };
+  const chain = actor ? getThunderChainCoords(state, actorId, destination) : [];
+  if (!actor || chain.length === 0) {
+    return { ok: false, message: 'Choose a highlighted enemy within Thunder range.' };
   }
 
   const sourcePlayer = actor.owner;
-  const affectedCoords = [destination, ...neighbors(destination)];
-  const targetIds = state.units
-    .filter((unit) => affectedCoords.some((coord) => sameCoord(coord, unit.coord)))
-    .map((unit) => unit.id);
+  const targetIds = chain
+    .map((coord) => unitAt(state, coord)?.id)
+    .filter((id): id is string => id !== undefined);
   actor.attacked = true;
 
   let damaged = 0;
@@ -705,7 +726,7 @@ export const thunderAtCoord = (state: GameState, actorId: string, destination: C
   const victoryText = state.winner ? ` Player ${state.winner} wins the match.` : '';
   return {
     ok: true,
-    message: `${unitDefinition(actor).name} called Thunder on ${damaged} ${damaged === 1 ? 'unit' : 'units'} for 1 damage.${victoryText}`,
+    message: `${unitDefinition(actor).name} chained Thunder through ${damaged} ${damaged === 1 ? 'enemy' : 'enemies'} for 1 damage each.${victoryText}`,
   };
 };
 
@@ -773,9 +794,17 @@ export const soulLinkUnit = (state: GameState, actorId: string, targetId: string
   return { ok: true, message: `${unitDefinition(actor).name} linked its life to ${unitDefinition(target).name} until its next turn.` };
 };
 
+export const hasActiveCurseFrom = (state: GameState, actorId: string): boolean =>
+  state.units.some((unit) => (unit.curses ?? []).some((curse) => curse.sourceUnitId === actorId && curse.remainingTurns > 0));
+
 export const getCurseTargets = (state: GameState, actorId: string): UnitState[] => {
   const actor = findUnit(state, actorId);
-  if (!actor || actor.owner !== state.currentPlayer || actor.exhausted || actor.attacked || unitDefinition(actor).ability !== 'Curse') return [];
+  if (!actor
+    || actor.owner !== state.currentPlayer
+    || actor.exhausted
+    || actor.attacked
+    || unitDefinition(actor).ability !== 'Curse'
+    || hasActiveCurseFrom(state, actorId)) return [];
   return state.units.filter((target) => target.owner !== actor.owner
     && hexDistance(actor.coord, target.coord) <= effectiveRange(actor));
 };
@@ -783,10 +812,17 @@ export const getCurseTargets = (state: GameState, actorId: string): UnitState[] 
 export const curseUnit = (state: GameState, actorId: string, targetId: string): ActionResult => {
   const actor = findUnit(state, actorId);
   const target = findUnit(state, targetId);
+  if (actor && hasActiveCurseFrom(state, actorId)) {
+    return { ok: false, message: 'This Necromancer already has an active Curse.' };
+  }
   if (!actor || !target || !getCurseTargets(state, actorId).some((candidate) => candidate.id === targetId)) {
     return { ok: false, message: 'Choose an enemy within Curse range.' };
   }
-  target.curses = [...(target.curses ?? []), { sourcePlayer: actor.owner, remainingTurns: 3 }];
+  target.curses = [...(target.curses ?? []), {
+    sourcePlayer: actor.owner,
+    sourceUnitId: actor.id,
+    remainingTurns: 3,
+  }];
   actor.attacked = true;
   return { ok: true, message: `${unitDefinition(actor).name} cursed ${unitDefinition(target).name} for 3 turns.` };
 };

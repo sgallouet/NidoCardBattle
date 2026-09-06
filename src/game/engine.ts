@@ -259,7 +259,7 @@ const canStartMovementPhase = (unit: UnitState): boolean => {
   if (unit.exhausted) return false;
   const agile = unitDefinition(unit).traits.includes('AgileAssault');
   if (!agile) return !unit.moved && !unit.attacked;
-  if (unit.attacked) return !unit.postAttackMoved && (unit.movementSpent ?? 0) < effectiveMove(unit);
+  if (unit.attacked) return !unit.postAttackMoved;
   return !unit.moved;
 };
 
@@ -280,7 +280,10 @@ const searchMovement = (state: GameState, unitId: string): MovementSearch => {
   const reachable = new Map<string, number>([[coordKey(unit.coord), 0]]);
   const previous = new Map<string, Coord>();
   const queue: Array<{ coord: Coord; cost: number }> = [{ coord: unit.coord, cost: 0 }];
-  const moveRemaining = effectiveMove(unit) - (unit.movementSpent ?? 0);
+  const agilePostAttack = unit.attacked && unitDefinition(unit).traits.includes('AgileAssault');
+  const moveRemaining = agilePostAttack
+    ? effectiveMove(unit)
+    : effectiveMove(unit) - (unit.movementSpent ?? 0);
 
   while (queue.length > 0) {
     queue.sort((a, b) => a.cost - b.cost);
@@ -289,7 +292,10 @@ const searchMovement = (state: GameState, unitId: string): MovementSearch => {
     if (current.cost > (reachable.get(coordKey(current.coord)) ?? Number.POSITIVE_INFINITY)) continue;
 
     for (const next of neighbors(current.coord)) {
-      if (isGraveLocked(state, next) || !canTraverse(state, unit, next) || unitAt(state, next)) continue;
+      const occupant = unitAt(state, next);
+      if (isGraveLocked(state, next)
+        || !canTraverse(state, unit, next)
+        || (occupant && occupant.owner !== unit.owner)) continue;
       const nextCost = current.cost + movementCost(state, unit, next);
       if (nextCost > moveRemaining + 0.0001) continue;
       const key = coordKey(next);
@@ -312,6 +318,7 @@ export const getReachableCoords = (state: GameState, unitId: string): Map<string
   if (!unit) return new Map();
   const { reachable } = searchMovement(state, unitId);
   reachable.delete(coordKey(unit.coord));
+  for (const occupant of state.units) reachable.delete(coordKey(occupant.coord));
   return reachable;
 };
 
@@ -320,6 +327,9 @@ export const moveUnit = (state: GameState, unitId: string, destination: Coord): 
   const unit = findUnit(state, unitId);
   if (!unit) return { ok: false, message: 'That unit is no longer on the board.' };
   const start = { ...unit.coord };
+  if (unitAt(state, destination)) {
+    return { ok: false, message: 'That hex is occupied.' };
+  }
   const movement = searchMovement(state, unitId);
   const spent = movement.reachable.get(coordKey(destination));
   if (spent === undefined || sameCoord(start, destination)) {

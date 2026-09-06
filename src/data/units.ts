@@ -41,7 +41,7 @@ export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
     traits: ['Ranged', 'Assist', 'SetShot'], mark: 'L',
   },
   silverwingCavalry: {
-    id: 'silverwingCavalry', name: 'Silverwing Cavalry', faction: 'human', cost: 6, maxHp: 5, attack: 4, move: 4, range: 1,
+    id: 'silverwingCavalry', name: 'Silverwing Cavalry', faction: 'human', cost: 6, maxHp: 5, attack: 4, move: 3, range: 1,
     traits: ['Flying', 'AgileAssault'], mark: 'S',
   },
   lightMage: {

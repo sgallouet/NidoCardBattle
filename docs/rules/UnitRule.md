@@ -16,12 +16,12 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNC1** - Attacks deal deterministic damage; there is no hit/miss roll.
 - **UNC2** - A unit whose HP reaches 0 is removed immediately.
 - **UNC3** - Retaliation is a reaction and does not consume the defender's normal attack on its next activation.
-- **UNC4** - When a surviving unit kills the primary target of its close normal attack, it gains an advance to that target's vacated adjacent hex, even if it has already moved. On a capturable site (Keep, Fort, or Mana Well, regardless of ownership), the advance happens automatically and grants one optional free return to the attacker's pre-attack hex during the same turn. Elsewhere, the attacker stays in place and may choose the advance during that turn. Advance and return cost no movement points, grant no additional attack, and require an empty, traversable destination and compliance with `CRC4`. Any subsequent movement or displacement consumes the pending choice; returning cannot grant another advance. An Agile Assault unit may use its remaining movement under `UNT6` instead of an optional advance; taking an advance, including an automatic one, consumes its post-attack movement phase, with the free return as the only exception. Unused choices expire at the end of the turn. Captures still resolve under `MPC1`-`MPC3`.
+- **UNC4** - When a surviving unit kills the primary target of its close normal attack, it gains an advance to that target's vacated adjacent hex, even if it has already moved. On a capturable site (Keep, Fort, or Mana Well, regardless of ownership), the advance happens automatically and grants one optional free return to the attacker's pre-attack hex during the same turn. Elsewhere, the attacker stays in place and may choose the advance during that turn. Advance and return cost no movement points, grant no additional attack, and require an empty, traversable destination and compliance with `CRC4`. Any subsequent movement or displacement consumes the pending choice; returning cannot grant another advance. An Agile Assault unit may use its post-attack movement under `UNT6` instead of an optional advance; taking an advance, including an automatic one, consumes its post-attack movement phase, with the free return as the only exception. Unused choices expire at the end of the turn. Captures still resolve under `MPC1`-`MPC3`.
 
 ## Movement
 - **UNM1** - Movement uses movement points; entering a normal hex costs 1 point unless terrain says otherwise.
 - **UNM2** - Units have no facing direction.
-- **UNM3** - Units cannot enter or pass through occupied hexes.
+- **UNM3** - A unit may pass through hexes occupied by allied units, but may never end movement on an occupied hex. Enemy-occupied hexes cannot be entered or passed through.
 - **UNM4** - Movement must obey enemy **Blocking** traits.
 
 ## Traits
@@ -30,7 +30,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNT3** - **Invoker:** instead of attacking, this unit may summon an **Invoked Beast** on one free passable adjacent hex not blocked by `CRC4`. The Invoked Beast enters Exhausted, costs no mana, and has no Unit Card. Each Invoker may have only one living Invoked Beast at a time; it cannot invoke another until its current Beast is removed.
 - **UNT4** - **Ranged:** this label identifies a unit with base Range 3; its attacks use ranged terrain rules.
 - **UNT5** - **Flying:** terrain does not restrict this unit's movement except for Mountain under `MPT5`; every terrain hex it can enter costs 1 movement point.
-- **UNT6** - **Agile Assault:** this unit may split its Move around its attack, moving before and again after attacking; total movement spent across both movement phases cannot exceed its Move stat. Retaliation damage received by this unit is reduced by 50%, rounded up.
+- **UNT6** - **Agile Assault:** this unit may move up to its Move stat before attacking and, after attacking, may make one second movement of up to its Move stat; either movement phase may be skipped. Retaliation damage received by this unit is reduced by 50%, rounded up.
 - **UNT7** - **Dark Reflection:** when an enemy directly damages this unit, that attacker immediately takes 30% of the damage actually dealt, rounded to the nearest whole HP. Redirected damage does not trigger Dark Reflection.
 - **UNT8** - **Necromancy:** when this unit personally kills an enemy with its attack, summon an Exhausted Skeletal Infantry on the defeated unit's hex if that hex is free after death resolution.
 - **UNT9** - **Phase:** this unit ignores enemy Blocking while moving; occupied and otherwise impassable hexes still cannot be entered unless another trait says otherwise.
@@ -58,7 +58,7 @@ Human identity: formation, mobility, ranged support, sustain, and controlled rep
 | **HUR1** | Human Commander | — | 10 | 3 | 2 | 1 | Blocking, Retaliates | Rally | ✅ Implemented. |
 | **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates, Assist | — | ✅ Implemented. |
 | **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
-| **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 4 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
+| **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 3 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
 | **HUR5** | Thunder Mage | 4 | 3 | — | 2 | 2 | Invoker | Thunder; Invoke Beast; no normal attack | ✅ Implemented. |
 | **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | Healing Aura | — | ✅ Implemented. |
 | **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | ✅ Implemented. |

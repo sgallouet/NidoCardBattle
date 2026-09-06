@@ -47,6 +47,12 @@
   text-transform: uppercase;
 }
 
+.unit-sheet-preview-badge.is-threat {
+  border-color: rgba(255, 92, 109, .42);
+  color: #ffc0c8;
+  background: rgba(126, 31, 43, .22);
+}
+
 .unit-sheet-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -94,6 +100,15 @@
   font: 750 9px/1 Inter, ui-sans-serif, sans-serif;
 }
 
+.unit-sheet-tag[data-trait-description] {
+  cursor: help;
+}
+
+.unit-sheet-tag[data-trait-description]:focus-visible {
+  outline: 1px solid rgba(233, 197, 110, .72);
+  outline-offset: 2px;
+}
+
 .unit-sheet-tag.is-ability {
   border-color: rgba(233, 197, 110, .35);
   color: #f2d58a;
@@ -104,6 +119,55 @@
   border-color: rgba(255, 104, 119, .28);
   color: #ffb2b9;
   background: rgba(119, 34, 43, .13);
+}
+
+.unit-sheet-threat-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 12px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(232, 218, 181, .1);
+  color: #c7c1b2;
+  font: 700 9px/1.2 Inter, ui-sans-serif, sans-serif;
+}
+
+.unit-sheet-threat-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.unit-sheet-threat-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.unit-sheet-threat-legend i.is-move {
+  color: #54b9ff;
+  background: #54b9ff;
+}
+
+.unit-sheet-threat-legend i.is-attack {
+  color: #ff5a6d;
+  background: #ff5a6d;
+}
+
+.unit-trait-tooltip {
+  position: fixed;
+  z-index: 5000;
+  width: max-content;
+  max-width: min(270px, calc(100vw - 16px));
+  padding: 8px 10px;
+  border: 1px solid rgba(231, 210, 159, .28);
+  border-radius: 8px;
+  color: #f5ecd8;
+  background: rgba(14, 17, 15, .97);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .38);
+  font: 650 10px/1.4 Inter, ui-sans-serif, sans-serif;
+  pointer-events: none;
 }
 
 .unit-sheet-note {

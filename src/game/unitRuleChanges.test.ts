@@ -41,6 +41,55 @@ const makeUnit = (
 const freshState = (): GameState => createGameState(fixedRandom);
 
 describe('UnitRule regressions', () => {
+  it('allows allied pass-through without allowing movement to end on the allied unit', () => {
+    const state = freshState();
+    const mover = makeUnit('mover', 'royalGuard', 1, { q: 0, r: 6 });
+    const ally = makeUnit('ally', 'longbowRanger', 1, { q: 1, r: 6 });
+    state.units = [mover, ally];
+
+    const reachable = getReachableCoords(state, mover.id);
+    expect(reachable.has('1,6')).toBe(false);
+    expect(reachable.get('2,6')).toBe(2);
+    expect(moveUnit(state, mover.id, ally.coord).ok).toBe(false);
+    expect(moveUnit(state, mover.id, { q: 2, r: 6 })).toMatchObject({
+      ok: true,
+      path: [{ q: 0, r: 6 }, { q: 1, r: 6 }, { q: 2, r: 6 }],
+    });
+  });
+
+  it('still prevents movement through enemy-occupied hexes', () => {
+    const state = freshState();
+    const mover = makeUnit('mover', 'royalGuard', 1, { q: 0, r: 6 });
+    const enemy = makeUnit('enemy', 'vampire', 2, { q: 1, r: 6 });
+    state.units = [mover, enemy];
+
+    expect(getReachableCoords(state, mover.id).has('2,6')).toBe(false);
+    expect(moveUnit(state, mover.id, { q: 2, r: 6 }).ok).toBe(false);
+  });
+
+  it('gives Silverwing Cavalry Move 3 before its attack and a fresh Move 3 after it', () => {
+    const state = freshState();
+    const griffin = makeUnit('griffin', 'silverwingCavalry', 1, { q: 0, r: 6 });
+    const defender = makeUnit('defender', 'vampire', 2, { q: 4, r: 6 });
+    const survivingEnemy = makeUnit('enemy-commander', 'commander', 2, { q: 15, r: 4 });
+    state.units = [griffin, defender, survivingEnemy];
+
+    expect(UNIT_DEFINITIONS.silverwingCavalry.move).toBe(3);
+    expect(moveUnit(state, griffin.id, { q: 3, r: 6 })).toMatchObject({
+      ok: true,
+      path: [{ q: 0, r: 6 }, { q: 1, r: 6 }, { q: 2, r: 6 }, { q: 3, r: 6 }],
+    });
+    expect(griffin.movementSpent).toBe(3);
+    expect(attackUnit(state, griffin.id, defender.id).ok).toBe(true);
+    expect(findUnitForTest(state, defender.id)).toBeUndefined();
+
+    const postAttackReach = getReachableCoords(state, griffin.id);
+    expect(postAttackReach.get('0,6')).toBe(3);
+    expect(moveUnit(state, griffin.id, { q: 0, r: 6 }).ok).toBe(true);
+    expect(griffin.postAttackMoved).toBe(true);
+    expect(griffin.movementSpent).toBe(6);
+  });
+
   it('enforces UNT10 for a ranged primary attack', () => {
     const state = freshState();
     const attacker = makeUnit('attacker', 'longbowRanger', 1, { q: 3, r: 6 });
@@ -173,3 +222,6 @@ describe('UnitRule regressions', () => {
     expect(distant.hp).toBe(3);
   });
 });
+
+const findUnitForTest = (state: GameState, id: string): UnitState | undefined =>
+  state.units.find((unit) => unit.id === id);

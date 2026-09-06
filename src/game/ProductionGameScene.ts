@@ -17,6 +17,10 @@ import {
   DemoVideoRecorder,
   type DemoVideoSceneInternals,
 } from './DemoVideoRecorder';
+import {
+  EnemyUnitThreatPreview,
+  type EnemyUnitThreatPreviewSceneInternals,
+} from './EnemyUnitThreatPreview';
 import { FirstTurnGuide, type FirstTurnGuideSceneInternals } from './FirstTurnGuide';
 import { PlayerCameraChoreographyGameScene } from './PlayerCameraChoreographyGameScene';
 import {
@@ -71,6 +75,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private actionAvailabilityTips?: ActionAvailabilityTips;
   private captureHint?: CaptureHint;
   private unitInfoInspector?: UnitInfoInspector;
+  private enemyUnitThreatPreview?: EnemyUnitThreatPreview;
   private victoryObjective?: VictoryObjectiveHud;
   private firstTurnGuide?: FirstTurnGuide;
   private matchMusic?: MatchMusicDirector;
@@ -112,6 +117,11 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     this.captureHint.install();
     this.unitInfoInspector = new UnitInfoInspector(game);
     this.unitInfoInspector.install();
+    this.enemyUnitThreatPreview = new EnemyUnitThreatPreview(
+      this,
+      game as unknown as EnemyUnitThreatPreviewSceneInternals,
+    );
+    this.enemyUnitThreatPreview.install();
 
     this.victoryObjective = new VictoryObjectiveHud({ getState: () => game.state });
     this.victoryObjective.install();
@@ -176,6 +186,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.firstTurnGuide?.sync();
       this.captureHint?.sync();
       this.unitInfoInspector?.sync();
+      this.enemyUnitThreatPreview?.sync();
       if (game.state.winner) {
         if (!this.victoryMusicStarted && this.victoryMusic) {
           this.victoryMusicStarted = true;
@@ -211,6 +222,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.firstTurnGuide = undefined;
       this.victoryObjective?.destroy();
       this.victoryObjective = undefined;
+      this.enemyUnitThreatPreview?.destroy();
+      this.enemyUnitThreatPreview = undefined;
       this.unitInfoInspector?.destroy();
       this.unitInfoInspector = undefined;
       this.captureHint?.destroy();

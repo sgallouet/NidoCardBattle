@@ -29,7 +29,7 @@ $outputDirectory = [System.IO.Path]::GetDirectoryName($outputPath)
   -loglevel error `
   -y `
   -i $sourcePath `
-  -vf 'scale=512:768:flags=lanczos' `
+  -vf 'scale=1024:1536:flags=lanczos' `
   -frames:v 1 `
   -c:v libwebp `
   -lossless 1 `

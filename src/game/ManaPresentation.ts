@@ -100,10 +100,17 @@ export class ManaPresentation {
     this.manaCount = manaCount;
     manaCount.classList.add('mana-schedule-anchor');
 
+    const manaShell = manaCount.closest<HTMLElement>('.mana-count');
+    const turnControl = document.querySelector<HTMLElement>('.turn-control');
+    const turnIndicator = turnControl?.querySelector<HTMLElement>('#turn-indicator');
+    if (manaShell && turnControl) {
+      if (turnIndicator) turnIndicator.insertAdjacentElement('afterend', manaShell);
+      else turnControl.append(manaShell);
+    }
+
     const schedule = document.createElement('div');
     schedule.className = 'mana-delivery-schedule';
     schedule.setAttribute('aria-live', 'polite');
-    const manaShell = manaCount.closest<HTMLElement>('.mana-count');
     if (manaShell) manaShell.insertAdjacentElement('afterend', schedule);
     else app.append(schedule);
     this.schedule = schedule;
@@ -186,15 +193,15 @@ export class ManaPresentation {
     const schedule = getManaDeliverySchedule(this.game.state);
     const turnsWord = schedule.wellTurnsRemaining === 1 ? 'turn' : 'turns';
     const wellTiming = schedule.wellDeliveryNow
-      ? `delivery now · next in <span class="mana-schedule-number">3</span> turns`
-      : `next delivery in <span class="mana-schedule-number">${schedule.wellTurnsRemaining}</span> ${turnsWord}`;
+      ? `now · next <span class="mana-schedule-number">3</span> turns`
+      : `next <span class="mana-schedule-number">${schedule.wellTurnsRemaining}</span> ${turnsWord}`;
     const ruinText = schedule.ruins > 0
       ? ` · Ruin <span class="mana-schedule-number">+1</span>/turn × <span class="mana-schedule-number">${schedule.ruins}</span>`
       : '';
 
     element.innerHTML = `
-      <span class="mana-schedule-line">Mana delivery · Keep <span class="mana-schedule-number">+1</span>/turn × <span class="mana-schedule-number">${schedule.keeps}</span>${ruinText}</span>
-      <span class="mana-schedule-line">Mana Well <span class="mana-schedule-number">+2</span> every <span class="mana-schedule-number">3</span> turns × <span class="mana-schedule-number">${schedule.wells}</span> · ${wellTiming}</span>`;
+      <span class="mana-schedule-line">Keep <span class="mana-schedule-number">+1</span>/turn × <span class="mana-schedule-number">${schedule.keeps}</span>${ruinText}</span>
+      <span class="mana-schedule-line">Well <span class="mana-schedule-number">+2</span>/3 turns × <span class="mana-schedule-number">${schedule.wells}</span> · ${wellTiming}</span>`;
     element.classList.toggle('is-well-delivery', schedule.wellDeliveryNow && schedule.wells > 0);
     element.setAttribute(
       'aria-label',

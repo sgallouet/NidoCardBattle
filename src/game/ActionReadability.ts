@@ -207,9 +207,9 @@ export class ActionReadabilityLayer {
   private drawActionAura(unit: UnitState, canMove: boolean, canAct: boolean): void {
     const center = this.game.center(unit.coord);
     const graphics = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
-    // The previous +24 position still read as a tile marker. Pull it another 12 px upward
+    // The previous +24 position still read as a tile marker. Pull it another 17 px upward
     // so the bowl visually belongs to the unit rather than the bottom edge of the hex.
-    const y = center.y + 12;
+    const y = center.y + 7;
 
     if (canMove) {
       this.drawAuroraBand(graphics, center.x, y, 74, MOVE_COLOR, MOVE_HOT, 1);

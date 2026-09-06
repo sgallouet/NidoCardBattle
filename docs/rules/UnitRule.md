@@ -32,20 +32,20 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNT5** - **Flying:** terrain does not restrict this unit's movement except for Mountain under `MPT5`; every terrain hex it can enter costs 1 movement point.
 - **UNT6** - **Agile Assault:** this unit may move up to its Move stat before attacking and, after attacking, may make one second movement of up to its Move stat; either movement phase may be skipped. Retaliation damage received by this unit is reduced by 50%, rounded up.
 - **UNT7** - **Dark Reflection:** when an enemy directly damages this unit, that attacker immediately takes 30% of the damage actually dealt, rounded to the nearest whole HP. Redirected damage does not trigger Dark Reflection.
-- **UNT8** - **Necromancy:** when this unit personally kills an enemy with its attack, summon an Exhausted Skeletal Infantry on the defeated unit's hex if that hex is free after death resolution.
+- **UNT8** - **Necromancy:** when this unit personally kills an enemy with its normal attack, summon an Exhausted Skeletal Infantry with **1 HP** on the defeated unit's hex if that hex is free after death resolution. This does not change the normal Skeletal Infantry card, which still summons at its normal maximum HP.
 - **UNT9** - **Phase:** this unit ignores enemy Blocking while moving; normal occupancy and destination rules, Grave Lock, and otherwise impassable terrain still apply unless another trait says otherwise.
 - **UNT10** - **Assist:** when an allied unit makes a close normal attack, this unit immediately adds 1 damage to that same primary target if the target is within this unit's Range. A close attack must be made from an adjacent hex by a primary attacker that does not have the **Ranged** trait; ranged attacks and attacks made from farther than 1 hex never trigger Assist. If the assisting unit is positioned directly on the opposite side of the target from the primary attacker, forming a straight attacker-target-assister line across the hex grid, that Assist deals 2 damage instead. Assist does not consume Move or Attack, does not trigger retaliation, and may trigger even if the assisting unit has already acted this turn; Exhausted units cannot Assist.
 - **UNT11** - Each eligible assisting unit contributes its own Assist damage, so multiple Assist units may stack on the same attack. Assist damage cannot itself trigger Assist or other attack-triggered effects.
-- **UNT12** - **Set Shot:** after this unit spends any movement during its turn, it cannot make a normal attack that turn. Moving does not disable **Assist**; the unit may still contribute Assist damage while otherwise eligible.
+- **UNT12** - **Set Shot:** after this unit spends any movement during its turn, it cannot make a normal attack that turn. Moving does not disable **Assist** or otherwise-legal special Abilities/Spells.
 - **UNT13** - **Healing Aura:** at the start of this unit owner's turn, every adjacent allied unit restores 1 HP, up to its maximum HP. The Healing Aura bearer does not heal itself.
 
 ## Special Abilities / Spells
 - **UNB1** - **Displace:** instead of attacking, move one adjacent unit, allied or enemy, to another free hex adjacent to the Displacer.
 - **UNB2** - Displacement is repositioning, not normal movement, so it ignores Blocking.
-- **UNB6** - **Thunder:** instead of attacking, choose one battlefield hex within this unit's Range. Deal **1 damage** to every unit on the chosen hex and on each adjacent hex, including allied units and the caster if they are inside the blast. Thunder is ability damage, not a normal attack: it does not trigger retaliation, Assist, Necromancy, Blood Drain, Cleave, or Dark Reflection.
+- **UNB6** - **Thunder:** instead of attacking, choose one **enemy unit** within this unit's Range. Deal **1 damage** to that enemy, then Thunder chains to every enemy adjacent to a struck enemy, continuing recursively through the connected enemy cluster. Each enemy can be struck at most once by that cast. Only the first target must be within the caster's Range; later chain targets may extend beyond it. Allied units never conduct the chain and take no Thunder damage. Thunder is ability damage, not a normal attack: it does not trigger retaliation, Assist, Necromancy, Blood Drain, Cleave, or Dark Reflection.
 - **UNB7** - **Rally:** instead of attacking, give each adjacent allied unit +1 Move for the current turn; Rally cannot increase a unit that has already completed its movement this turn.
 - **UNB8** - **Soul Link:** instead of attacking, choose one adjacent allied Undead unit. Until the start of the Commander's next turn, all damage that would be dealt to the Commander is dealt to the linked unit instead. If redirected damage kills the linked unit, any excess damage from that same damage instance is dealt to the Commander normally; the link then ends.
-- **UNB9** - **Curse:** instead of attacking, choose one enemy within Range. That unit takes 1 damage at the end of each of its owner's next 3 turns, then Curse ends.
+- **UNB9** - **Curse:** instead of attacking, choose one enemy within Range. That unit takes 1 damage at the end of each of its owner's next 3 turns, then Curse ends. Each Necromancer may maintain only **one active Curse** anywhere on the battlefield at a time; it may cast Curse again once its previous Curse expires or its cursed target is removed.
 - **UNB10** - **Blood Drain:** after this unit deals damage with its normal attack, restore 1 HP to it, up to its maximum HP.
 - **UNB11** - **Cleave:** when this unit makes a normal attack, deal its Attack damage to the target and every other enemy adjacent to the attacker. Only the original target may retaliate.
 
@@ -59,7 +59,7 @@ Human identity: formation, mobility, ranged support, sustain, and controlled rep
 | **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates, Assist | — | ✅ Implemented. |
 | **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
 | **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 3 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
-| **HUR5** | Thunder Mage | 4 | 3 | — | 2 | 2 | Invoker | Thunder; Invoke Beast; no normal attack | ✅ Implemented. |
+| **HUR5** | Thunder Mage | 4 | 3 | — | 2 | 2 | Invoker | Chain Thunder; Invoke Beast; no normal attack | ✅ Implemented. |
 | **HUR6** | Banner Captain | 4 | 4 | 2 | 2 | 1 | Healing Aura | — | ✅ Implemented. |
 | **HUR7** | Wind Adept | 3 | 2 | 1 | 3 | 2 | — | Displace | ✅ Implemented. |
 | **HUR8** | Invoked Beast | — | 2 | 1 | 2 | 1 | — | — | ✅ Implemented as the free token created by Thunder Mage through `UNT3`. |
@@ -73,7 +73,7 @@ Undead identity: disruption, attrition, damage redirection, necromancy, and puni
 | **UDR1** | Undead Commander | — | 10 | 3 | 2 | 1 | Blocking, Dark Reflection | Soul Link | ✅ Implemented. |
 | **UDR2** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking, Assist | — | ✅ Implemented. |
 | **UDR3** | Bone Archer | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
-| **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Ranged, Necromancy | Curse | ✅ Implemented. |
+| **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Ranged, Necromancy, Set Shot | Curse | ✅ Implemented. |
 | **UDR5** | Banshee | 4 | 3 | 2 | 3 | 1 | — | Displace | ✅ Implemented. |
 | **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | — | Blood Drain | ✅ Implemented. |
 | **UDR7** | Wraith | 4 | 3 | 2 | 4 | 1 | Phase | — | ✅ Implemented. |

@@ -2,11 +2,13 @@ import Phaser from 'phaser';
 import type { WavedashSDK } from '@wvdsh/sdk-js';
 import './style.css';
 import './cardHitAreaFix.css';
+import './game/TileInsightSelectionFix.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
 import { loadingScreen } from './game/LoadingScreen';
 import { ProductionGameScene } from './game/ProductionGameScene';
 
 type TileBorderMode = 'full' | 'half' | 'off';
+type FinalePreviewMode = 'victory' | 'defeat';
 
 type WavedashWindow = Window & { Wavedash?: WavedashSDK };
 
@@ -16,6 +18,14 @@ type GraphicsLineStyle = (
   color?: number,
   alpha?: number,
 ) => Phaser.GameObjects.Graphics;
+
+interface FinalePreviewScene {
+  state: {
+    winner: 1 | 2 | null;
+    countdown: unknown | null;
+  };
+  renderAll?: () => void;
+}
 
 const app = document.querySelector<HTMLElement>('#app');
 const fullscreenButton = document.querySelector<HTMLButtonElement>('#fullscreen-button');
@@ -111,6 +121,26 @@ const game = new Phaser.Game({
     postBoot: () => (window as WavedashWindow).Wavedash?.init(),
   },
 });
+
+const waitForIntroToFinish = async (): Promise<void> => {
+  while (document.querySelector('#app')?.classList.contains('match-intro-active')) {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 100));
+  }
+};
+
+const previewMode = new URLSearchParams(window.location.search).get('previewFinale') as FinalePreviewMode | null;
+if (previewMode === 'victory' || previewMode === 'defeat') {
+  void (async () => {
+    await loadingScreen.whenBattlefieldReady();
+    await waitForIntroToFinish();
+    if (!game.scene.isActive('game')) return;
+
+    const scene = game.scene.getScene('game') as unknown as FinalePreviewScene;
+    scene.state.winner = previewMode === 'victory' ? 1 : 2;
+    scene.state.countdown = null;
+    scene.renderAll?.();
+  })();
+}
 
 tileBorderButton?.addEventListener('click', () => {
   tileBorderMode = nextTileBorderMode(tileBorderMode);

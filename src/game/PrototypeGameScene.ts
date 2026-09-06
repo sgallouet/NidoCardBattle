@@ -129,8 +129,7 @@ export class PrototypeGameScene extends PersistentAiGameScene {
 
     // Fire is terrain state, so keep it under units. The small turn pip remains readable
     // without covering the occupant standing in the flames.
-    for (const effect of scene.state.tileEffects) {
-      if (effect.kind !== 'burning') continue;
+    for (const effect of scene.state.burningTiles ?? []) {
       const { graphics, label } = this.drawBurningTile(scene, effect.coord, effect.remainingTurns);
       addTerrainObject(graphics);
       addTerrainObject(label);

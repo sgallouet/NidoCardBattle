@@ -68,7 +68,7 @@ describe('Scorch persistent fire', () => {
     expect(victim.hp).toBe(8);
     endTurn(state, fixedRandom);
     expect(victim.hp).toBe(7);
-    expect(state.tileEffects.some((effect) => effect.kind === 'burning' && sameCoord(effect.coord, plain))).toBe(false);
+    expect((state.burningTiles ?? []).some((effect) => sameCoord(effect.coord, plain))).toBe(false);
   });
 
   it('keeps Forest rules while burning, then converts Forest to Plain after tick three', () => {

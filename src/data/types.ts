@@ -157,17 +157,14 @@ export interface GraveLockTileEffect {
   expiresAtTurn: number;
 }
 
-export interface BurningTileEffect {
-  kind: 'burning';
+export type TileEffect = GraveLockTileEffect;
+
+export interface BurningTile {
   coord: Coord;
   sourcePlayer: PlayerId;
   remainingTurns: number;
   startedAsForest: boolean;
-  /** Metadata for persistence/debugging; burn lifetime is resolved by remainingTurns. */
-  expiresAtTurn: number;
 }
-
-export type TileEffect = GraveLockTileEffect | BurningTileEffect;
 
 export interface PendingManaWell {
   id: string;
@@ -185,6 +182,8 @@ export interface GameState {
   sites: SiteState[];
   builtBridges: Coord[];
   scorchedForests: Coord[];
+  /** Optional so persisted battles created before persistent Scorch still load. */
+  burningTiles?: BurningTile[];
   pendingManaWells: PendingManaWell[];
   tileEffects: TileEffect[];
   countdown: VictoryCountdown | null;

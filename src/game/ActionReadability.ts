@@ -127,7 +127,7 @@ export class ActionReadabilityLayer {
       aura.graphics.setAlpha(0.80 + breath * 0.18);
 
       const sweep = (seconds * 0.20 + aura.phase / (Math.PI * 2)) % 1;
-      const angle = Phaser.Math.DegToRad(207 + sweep * 126);
+      const angle = Phaser.Math.DegToRad(27 + sweep * 126);
       aura.shimmer.setPosition(
         aura.centerX + Math.cos(angle) * aura.radius,
         aura.centerY + Math.sin(angle) * aura.radius,
@@ -241,8 +241,8 @@ export class ActionReadabilityLayer {
     hot: number,
     intensity = 1,
   ): void {
-    // A luminous crescent rather than a progress bar: broad atmospheric hue, a crisp hot
-    // edge and a few short aurora tongues, all confined to the lower portion of the hex.
+    // A luminous bowl-shaped crescent rather than a progress bar: broad atmospheric hue,
+    // a crisp hot edge and a few short aurora tongues in the lower portion of the hex.
     graphics.fillStyle(color, 0.085 * intensity);
     graphics.fillEllipse(x, y + 1, width, 17);
     graphics.fillStyle(color, 0.145 * intensity);
@@ -256,8 +256,8 @@ export class ActionReadabilityLayer {
       x,
       y + 4,
       width * 0.43,
-      Phaser.Math.DegToRad(203),
-      Phaser.Math.DegToRad(337),
+      Phaser.Math.DegToRad(23),
+      Phaser.Math.DegToRad(157),
       false,
     );
     graphics.strokePath();
@@ -268,8 +268,8 @@ export class ActionReadabilityLayer {
       x,
       y + 3,
       width * 0.40,
-      Phaser.Math.DegToRad(207),
-      Phaser.Math.DegToRad(333),
+      Phaser.Math.DegToRad(27),
+      Phaser.Math.DegToRad(153),
       false,
     );
     graphics.strokePath();
@@ -280,8 +280,8 @@ export class ActionReadabilityLayer {
       x,
       y + 2.5,
       width * 0.385,
-      Phaser.Math.DegToRad(223),
-      Phaser.Math.DegToRad(285),
+      Phaser.Math.DegToRad(43),
+      Phaser.Math.DegToRad(105),
       false,
     );
     graphics.strokePath();

@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import type { Coord, GameState, PlayerId, VictoryCountdown } from '../data/types';
+import type { Coord, Faction, GameState, PlayerId, VictoryCountdown } from '../data/types';
 import {
   buildBattleResultPresentation,
   keepAnchorsFromGameState,
@@ -25,6 +25,13 @@ interface BannerMessage {
   duration?: number;
 }
 
+export interface BattleFinaleStats {
+  round: number;
+  survivors: number;
+  sitesHeld: number;
+  finish: 'Army Eliminated' | 'Hold Complete';
+}
+
 const commanderCoord = (state: GameState, player: PlayerId): Coord | null => {
   const commander = state.units.find((unit) => unit.owner === player
     && unit.definitionId.toLowerCase().includes('commander'));
@@ -45,12 +52,24 @@ const snapshot = (state: GameState): Snapshot => ({
   },
 });
 
+export const buildBattleFinaleStats = (state: GameState, winner: PlayerId): BattleFinaleStats => {
+  const defeated: PlayerId = winner === 1 ? 2 : 1;
+  return {
+    round: Math.max(1, Math.ceil(state.turnNumber / 2)),
+    survivors: state.units.filter((unit) => unit.owner === winner).length,
+    sitesHeld: state.sites.filter((site) => site.owner === winner).length,
+    finish: state.units.every((unit) => unit.owner !== defeated) ? 'Army Eliminated' : 'Hold Complete',
+  };
+};
+
 export class BattlePresentation {
   private previous: Snapshot;
   private banner?: HTMLDivElement;
   private finale?: HTMLDivElement;
   private finalePresented = false;
   private finaleWorldFx: Phaser.GameObjects.Graphics[] = [];
+  private finaleTimers: number[] = [];
+  private finaleAnimationFrames: number[] = [];
   private queue: BannerMessage[] = [];
   private playing = false;
   private readonly startingKeepAnchors: StartingKeepAnchor[];
@@ -105,6 +124,7 @@ export class BattlePresentation {
     this.queue = [];
     this.banner?.remove();
     this.banner = undefined;
+    this.clearFinaleTimeline();
 
     const app = document.querySelector<HTMLElement>('#app');
     if (!app) return;
@@ -112,12 +132,13 @@ export class BattlePresentation {
     const winner = next.winner;
     const defeated: PlayerId = winner === 1 ? 2 : 1;
     const result = buildBattleResultPresentation(state, 1, this.startingKeepAnchors);
+    const stats = buildBattleFinaleStats(state, winner);
     const winnerFaction = state.players[winner].faction;
     const accent = result.localVictory
-      ? (winnerFaction === 'undead' ? '#c48dff' : '#7be0ff')
+      ? (winnerFaction === 'undead' ? '#c48dff' : '#65d9ff')
       : (winnerFaction === 'undead' ? '#8a6aa8' : '#6a8896');
     const light = result.localVictory
-      ? (winnerFaction === 'undead' ? '#f3e4ff' : '#e7fbff')
+      ? (winnerFaction === 'undead' ? '#f4e7ff' : '#fff2b8')
       : (winnerFaction === 'undead' ? '#d9cce4' : '#d5dde2');
     const focusCoord = next.commanderCoords[winner]
       ?? this.previous.commanderCoords[defeated]
@@ -127,9 +148,10 @@ export class BattlePresentation {
 
     if (focus) {
       if (!reducedMotion) {
-        this.scene.cameras.main.pan(focus.x, focus.y, 460, 'Sine.easeInOut', true);
+        this.scene.cameras.main.pan(focus.x, focus.y, 380, 'Cubic.easeOut', true);
+        this.scene.cameras.main.shake(170, result.localVictory ? 0.004 : 0.0025, true);
       }
-      this.spawnFinaleWorldFx(focus, winnerFaction === 'undead' ? 0xb56cff : 0x67d9ff, reducedMotion);
+      this.spawnFinaleWorldFx(focus, winnerFaction, reducedMotion);
     }
 
     const finale = document.createElement('div');
@@ -144,6 +166,14 @@ export class BattlePresentation {
     vignette.className = 'battle-finale-vignette';
     vignette.setAttribute('aria-hidden', 'true');
 
+    const claim = document.createElement('div');
+    claim.className = 'battle-finale-claim';
+    claim.setAttribute('aria-hidden', 'true');
+
+    const impact = document.createElement('div');
+    impact.className = 'battle-finale-impact';
+    impact.setAttribute('aria-hidden', 'true');
+
     const rays = document.createElement('div');
     rays.className = 'battle-finale-rays';
     rays.setAttribute('aria-hidden', 'true');
@@ -151,7 +181,12 @@ export class BattlePresentation {
     const sparks = document.createElement('div');
     sparks.className = 'battle-finale-sparks';
     sparks.setAttribute('aria-hidden', 'true');
-    sparks.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i>';
+    sparks.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>';
+
+    const sigil = document.createElement('div');
+    sigil.className = 'battle-finale-sigil';
+    sigil.setAttribute('aria-hidden', 'true');
+    sigil.innerHTML = '<i></i><i></i><i></i>';
 
     const panel = document.createElement('section');
     panel.className = 'battle-finale-panel';
@@ -168,8 +203,20 @@ export class BattlePresentation {
     const title = document.createElement('h2');
     title.textContent = result.title;
 
+    const finish = document.createElement('div');
+    finish.className = 'battle-finale-finish';
+    finish.innerHTML = `<span>Battle Decided</span><strong>${stats.finish}</strong>`;
+
     const subtitle = document.createElement('p');
     subtitle.textContent = result.subtitle;
+
+    const statStrip = document.createElement('div');
+    statStrip.className = 'battle-finale-stats';
+    statStrip.append(
+      this.createStat('Round', stats.round),
+      this.createStat('Survivors', stats.survivors),
+      this.createStat('Sites Held', stats.sitesHeld),
+    );
 
     const actions = document.createElement('div');
     actions.className = 'battle-finale-actions';
@@ -177,7 +224,7 @@ export class BattlePresentation {
     const download = document.createElement('button');
     download.className = 'battle-finale-download';
     download.type = 'button';
-    download.textContent = 'Download Battle Log';
+    download.textContent = 'Battle Log';
     download.addEventListener('click', () => {
       document.querySelector<HTMLButtonElement>('#battle-log-download-button')?.click();
     });
@@ -185,10 +232,9 @@ export class BattlePresentation {
     const playAgain = document.createElement('button');
     playAgain.className = 'battle-finale-play-again';
     playAgain.type = 'button';
-    playAgain.textContent = 'Play Again';
+    playAgain.textContent = 'Rematch';
     playAgain.addEventListener('click', () => {
-      const existingNewGame = document.querySelector<HTMLButtonElement>('#new-game-button');
-      existingNewGame?.click();
+      document.querySelector<HTMLButtonElement>('#new-game-button')?.click();
     });
 
     const armyImage = (side: 'left' | 'right', army: ArmyResultPresentation): HTMLImageElement => {
@@ -202,22 +248,96 @@ export class BattlePresentation {
     };
 
     actions.append(playAgain, download);
-    panel.append(crest, eyebrow, title, subtitle, actions);
+    panel.append(crest, eyebrow, title, finish, subtitle, statStrip, actions);
     finale.append(
       vignette,
+      claim,
       rays,
       sparks,
+      sigil,
       armyImage('left', result.left),
       armyImage('right', result.right),
       panel,
+      impact,
     );
     document.querySelector<HTMLElement>('#victory-log-actions')?.setAttribute('hidden', '');
+    app.classList.add('battle-finale-active');
     app.append(finale);
     this.finale = finale;
 
-    requestAnimationFrame(() => finale.classList.add('is-visible'));
-    if (reducedMotion) playAgain.focus({ preventScroll: true });
-    else window.setTimeout(() => playAgain.focus({ preventScroll: true }), 720);
+    if (reducedMotion) {
+      finale.classList.add('is-visible', 'is-claimed', 'is-title', 'is-armies', 'is-stats', 'is-actions');
+      this.setStatValues(finale);
+      playAgain.focus({ preventScroll: true });
+      return;
+    }
+
+    requestAnimationFrame(() => finale.classList.add('is-visible', 'is-impact'));
+    this.scheduleFinaleStep(145, () => finale.classList.add('is-claimed'));
+    this.scheduleFinaleStep(535, () => finale.classList.add('is-title'));
+    this.scheduleFinaleStep(930, () => finale.classList.add('is-armies'));
+    this.scheduleFinaleStep(1375, () => {
+      finale.classList.add('is-stats');
+      this.animateStatValues(finale, 460);
+    });
+    this.scheduleFinaleStep(2040, () => {
+      finale.classList.add('is-actions');
+      playAgain.focus({ preventScroll: true });
+    });
+  }
+
+  private createStat(label: string, value: number): HTMLDivElement {
+    const item = document.createElement('div');
+    item.className = 'battle-finale-stat';
+    const valueElement = document.createElement('strong');
+    valueElement.textContent = '0';
+    valueElement.dataset.finalValue = `${value}`;
+    const labelElement = document.createElement('span');
+    labelElement.textContent = label;
+    item.append(valueElement, labelElement);
+    return item;
+  }
+
+  private setStatValues(finale: HTMLElement): void {
+    for (const element of finale.querySelectorAll<HTMLElement>('[data-final-value]')) {
+      element.textContent = element.dataset.finalValue ?? '0';
+    }
+  }
+
+  private animateStatValues(finale: HTMLElement, duration: number): void {
+    for (const element of finale.querySelectorAll<HTMLElement>('[data-final-value]')) {
+      const target = Number.parseInt(element.dataset.finalValue ?? '0', 10);
+      const started = performance.now();
+      const step = (now: number): void => {
+        if (!element.isConnected) return;
+        const progress = Math.min(1, Math.max(0, (now - started) / duration));
+        const eased = 1 - ((1 - progress) ** 3);
+        element.textContent = `${Math.round(target * eased)}`;
+        if (progress < 1) {
+          const frame = requestAnimationFrame(step);
+          this.finaleAnimationFrames.push(frame);
+        } else {
+          element.textContent = `${target}`;
+        }
+      };
+      const frame = requestAnimationFrame(step);
+      this.finaleAnimationFrames.push(frame);
+    }
+  }
+
+  private scheduleFinaleStep(delay: number, action: () => void): void {
+    const timer = window.setTimeout(() => {
+      this.finaleTimers = this.finaleTimers.filter((candidate) => candidate !== timer);
+      if (this.finale?.isConnected) action();
+    }, delay);
+    this.finaleTimers.push(timer);
+  }
+
+  private clearFinaleTimeline(): void {
+    for (const timer of this.finaleTimers) window.clearTimeout(timer);
+    this.finaleTimers = [];
+    for (const frame of this.finaleAnimationFrames) cancelAnimationFrame(frame);
+    this.finaleAnimationFrames = [];
   }
 
   private resolveCenter(coord: Coord): Phaser.Math.Vector2 | null {
@@ -230,25 +350,27 @@ export class BattlePresentation {
 
   private spawnFinaleWorldFx(
     focus: Phaser.Math.Vector2,
-    color: number,
+    faction: Faction,
     reducedMotion: boolean,
   ): void {
+    const color = faction === 'undead' ? 0xb56cff : 0x67d9ff;
+    const secondary = faction === 'undead' ? 0xe7c4ff : 0xffd978;
     const ring = this.scene.add.graphics()
       .setPosition(focus.x, focus.y)
       .setDepth(9000)
-      .setAlpha(0.96);
-    ring.fillStyle(color, 0.12);
+      .setAlpha(0.98);
+    ring.fillStyle(color, 0.13);
     ring.fillCircle(0, 0, 52);
-    ring.lineStyle(5, color, 0.9);
+    ring.lineStyle(5, color, 0.94);
     ring.strokeCircle(0, 0, 50);
-    ring.lineStyle(2, 0xfff5dc, 0.84);
+    ring.lineStyle(2, secondary, 0.9);
     ring.strokeCircle(0, 0, 40);
 
     for (let index = 0; index < 12; index += 1) {
       const angle = Math.PI * 2 * index / 12;
       const inner = 58 + (index % 2) * 4;
-      const outer = inner + 17;
-      ring.lineStyle(index % 2 === 0 ? 3 : 2, index % 2 === 0 ? color : 0xfff5dc, 0.76);
+      const outer = inner + 18;
+      ring.lineStyle(index % 2 === 0 ? 3 : 2, index % 2 === 0 ? color : secondary, 0.8);
       ring.lineBetween(
         Math.cos(angle) * inner,
         Math.sin(angle) * inner,
@@ -265,38 +387,43 @@ export class BattlePresentation {
 
     this.scene.tweens.add({
       targets: ring,
-      scaleX: 1.7,
-      scaleY: 1.7,
+      scaleX: faction === 'undead' ? 1.48 : 1.8,
+      scaleY: faction === 'undead' ? 1.48 : 1.8,
       alpha: 0,
-      duration: 980,
+      duration: faction === 'undead' ? 1120 : 920,
       ease: 'Cubic.easeOut',
-      onComplete: () => {
-        ring.destroy();
-        this.finaleWorldFx = this.finaleWorldFx.filter((effect) => effect !== ring);
-      },
+      onComplete: () => this.removeWorldFx(ring),
     });
 
-    for (let index = 0; index < 9; index += 1) {
-      const spark = this.scene.add.graphics()
-        .setPosition(focus.x, focus.y)
-        .setDepth(9001);
-      const angle = Math.PI * 2 * index / 9 + (index % 2) * 0.16;
-      spark.fillStyle(index % 3 === 0 ? 0xfff5dc : color, 0.92);
+    for (let index = 0; index < 12; index += 1) {
+      const spark = this.scene.add.graphics().setDepth(9001);
+      const angle = Math.PI * 2 * index / 12 + (index % 2) * 0.13;
+      const radius = 76 + index * 5;
+      const startX = faction === 'undead' ? focus.x + Math.cos(angle) * radius : focus.x;
+      const startY = faction === 'undead' ? focus.y + Math.sin(angle) * radius * 0.72 : focus.y;
+      spark.setPosition(startX, startY);
+      spark.fillStyle(index % 3 === 0 ? secondary : color, 0.94);
       spark.fillCircle(0, 0, index % 3 === 0 ? 3.2 : 2.4);
       this.finaleWorldFx.push(spark);
+
       this.scene.tweens.add({
         targets: spark,
-        x: focus.x + Math.cos(angle) * (70 + index * 5),
-        y: focus.y + Math.sin(angle) * (46 + index * 3) - 14,
+        x: faction === 'undead' ? focus.x : focus.x + Math.cos(angle) * radius,
+        y: faction === 'undead' ? focus.y : focus.y + Math.sin(angle) * radius * 0.62 - 14,
         alpha: 0,
-        duration: 640 + index * 28,
-        ease: 'Quad.easeOut',
-        onComplete: () => {
-          spark.destroy();
-          this.finaleWorldFx = this.finaleWorldFx.filter((effect) => effect !== spark);
-        },
+        scaleX: faction === 'undead' ? 0.4 : 1.35,
+        scaleY: faction === 'undead' ? 0.4 : 1.35,
+        duration: 610 + index * 24,
+        delay: faction === 'undead' ? index * 18 : 0,
+        ease: faction === 'undead' ? 'Sine.easeIn' : 'Quad.easeOut',
+        onComplete: () => this.removeWorldFx(spark),
       });
     }
+  }
+
+  private removeWorldFx(effect: Phaser.GameObjects.Graphics): void {
+    effect.destroy();
+    this.finaleWorldFx = this.finaleWorldFx.filter((candidate) => candidate !== effect);
   }
 
   private enqueue(message: BannerMessage): void {
@@ -351,11 +478,13 @@ export class BattlePresentation {
   }
 
   private destroy(): void {
+    this.clearFinaleTimeline();
     this.queue = [];
     this.banner?.remove();
     this.banner = undefined;
     this.finale?.remove();
     this.finale = undefined;
+    document.querySelector<HTMLElement>('#app')?.classList.remove('battle-finale-active');
     for (const effect of this.finaleWorldFx) effect.destroy();
     this.finaleWorldFx = [];
     this.playing = false;

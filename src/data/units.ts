@@ -74,7 +74,7 @@ export const UNIT_DEFINITIONS: Record<UnitDefinitionId, UnitDefinition> = {
   },
   vampire: {
     id: 'vampire', name: 'Vampire', faction: 'undead', cost: 5, maxHp: 4, attack: 3, move: 3, range: 1,
-    traits: ['Flying'], ability: 'BloodDrain', mark: 'V',
+    traits: [], ability: 'BloodDrain', mark: 'V',
   },
   wraith: {
     id: 'wraith', name: 'Wraith', faction: 'undead', cost: 4, maxHp: 3, attack: 2, move: 4, range: 1,

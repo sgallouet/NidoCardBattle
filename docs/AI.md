@@ -27,7 +27,13 @@ This document describes AI architecture only. Gameplay rules remain authoritativ
 - **AI-021** - V4 retains multiple candidates per doctrine, allocates doctrine budgets by bounded urgency, preserves action-family diversity, deduplicates equivalent end states, and audits diverse visible response sequences under the same total node budget as V3.
 - **AI-022** - Planner matchup reports aggregate per-planner candidate counts, response sequences, node use, termination reasons, doctrine selections, replay failures, captures, kills, and paired outcomes. Live promotion requires a separate held-out seed set.
 
-The live opponent uses Planner V8's nine-doctrine portfolio as a human-playtest candidate under **AI-026**. V7 remains the accepted benchmark after winning its 24-game held-out paired-seed run against V5 by 13 wins to 9 with 2 draws (5–3 in paired-seed wins, with 4 pair ties). Revised V8 beat V7 13–11 across 24 fresh held-out games (2–1 paired-seed wins, 9 pair ties), made 5.21 actions per turn versus 4.36, captured 396 sites versus 333, scored 171 kills versus 166, and had zero replay failures. That is enough to retain V8 for live battle-log evaluation, but the narrow paired result is not yet a final benchmark promotion.
+The live opponent uses V10 through the single selection point in `src/game/aiLive.ts`, promoted at the user's request. No tests were run for this promotion. Earlier benchmark results below are historical.
+
+Revised V10 fixes an operational objective for each think, assigns up to two secondary runners, and discounts control under enemy pressure. Search retains a Commander-holding endpoint and selects defensive, attack and capture alternatives. Enemy replies prioritize Commander attacks through the engine; detected Commander losses rank below surviving alternatives. Our known-hand follow-up is restored. Unused response time funds a wider strategic pass and another audit within the shared one-second budget. These bounded searches do not guarantee tactical safety. No faction buffs accompany this revision.
+
+Run `npm run simulate:v10` for 32 V9 matches across both starting orientations, eight V7 matches, and eight isolated live-clock V9 matches. `-- --quick` runs four development matches. Detailed results stay under `reports/ai-v10/`; the runner prints only its final summary. Promotion requires at least 65% scored points against V9 in the deterministic batch, a positive live-clock result, and zero replay failures.
+
+V10 validation (2026-09-06): 16–16 against V9 across 32 deterministic games; 7–1 against V7; live-clock V9 comparison 3 wins, 4 losses, 1 draws. All 48 matches had zero replay failures. That V10 revision did not pass promotion; V9 remained the default at that time. Focused regression tests passed (26), TypeScript and production build passed. The full suite retained eight previously confirmed baseline failures (175 passed). Reports: `reports/ai-v10/heldout/summary.json` and `reports/ai-v10/tests.json`. The four development matches used the evaluator before its final control-conversion adjustment and are excluded from this result.
 
 ## Rules-Aware Contract
 - `src/game/actions.ts` is the AI-facing gameplay action boundary.
@@ -77,3 +83,20 @@ The live opponent uses Planner V8's nine-doctrine portfolio as a human-playtest 
 - **AI-011** - Establish a baseline from repeated simulation reports and tune obvious evaluation/gameplay outliers before adding more intelligence.
 - **AI-012** - Model unseen opponent cards probabilistically from faction deck composition and observed cards without reading the hidden hand.
 - **AI-013** - Add difficulty presets only if needed later; difficulty should not depend on device performance.
+
+
+## Revised V10 validation and selective log inspection
+
+Revised runs use fresh seeds in `reports/ai-v10/revision-development/` and `revision-heldout/`. Earlier reports remain historical. The first revision scored 3–1 in four development matches; inspecting its loss exposed an omitted Commander-holding alternative. That later correction passes a regression derived from the Bone Archer / Grave Knight sequence. Those four matches predate the final correction and do not establish its playing strength. V9 remained default at that stage.
+
+Planner simulations with `--out report.json` save separate action-level games in `report-games/` and put paths in the report. Each log contains turn-start snapshots, resolved actions/results, state deltas including end-turn effects, and diagnostics. Recording does not rerun planning or affect match decisions. New reports include a source fingerprint.
+
+- `npm run battlelog:inspect -- <report.json>`: aggregates only.
+- Add `--list`: ten match summaries; `--offset` / `--limit` paginate.
+- Add `--game 4`: the selected result and decisive turn numbers.
+- Add `--game 4 --from 15 --count 2`: selected turns, at most 20 steps per turn. `--step` / `--steps` paginate actions; `--state` explicitly includes starting boards.
+- Standalone saved games, existing battle-log bundles and human-match exports are supported. Human exports use recorded turn numbers and paginate events, excluding AI-plan payloads.
+
+Old reports cannot reconstruct unrecorded moves. Compare aggregates first; inspect a decisive loss only when it can guide a specific fix.
+
+Final correction validation: 19 focused tests and production build passed; six inspector smoke checks passed. The final live-clock pair against V9 was 1–1 with zero replay failures, recorded in `reports/ai-v10/revision-development/final-live.json`. This is a smoke check, not promotion evidence.

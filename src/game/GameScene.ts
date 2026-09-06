@@ -1991,6 +1991,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
           selected.exhausted ? 'Exhausted' : '',
           selected.moved ? 'Moved' : '',
           selected.attacked ? 'Attacked' : '',
+          selected.pendingAdvance && getReachableCoords(this.state, selected.id).has(coordKey(selected.pendingAdvance)) ? 'Reposition available' : '',
         ].filter(Boolean);
         const detailTags = [...traits, ...states];
         selectedPanel.innerHTML = `

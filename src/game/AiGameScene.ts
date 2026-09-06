@@ -6,7 +6,8 @@ import {
   type AiAction,
   type AiPlan,
 } from './ai';
-import { LIVE_AI_OPTIONS_V8, planAiTurnV8 } from './aiPlannerV8';
+import { LIVE_AI_OPTIONS, planLiveAiTurn } from './aiLive';
+import { validateAiContinuation } from './aiPlanReplay';
 import {
   coordKey,
   curseUnit,
@@ -313,7 +314,6 @@ export class AiGameScene extends GameScene {
     this.aiWorker.postMessage({
       requestId: this.aiRequestId,
       state: scene.state,
-      options: LIVE_AI_OPTIONS_V8,
     });
   }
 
@@ -347,7 +347,7 @@ export class AiGameScene extends GameScene {
     this.aiWorker = null;
     this.stopAiHeartbeat();
     const planningStartedAt = performance.now();
-    const plan = planAiTurnV8(scene.state, LIVE_AI_OPTIONS_V8);
+    const plan = planLiveAiTurn(scene.state, LIVE_AI_OPTIONS);
     setDebugStatus(
       `AI: main-thread plan finished in ${elapsedSince(planningStartedAt)} — ${plan.actions.length} actions.`,
       'warning',
@@ -355,20 +355,21 @@ export class AiGameScene extends GameScene {
     void this.playAiPlan(scene, plan).catch((error: unknown) => this.reportAiFailure(error));
   }
 
-  private async playAiPlan(scene: GameSceneInternals, plan: AiPlan): Promise<void> {
+  private async playAiPlan(scene: GameSceneInternals, plan: AiPlan, step = 0): Promise<void> {
     if (scene.state.winner || scene.state.currentPlayer !== 2) {
       this.finishAiUi(scene);
       return;
     }
 
-    scene.recordAiPlan(plan);
-    const action = plan.actions[0];
-    if (!action || this.aiStepCount >= MAX_LIVE_AI_STEPS) {
+    if (step === 0) scene.recordAiPlan(plan);
+    const action = plan.actions[step];
+    if (!action || (!plan.expectedStates && this.aiStepCount >= MAX_LIVE_AI_STEPS)) {
       await this.endEnemyTurn(scene, []);
       return;
     }
 
     const actor = scene.state.currentPlayer;
+    validateAiContinuation(scene.state, plan, step);
     scene.beginAiAction();
     this.aiStepCount += 1;
     const totalNodes = plan.diagnostics.strategy.nodes + plan.diagnostics.tactical.nodes;
@@ -394,7 +395,8 @@ export class AiGameScene extends GameScene {
       await this.endEnemyTurn(scene, [result.message]);
       return;
     }
-    this.requestAiPlan(scene);
+    if (plan.expectedStates) await this.playAiPlan(scene, plan, step + 1);
+    else this.requestAiPlan(scene);
   }
 
   private async endEnemyTurn(scene: GameSceneInternals, messages: string[]): Promise<void> {

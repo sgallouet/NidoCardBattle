@@ -1,4 +1,5 @@
 import { CARD_DEFINITIONS } from '../data/cards';
+import { validateAiContinuation } from './aiPlanReplay';
 import { MAP_HEIGHT, MAP_WIDTH } from '../data/map';
 import type { ActionResult, Coord, GameState, PlayerId, UnitState } from '../data/types';
 import {
@@ -40,6 +41,7 @@ export type AiAction = GameAction;
 
 export interface AiPlan {
   actions: AiAction[];
+  expectedStates?: string[];
   strategic: StrategicEvaluation;
   tactical: TacticalAssessment;
   diagnostics: AiPlanDiagnostics;
@@ -181,6 +183,7 @@ export const buildThreatMap = (state: GameState, attackerPlayer: PlayerId): Map<
     unit.attacked = false;
     unit.movementSpent = 0;
     unit.postAttackMoved = false;
+    delete unit.pendingAdvance;
     unit.moveBonus = 0;
   }
 
@@ -886,8 +889,9 @@ export const executeAiPlan = (
 ): AiTurnResult => {
   const actor = state.currentPlayer;
   const messages: string[] = [];
-  for (const action of plan.actions) {
+  for (const [index, action] of plan.actions.entries()) {
     if (state.winner || state.currentPlayer !== actor) break;
+    validateAiContinuation(state, plan, index);
     const result = applyAiAction(state, action);
     observer?.onActionResolved?.({ actor, action, result, state });
     if (!result.ok) {

@@ -1,4 +1,6 @@
+import { snapshotBattleState, diffBattleStates, type BattleLogStep, type CompactStateSnapshot } from './battleLog';
 import type { Faction, GameState, PlayerId } from '../data/types';
+import { STARTING_SIDE_SLOTS } from '../data/map';
 import { executeAiPlan, type AiPlan, type AiSearchOptions, type SearchStopReason } from './ai';
 import { planAiTurnV2AnyPlayer } from './aiPlannerAdapters';
 import { planAiTurnV3, type PlannerV3Doctrine } from './aiPlannerV3';
@@ -7,10 +9,12 @@ import { planAiTurnV5 } from './aiPlannerV5';
 import { planAiTurnV6 } from './aiPlannerV6';
 import { planAiTurnV7 } from './aiPlannerV7';
 import { planAiTurnV8 } from './aiPlannerV8';
+import { planAiTurnV9 } from './aiPlannerV9';
+import { planAiTurnV10 } from './aiPlannerV10';
 import { createGameState } from './engine';
 import { seededRandom } from './simulation';
 
-export type DuelPlannerId = 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8';
+export type DuelPlannerId = 'v2' | 'v3' | 'v4' | 'v5' | 'v6' | 'v7' | 'v8' | 'v9' | 'v10';
 export type DuelTermination = 'victory' | 'repetition' | 'turn-limit' | 'planner-failure';
 
 export interface PlannerSearchTelemetry {
@@ -35,6 +39,8 @@ const PLANNERS: Record<DuelPlannerId, PlannerFunction> = {
   v6: planAiTurnV6,
   v7: planAiTurnV7,
   v8: planAiTurnV8,
+  v9: planAiTurnV9,
+  v10: planAiTurnV10,
 };
 
 export const FAIR_DUEL_AI_OPTIONS: AiSearchOptions = {
@@ -44,7 +50,16 @@ export const FAIR_DUEL_AI_OPTIONS: AiSearchOptions = {
   tacticalMaxPlanningMs: 60_000,
 };
 
+export interface PlannerGameLog {
+  schemaVersion: 1;
+  initial: CompactStateSnapshot;
+  turns: Array<{ halfTurn: number; player: PlayerId; planner: DuelPlannerId; start: CompactStateSnapshot; diagnostics: AiPlan['diagnostics']; steps: BattleLogStep[] }>;
+  final: CompactStateSnapshot;
+  result: PlannerDuelGameResult;
+}
+
 export interface PlannerDuelGameResult {
+  logPath?: string;
   seed: number;
   assignment: Record<PlayerId, DuelPlannerId>;
   playerFactions: Record<PlayerId, Faction>;
@@ -71,6 +86,9 @@ export interface PlannerOpeningTurn {
 }
 
 export interface PlannerDuelBatchOptions {
+  recordGame?: (log: PlannerGameLog) => string;
+  aiOptionsByPlanner?: Partial<Record<DuelPlannerId, AiSearchOptions>>;
+  swapStarts?: boolean;
   pairs?: number;
   seed?: number;
   maxHalfTurns?: number;
@@ -147,7 +165,7 @@ export interface PlannerMatchupBatchResult {
 }
 
 const ratio = (numerator: number, denominator: number): number => denominator === 0 ? 0 : numerator / denominator;
-const emptyPlannerCounts = (): Record<DuelPlannerId, number> => ({ v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0, v8: 0 });
+const emptyPlannerCounts = (): Record<DuelPlannerId, number> => ({ v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0, v8: 0, v9: 0, v10: 0 });
 const emptyDoctrineSelections = (): Record<DuelPlannerId, Partial<Record<PlannerV3Doctrine, number>>> => ({
   v2: {},
   v3: {},
@@ -156,6 +174,8 @@ const emptyDoctrineSelections = (): Record<DuelPlannerId, Partial<Record<Planner
   v6: {},
   v7: {},
   v8: {},
+  v9: {},
+  v10: {},
 });
 const emptySearchTelemetry = (): PlannerSearchTelemetry => ({
   plans: 0,
@@ -176,6 +196,8 @@ const emptySearchTelemetryByPlanner = (): Record<DuelPlannerId, PlannerSearchTel
   v6: emptySearchTelemetry(),
   v7: emptySearchTelemetry(),
   v8: emptySearchTelemetry(),
+  v9: emptySearchTelemetry(),
+  v10: emptySearchTelemetry(),
 });
 const mergeSearchTelemetry = (target: PlannerSearchTelemetry, source: PlannerSearchTelemetry): void => {
   target.plans += source.plans;
@@ -233,6 +255,17 @@ export const simulatePlannerDuelGame = (
 ): PlannerDuelGameResult => {
   const random = seededRandom(seed);
   const state = createGameState(random);
+  if (options.swapStarts) {
+    for (const unit of state.units) {
+      const slots = STARTING_SIDE_SLOTS[unit.owner === 1 ? 'upperRight' : 'bottomLeft'];
+      const slot = unit.definitionId === 'commander' ? 'commander'
+        : unit.definitionId === 'royalGuard' || unit.definitionId === 'skeletalInfantry' ? 'frontline' : 'support';
+      unit.coord = { ...slots[slot] };
+    }
+    for (const site of state.sites) {
+      if (site.type === 'keep' && site.owner) site.owner = site.owner === 1 ? 2 : 1;
+    }
+  }
   const playerFactions: Record<PlayerId, Faction> = {
     1: state.players[1].faction,
     2: state.players[2].faction,
@@ -249,6 +282,8 @@ export const simulatePlannerDuelGame = (
   const searchTelemetryByPlanner = emptySearchTelemetryByPlanner();
   const seen = new Map<string, number>();
   const openingTurns: PlannerOpeningTurn[] = [];
+  const recordedTurns: PlannerGameLog['turns'] = [];
+  const initialSnapshot = options.recordGame ? snapshotBattleState(state) : undefined;
   let halfTurns = 0;
   let termination: DuelTermination = 'turn-limit';
 
@@ -266,7 +301,7 @@ export const simulatePlannerDuelGame = (
     const planner = PLANNERS[plannerId];
     const beforeSites = ownerMap(state);
     const enemyUnitsBefore = enemyUnitCount(state, actor);
-    const plan = planner(state, aiOptions);
+    const plan = planner(state, { ...aiOptions, ...options.aiOptionsByPlanner?.[plannerId] });
     if (halfTurns < 6) {
       openingTurns.push({ halfTurn: halfTurns + 1, player: actor, planner: plannerId, actions: plan.actions });
     }
@@ -292,7 +327,19 @@ export const simulatePlannerDuelGame = (
       plannerDoctrines[diagnostics.selectedDoctrine] = (plannerDoctrines[diagnostics.selectedDoctrine] ?? 0) + 1;
     }
 
-    const turn = executeAiPlan(state, plan, random);
+    const recorded = options.recordGame ? { halfTurn: halfTurns + 1, player: actor, planner: plannerId,
+      start: snapshotBattleState(state), diagnostics: plan.diagnostics, steps: [] as BattleLogStep[] } : undefined;
+    let previous = recorded?.start;
+    const record = (action: BattleLogStep['action'], result: BattleLogStep['result']) => {
+      const next = snapshotBattleState(state);
+      recorded!.steps.push({ action, result: { ok: result.ok, message: result.message }, delta: diffBattleStates(previous!, next) });
+      previous = next;
+    };
+    const turn = executeAiPlan(state, plan, random, recorded ? {
+      onActionResolved: ({ action, result }) => record(action, result),
+      onTurnEnded: ({ result }) => record({ kind: 'endTurn' }, result),
+    } : undefined);
+    if (recorded) recordedTurns.push(recorded);
     if (turn.actions.some((message) => message.startsWith('AI plan stopped:'))) {
       replayFailuresByPlanner[plannerId] += 1;
     }
@@ -310,7 +357,7 @@ export const simulatePlannerDuelGame = (
 
   if (state.winner) termination = 'victory';
   const winnerPlayer = state.winner;
-  return {
+  const result: PlannerDuelGameResult = {
     seed,
     assignment: { ...assignment },
     playerFactions,
@@ -328,6 +375,9 @@ export const simulatePlannerDuelGame = (
     searchTelemetryByPlanner,
     openingTurns,
   };
+  if (options.recordGame) result.logPath = options.recordGame({ schemaVersion: 1, initial: initialSnapshot!, turns: recordedTurns,
+    final: snapshotBattleState(state), result: { ...result } });
+  return result;
 };
 
 export const simulatePlannerMatchupBatch = (
@@ -378,6 +428,8 @@ export const simulatePlannerMatchupBatch = (
     v6: { human: 0, undead: 0 },
     v7: { human: 0, undead: 0 },
     v8: { human: 0, undead: 0 },
+    v9: { human: 0, undead: 0 },
+    v10: { human: 0, undead: 0 },
   };
   const doctrineSelections: Partial<Record<PlannerV3Doctrine, number>> = {};
   const doctrineSelectionsByPlanner = emptyDoctrineSelections();
@@ -437,6 +489,8 @@ export const simulatePlannerMatchupBatch = (
       v6: ratio(winsByPlanner.v6, games),
       v7: ratio(winsByPlanner.v7, games),
       v8: ratio(winsByPlanner.v8, games),
+      v9: ratio(winsByPlanner.v9, games),
+      v10: ratio(winsByPlanner.v10, games),
     },
     decisiveWinRateByPlanner: {
       v2: ratio(winsByPlanner.v2, decisiveGames),
@@ -446,6 +500,8 @@ export const simulatePlannerMatchupBatch = (
       v6: ratio(winsByPlanner.v6, decisiveGames),
       v7: ratio(winsByPlanner.v7, decisiveGames),
       v8: ratio(winsByPlanner.v8, decisiveGames),
+      v9: ratio(winsByPlanner.v9, decisiveGames),
+      v10: ratio(winsByPlanner.v10, decisiveGames),
     },
     draws,
     firstPlayerWins,
@@ -461,6 +517,8 @@ export const simulatePlannerMatchupBatch = (
       v6: ratio(actionsByPlanner.v6, turnsByPlanner.v6),
       v7: ratio(actionsByPlanner.v7, turnsByPlanner.v7),
       v8: ratio(actionsByPlanner.v8, turnsByPlanner.v8),
+      v9: ratio(actionsByPlanner.v9, turnsByPlanner.v9),
+      v10: ratio(actionsByPlanner.v10, turnsByPlanner.v10),
     },
     capturesByPlanner,
     killsByPlanner,

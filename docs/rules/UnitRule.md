@@ -16,7 +16,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNC1** - Attacks deal deterministic damage; there is no hit/miss roll.
 - **UNC2** - A unit whose HP reaches 0 is removed immediately.
 - **UNC3** - Retaliation is a reaction and does not consume the defender's normal attack on its next activation.
-- **UNC4** - When a surviving unit kills the primary target of its close normal attack, it advances into the defeated unit's vacated hex without spending movement points. The advance must obey `CRC4`; captures still resolve under `MPC1`-`MPC3`.
+- **UNC4** - When a surviving unit kills the primary target of its close normal attack, it gains an advance to that target's vacated adjacent hex, even if it has already moved. On a capturable site (Keep, Fort, or Mana Well, regardless of ownership), the advance happens automatically and grants one optional free return to the attacker's pre-attack hex during the same turn. Elsewhere, the attacker stays in place and may choose the advance during that turn. Advance and return cost no movement points, grant no additional attack, and require an empty, traversable destination and compliance with `CRC4`. Any subsequent movement or displacement consumes the pending choice; returning cannot grant another advance. An Agile Assault unit may use its remaining movement under `UNT6` instead of an optional advance; taking an advance, including an automatic one, consumes its post-attack movement phase, with the free return as the only exception. Unused choices expire at the end of the turn. Captures still resolve under `MPC1`-`MPC3`.
 
 ## Movement
 - **UNM1** - Movement uses movement points; entering a normal hex costs 1 point unless terrain says otherwise.
@@ -75,6 +75,6 @@ Undead identity: disruption, attrition, damage redirection, necromancy, and puni
 | **UDR3** | Bone Archer | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
 | **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Ranged, Necromancy | Curse | ✅ Implemented. |
 | **UDR5** | Banshee | 4 | 3 | 2 | 3 | 1 | — | Displace | ✅ Implemented. |
-| **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | Flying | Blood Drain | ✅ Implemented. |
+| **UDR6** | Vampire | 5 | 4 | 3 | 3 | 1 | — | Blood Drain | ✅ Implemented. |
 | **UDR7** | Wraith | 4 | 3 | 2 | 4 | 1 | Phase | — | ✅ Implemented. |
 | **UDR8** | Grave Knight | 5 | 5 | 3 | 2 | 1 | Blocking, Retaliates | Cleave | ✅ Implemented. |

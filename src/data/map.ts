@@ -30,7 +30,7 @@ const terrainOverrides: Array<[Terrain, Coord[]]> = [
   ]],
   ['mountain', [
     { q: 5, r: 5 }, { q: 6, r: 5 }, { q: 5, r: 6 }, { q: 6, r: 7 },
-    { q: 11, r: 5 }, { q: 12, r: 6 }, { q: 11, r: 7 }, { q: 12, r: 7 },
+    { q: 11, r: 5 }, { q: 11, r: 6 }, { q: 11, r: 7 },
     { q: 4, r: 11 }, { q: 11, r: 2 },
   ]],
   ['water', [
@@ -80,7 +80,7 @@ export const MAP_SITES: MapSite[] = [
   { id: 'keep-1', type: 'keep', coord: { q: 2, r: 9 }, initialOwner: 1 },
   { id: 'keep-2', type: 'keep', coord: { q: 15, r: 3 }, initialOwner: 2 },
   { id: 'fort-north', type: 'fort', coord: { q: 7, r: 4 }, initialOwner: null },
-  { id: 'fort-south', type: 'fort', coord: { q: 9, r: 9 }, initialOwner: null },
+  { id: 'fort-south', type: 'fort', coord: { q: 11, r: 8 }, initialOwner: null },
   { id: 'well-northwest', type: 'well', coord: { q: 6, r: 2 }, initialOwner: null },
   { id: 'well-northeast', type: 'well', coord: { q: 13, r: 4 }, initialOwner: null },
   { id: 'well-southwest', type: 'well', coord: { q: 4, r: 8 }, initialOwner: null },
@@ -97,9 +97,9 @@ export const MAP_GARRISONS: MapGarrison[] = [
   { id: 'garrison-north-west', fortId: 'fort-north', coord: { q: 6, r: 4 } },
   { id: 'garrison-north-north', fortId: 'fort-north', coord: { q: 7, r: 3 } },
   { id: 'garrison-north-south', fortId: 'fort-north', coord: { q: 7, r: 5 } },
-  { id: 'garrison-south-east', fortId: 'fort-south', coord: { q: 10, r: 9 } },
-  { id: 'garrison-south-north', fortId: 'fort-south', coord: { q: 9, r: 8 } },
-  { id: 'garrison-south-south', fortId: 'fort-south', coord: { q: 9, r: 10 } },
+  { id: 'garrison-south-east', fortId: 'fort-south', coord: { q: 12, r: 8 } },
+  { id: 'garrison-south-north', fortId: 'fort-south', coord: { q: 10, r: 8 } },
+  { id: 'garrison-south-south', fortId: 'fort-south', coord: { q: 11, r: 9 } },
 ];
 
 export const STARTING_SIDE_SLOTS = {

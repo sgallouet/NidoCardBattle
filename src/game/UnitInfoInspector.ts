@@ -1,7 +1,7 @@
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import type { GameState, UnitDefinition, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
-import { effectiveRange, findUnit, unitDefinition } from './engine';
+import { coordKey, effectiveRange, findUnit, getReachableCoords, unitDefinition } from './engine';
 import './UnitInfoInspector.css';
 
 export interface UnitInfoInspectorSceneInternals {
@@ -129,6 +129,7 @@ export class UnitInfoInspector {
       unit.exhausted ? 'Exhausted' : '',
       unit.moved ? 'Moved' : '',
       unit.attacked ? 'Attacked' : '',
+      unit.pendingAdvance && getReachableCoords(this.game.state, unit.id).has(coordKey(unit.pendingAdvance)) ? 'Reposition available' : '',
     ].filter(Boolean);
   }
 

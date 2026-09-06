@@ -1,9 +1,7 @@
 import victoryDawnOverTheHexfieldUrl from '../../assets/game/audio/music/music-victory-02-dawn-over-the-hexfield.mp3?url';
-import victoryGraveFallsSilentUrl from '../../assets/game/audio/music/music-victory-04-the-grave-falls-silent.mp3?url';
 
 export const VICTORY_MUSIC_TRACKS: readonly string[] = [
   victoryDawnOverTheHexfieldUrl,
-  victoryGraveFallsSilentUrl,
 ];
 
 export interface VictoryMusicAudio {
@@ -11,6 +9,7 @@ export interface VictoryMusicAudio {
   loop: boolean;
   preload: string;
   volume: number;
+  onended: HTMLMediaElement['onended'];
   play(): Promise<void>;
   pause(): void;
 }
@@ -31,7 +30,7 @@ export class VictoryMusicDirector {
     if (tracks.length === 0) throw new Error('Victory music requires at least one track.');
   }
 
-  play(): void {
+  play(onEnded: () => void = () => undefined): void {
     this.stop();
     const roll = this.random();
     const normalized = Number.isFinite(roll) ? Math.min(1, Math.max(0, roll)) : 0;
@@ -41,10 +40,16 @@ export class VictoryMusicDirector {
     audio.preload = 'auto';
     audio.volume = DEFAULT_VICTORY_MUSIC_VOLUME;
     this.audio = audio;
+    audio.onended = () => {
+      if (this.audio !== audio) return;
+      this.stop();
+      onEnded();
+    };
     void audio.play().catch(() => undefined);
   }
 
   stop(): void {
+    if (this.audio) this.audio.onended = null;
     this.audio?.pause();
     if (this.audio) this.audio.currentTime = 0;
     this.audio = null;

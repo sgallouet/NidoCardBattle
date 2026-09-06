@@ -11,7 +11,7 @@ This file owns map geometry, capture, and terrain rules.
 - **MPL1** - The map contains 2 Home Keeps, one per player.
 - **MPL2** - The map contains 2 neutral Forts.
 - **MPL3** - The map contains 4 Mana Wells.
-- **MPL4** - Layout should be deliberately asymmetric while giving both players comparable access to objectives and flanking routes.
+- **MPL4** - Layout should be deliberately asymmetric while giving both players comparable access to objectives and flanking routes, including comparable ground-movement costs from each Home Keep to its nearer Fort.
 - **MPL5** - Each neutral Fort has 3 adjacent Garrisons that provide the additional spawn sources defined by `CRU3`.
 - **MPL6** - At New Game, the local player's starting army and Home Keep are randomly assigned to either the bottom-left or upper-right start; the AI receives the opposite start, independent of faction.
 - **MPL7** - Villages and Ruins are non-capturable special locations. Their benefits depend only on a unit physically occupying their hex; they never gain persistent ownership.

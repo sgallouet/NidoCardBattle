@@ -115,6 +115,7 @@ const stateSignature = (state: GameState, includeHand: boolean): string => {
     unit.exhausted ? 1 : 0, unit.moved ? 1 : 0, unit.attacked ? 1 : 0,
     unit.movementSpent ?? 0, unit.moveBonus ?? 0, unit.soulLinkTargetId ?? '',
     JSON.stringify(unit.curses ?? []),
+    JSON.stringify(unit.pendingAdvance ?? null), unit.postAttackMoved ? 1 : 0,
   ].join(':')).sort().join('|');
   const sites = state.sites.map((site) => `${site.id}:${site.owner ?? 0}`).sort().join('|');
   const player = state.players[state.currentPlayer];

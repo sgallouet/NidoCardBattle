@@ -30,6 +30,8 @@ describe('saved matches', () => {
   it('round-trips the current save version', () => {
     installStorage();
     const state = createGameState();
+    state.units[0].attacked = true;
+    state.units[0].pendingAdvance = { q: 3, r: 8 };
     const battleLog = new LiveBattleLogRecorder(state).createLog(state);
 
     expect(saveMatch(state, battleLog)).toBe(true);

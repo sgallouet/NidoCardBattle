@@ -151,6 +151,7 @@ const beginTurn = (state: GameState, random: () => number): { villageHealed: boo
     unit.attacked = false;
     unit.movementSpent = 0;
     unit.postAttackMoved = false;
+    delete unit.pendingAdvance;
     unit.moveBonus = 0;
   }
 
@@ -219,10 +220,10 @@ export const createGameState = (random: () => number = Math.random): GameState =
   return state;
 };
 
-const movementCost = (state: GameState, unit: UnitState, coord: Coord): number =>
+export const movementCost = (state: GameState, unit: UnitState, coord: Coord): number =>
   unitDefinition(unit).traits.includes('Flying') || effectiveTerrainAt(state, coord) !== 'forest' ? 1 : 1 / 0.7;
 
-const canTraverse = (state: GameState, unit: UnitState, coord: Coord): boolean => {
+export const canTraverse = (state: GameState, unit: UnitState, coord: Coord): boolean => {
   if (!isInsideMap(coord)) return false;
   if (effectiveTerrainAt(state, coord) === 'mountain') return false;
   return unitDefinition(unit).traits.includes('Flying') || isPassableInState(state, coord);
@@ -245,6 +246,15 @@ interface MovementSearch {
   previous: Map<string, Coord>;
 }
 
+const availableAdvance = (state: GameState, unit: UnitState): Coord | undefined => {
+  const destination = unit.pendingAdvance;
+  return destination && unit.attacked && !unit.exhausted && unit.owner === state.currentPlayer
+    && hexDistance(unit.coord, destination) === 1
+    && canTraverse(state, unit, destination) && !unitAt(state, destination)
+    && !isGraveLocked(state, unit.coord) && !isGraveLocked(state, destination)
+    ? destination : undefined;
+};
+
 const canStartMovementPhase = (unit: UnitState): boolean => {
   if (unit.exhausted) return false;
   const agile = unitDefinition(unit).traits.includes('AgileAssault');
@@ -255,8 +265,16 @@ const canStartMovementPhase = (unit: UnitState): boolean => {
 
 const searchMovement = (state: GameState, unitId: string): MovementSearch => {
   const unit = findUnit(state, unitId);
-  if (!unit || unit.owner !== state.currentPlayer || !canStartMovementPhase(unit) || isGraveLocked(state, unit.coord)) {
+  if (state.winner || !unit || unit.owner !== state.currentPlayer || isGraveLocked(state, unit.coord)) {
     return { reachable: new Map(), previous: new Map() };
+  }
+
+  const advance = availableAdvance(state, unit);
+  if (!canStartMovementPhase(unit)) {
+    return advance ? {
+      reachable: new Map([[coordKey(advance), 0]]),
+      previous: new Map([[coordKey(advance), { ...unit.coord }]]),
+    } : { reachable: new Map(), previous: new Map() };
   }
 
   const reachable = new Map<string, number>([[coordKey(unit.coord), 0]]);
@@ -282,6 +300,10 @@ const searchMovement = (state: GameState, unitId: string): MovementSearch => {
     }
   }
 
+  if (advance) {
+    reachable.set(coordKey(advance), 0);
+    previous.set(coordKey(advance), { ...unit.coord });
+  }
   return { reachable, previous };
 };
 
@@ -313,6 +335,7 @@ export const moveUnit = (state: GameState, unitId: string, destination: Coord): 
   path.reverse();
 
   unit.coord = { ...destination };
+  delete unit.pendingAdvance;
   unit.movementSpent = (unit.movementSpent ?? 0) + spent;
   if (unit.attacked && unitDefinition(unit).traits.includes('AgileAssault')) unit.postAttackMoved = true;
   else unit.moved = true;
@@ -542,19 +565,31 @@ export const attackUnit = (state: GameState, attackerId: string, defenderId: str
     && closeNormalAttack
     && !isGraveLocked(state, survivingPrimaryAttacker.coord)
     && !isGraveLocked(state, defenderCoord)
+    && canTraverse(state, survivingPrimaryAttacker, defenderCoord)
     && !unitAt(state, defenderCoord)) {
-    advancePath = [{ ...survivingPrimaryAttacker.coord }, { ...defenderCoord }];
-    survivingPrimaryAttacker.coord = { ...defenderCoord };
+    if (state.sites.some((site) => sameCoord(site.coord, defenderCoord))) {
+      const origin = { ...survivingPrimaryAttacker.coord };
+      survivingPrimaryAttacker.coord = { ...defenderCoord };
+      survivingPrimaryAttacker.pendingAdvance = origin;
+      if (attackerDef.traits.includes('AgileAssault')) survivingPrimaryAttacker.postAttackMoved = true;
+      else survivingPrimaryAttacker.moved = true;
+      advancePath = [origin, { ...defenderCoord }];
+    } else {
+      survivingPrimaryAttacker.pendingAdvance = { ...defenderCoord };
+    }
   }
 
   const assistText = assisted > 0 ? ` + ${assisted} Assist` : '';
   const victoryText = state.winner ? ` Player ${state.winner} wins the match.` : '';
+  const advanceText = !state.winner && survivingPrimaryAttacker?.pendingAdvance
+    ? advancePath ? ' Advanced onto the site. Click your original hex to return, or stay here.'
+      : ' Advance available: click the vacated hex, or stay here.' : '';
   return {
     ok: true,
-    message: `${attackerDef.name} attacked ${defenderDef.name} for ${dealt}${assistText}.${victoryText}`,
+    message: `${attackerDef.name} attacked ${defenderDef.name} for ${dealt}${assistText}.${victoryText}${advanceText}`,
     ...(bloodDrainHealed ? { bloodDrainHealed: true } : {}),
     ...(cleaveDamaged ? { cleaveDamaged: true } : {}),
-    path: advancePath,
+    ...(advancePath ? { path: advancePath } : {}),
   };
 };
 
@@ -650,6 +685,7 @@ export const displaceUnit = (state: GameState, actorId: string, targetId: string
     return { ok: false, message: 'That is not a valid displacement destination.' };
   }
   target.coord = { ...destination };
+  delete target.pendingAdvance;
   actor.attacked = true;
   return { ok: true, message: `${unitDefinition(actor).name} displaced ${unitDefinition(target).name}.` };
 };
@@ -984,6 +1020,9 @@ const resolvePendingManaWells = (state: GameState, playerId: PlayerId): void => 
 export const endTurn = (state: GameState, random: () => number = Math.random): ActionResult => {
   if (state.winner) return { ok: false, message: 'The match is over.' };
   const endingPlayer = state.currentPlayer;
+  for (const unit of state.units) {
+    if (unit.owner === endingPlayer) delete unit.pendingAdvance;
+  }
   resolveCaptures(state, endingPlayer);
   resolveCurses(state, endingPlayer);
   if (state.winner) return { ok: true, message: `Player ${state.winner} wins the match.` };

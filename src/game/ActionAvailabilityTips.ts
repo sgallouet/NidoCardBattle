@@ -175,6 +175,12 @@ export class ActionAvailabilityTips {
     if (!occupant && coordKey(coord) !== coordKey(selected.coord)) {
       const reachable = getReachableCoords(state, selected.id);
       if (reachable.has(key)) return undefined;
+      if (selected.pendingAdvance) {
+        return {
+          eyebrow: 'Movement unavailable', title: 'Reposition choice', badge: 'After attack', label: 'Move',
+          text: 'Choose a highlighted hex to reposition, or leave this unit in place.',
+        };
+      }
       if (selected.moved) {
         return {
           eyebrow: 'Movement unavailable',

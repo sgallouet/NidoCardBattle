@@ -8,6 +8,8 @@ import {
   getAttackTargets,
   getInvokeDestinations,
   getThunderTargetCoords,
+  getReachableCoords,
+  moveUnit,
   invokeBeast,
   thunderAtCoord,
 } from './engine';
@@ -95,14 +97,21 @@ describe('UnitRule regressions', () => {
 
   it('enforces UNC4', () => {
     const state = freshState();
-    const attacker = makeUnit('attacker', 'royalGuard', 1, { q: 4, r: 6 });
-    const defender = makeUnit('defender', 'skeletalInfantry', 2, { q: 5, r: 6 }, { hp: 1 });
-    state.units = [attacker, defender];
+    const attacker = makeUnit('attacker', 'royalGuard', 1, { q: 8, r: 4 }, { moved: true, movementSpent: 2 });
+    const defender = makeUnit('defender', 'skeletalInfantry', 2, { q: 9, r: 4 }, { hp: 1 });
+    state.units = [attacker, defender, makeUnit('remaining', 'commander', 2, { q: 15, r: 4 })];
 
     const result = attackUnit(state, attacker.id, defender.id);
 
-    expect(result.path).toEqual([{ q: 4, r: 6 }, { q: 5, r: 6 }]);
-    expect(attacker.coord).toEqual({ q: 5, r: 6 });
+    expect(result.path).toBeUndefined();
+    expect(attacker.coord).toEqual({ q: 8, r: 4 });
+    expect([...getReachableCoords(state, attacker.id)]).toEqual([['9,4', 0]]);
+    expect(moveUnit(state, attacker.id, { q: 8, r: 3 }).ok).toBe(false);
+    expect(moveUnit(state, attacker.id, defender.coord)).toMatchObject({ ok: true, path: [{ q: 8, r: 4 }, { q: 9, r: 4 }] });
+    expect(attacker.coord).toEqual(defender.coord);
+    expect(attacker.movementSpent).toBe(2);
+    expect(attacker.pendingAdvance).toBeUndefined();
+    expect(getReachableCoords(state, attacker.id).size).toBe(0);
   });
 
   it('enforces UNC4 with CRC4', () => {

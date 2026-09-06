@@ -1,0 +1,19 @@
+{
+  "games": 4,
+  "wins": 2,
+  "losses": 1,
+  "draws": 1,
+  "replayFailures": 0,
+  "results": [
+    {
+      "name": "development",
+      "opponent": "v9",
+      "games": 4,
+      "wins": 2,
+      "losses": 1,
+      "draws": 1,
+      "replayFailures": 0
+    }
+  ],
+  "promotionRecommended": false
+}

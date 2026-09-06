@@ -32,6 +32,7 @@ export interface CompactUnitState {
   attacked?: true;
   movementSpent?: number;
   postAttackMoved?: true;
+  pendingAdvance?: CoordTuple;
   moveBonus?: number;
   soulLinkTargetId?: string;
   curses?: Array<{ sourcePlayer: PlayerId; remainingTurns: number }>;
@@ -213,6 +214,7 @@ const compactUnit = (unit: UnitState): CompactUnitState => {
   if (unit.attacked) compact.attacked = true;
   if ((unit.movementSpent ?? 0) > 0) compact.movementSpent = unit.movementSpent;
   if (unit.postAttackMoved) compact.postAttackMoved = true;
+  if (unit.pendingAdvance) compact.pendingAdvance = [unit.pendingAdvance.q, unit.pendingAdvance.r];
   if ((unit.moveBonus ?? 0) > 0) compact.moveBonus = unit.moveBonus;
   if (unit.soulLinkTargetId) compact.soulLinkTargetId = unit.soulLinkTargetId;
   if ((unit.curses?.length ?? 0) > 0) compact.curses = unit.curses?.map((curse) => ({ ...curse }));

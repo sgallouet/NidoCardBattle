@@ -63,6 +63,7 @@ export interface UnitState {
   attacked: boolean;
   movementSpent?: number;
   postAttackMoved?: boolean;
+  pendingAdvance?: Coord;
   moveBonus?: number;
   soulLinkTargetId?: string;
   invokedPetId?: string;

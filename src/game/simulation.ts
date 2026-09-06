@@ -161,6 +161,7 @@ const configureFirstPlayer = (state: GameState, firstFaction: Faction): void => 
     unit.attacked = false;
     unit.movementSpent = 0;
     unit.postAttackMoved = false;
+    delete unit.pendingAdvance;
     unit.moveBonus = 0;
   }
   state.players[1].mana = STARTING_MANA;

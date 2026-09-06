@@ -7,6 +7,7 @@ import {
 } from './VictoryMusic';
 
 class FakeAudio implements VictoryMusicAudio {
+  onended: (() => void) | null = null;
   currentTime = 12;
   loop = true;
   preload = '';
@@ -27,17 +28,43 @@ class FakeAudio implements VictoryMusicAudio {
 }
 
 describe('victory music director', () => {
-  it('exports the two user-approved victory tracks', () => {
+  it('hands off to background music once after the result track ends', () => {
+    const audio = new FakeAudio('dawn.mp3');
+    const director = new VictoryMusicDirector(['dawn.mp3'], () => audio);
+    let resumed = 0;
+    director.play(() => { resumed += 1; });
+    const finish = audio.onended!;
+    expect(resumed).toBe(0);
+    finish();
+    finish();
+    expect(resumed).toBe(1);
+    expect(audio.onended).toBeNull();
+  });
+
+  it('does not resume background music after cancellation or disposal', () => {
+    for (const cancel of ['stop', 'dispose'] as const) {
+      const audio = new FakeAudio('dawn.mp3');
+      const director = new VictoryMusicDirector(['dawn.mp3'], () => audio);
+      let resumed = 0;
+      director.play(() => { resumed += 1; });
+      const finish = audio.onended!;
+      director[cancel]();
+      finish();
+      expect(resumed).toBe(0);
+      expect(audio.onended).toBeNull();
+    }
+  });
+
+  it('exports Dawn as the only accepted victory track', () => {
     expect(VICTORY_MUSIC_TRACKS.map((track) => track.split('/').at(-1))).toEqual([
       'music-victory-02-dawn-over-the-hexfield.mp3',
-      'music-victory-04-the-grave-falls-silent.mp3',
     ]);
   });
 
   it('plays one non-looping victory track per committed result', () => {
     const audios: FakeAudio[] = [];
     const director = new VictoryMusicDirector(
-      ['dawn.mp3', 'grave.mp3'],
+      ['dawn.mp3'],
       (src) => {
         const audio = new FakeAudio(src);
         audios.push(audio);
@@ -49,7 +76,7 @@ describe('victory music director', () => {
     director.play();
 
     expect(audios).toHaveLength(1);
-    expect(audios[0].src).toBe('grave.mp3');
+    expect(audios[0].src).toBe('dawn.mp3');
     expect(audios[0].loop).toBe(false);
     expect(audios[0].preload).toBe('auto');
     expect(audios[0].volume).toBe(DEFAULT_VICTORY_MUSIC_VOLUME);

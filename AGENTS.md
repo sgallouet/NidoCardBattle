@@ -70,3 +70,7 @@ NidoCardBattle is deliberately small. Prefer the simplest implementation that ma
 - Build the smallest playable vertical slice first.
 - Validate the rules with placeholder visuals before spending time on polish.
 - Add presentation only after the core match is enjoyable.
+
+## Token-Efficient Work
+
+- For AI/simulation work or requests to conserve tokens, use [nidocardbattle-token-efficient-work](.agents/skills/nidocardbattle-token-efficient-work/SKILL.md).

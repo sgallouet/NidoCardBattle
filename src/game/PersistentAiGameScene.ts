@@ -1,3 +1,4 @@
+import { MAP_SITES } from '../data/map';
 import type { GameState } from '../data/types';
 import { AiGameScene } from './AiGameScene';
 import { LiveBattleLogRecorder, type LiveBattleLog } from './liveBattleLog';
@@ -28,9 +29,17 @@ export class PersistentAiGameScene extends AiGameScene {
   protected override createLiveBattleLogRecorder(initialState: GameState): LiveBattleLogRecorder {
     const draft = this.restoredBattleLog;
     this.restoredBattleLog = null;
-    return draft
+    const recorder = draft
       ? LiveBattleLogRecorder.resume(initialState, draft)
       : new LiveBattleLogRecorder(initialState);
+    if (draft) {
+      for (const site of initialState.sites) {
+        const authored = MAP_SITES.find((entry) => entry.id === site.id);
+        if (authored) site.coord = { ...authored.coord };
+      }
+      recorder.recordState(initialState, 'Authored site positions updated to the current map.');
+    }
+    return recorder;
   }
 
   create(): void {

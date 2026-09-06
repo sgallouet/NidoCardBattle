@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Coord } from '../data/types';
 import type { AiPlan } from './ai';
-import { LIVE_AI_OPTIONS_V8, planAiTurnV8 } from './aiPlannerV8';
+import { LIVE_AI_OPTIONS, planLiveAiTurn } from './aiLive';
 import {
   ActionAvailabilityTips,
   type ActionAvailabilitySceneInternals,
@@ -118,8 +118,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     this.firstTurnGuide = new FirstTurnGuide(this, game);
     this.firstTurnGuide.install();
 
-    // Production and the shared AiGameScene both plan with V8. Keep this override so a
-    // no-Worker/error fallback cannot silently revert to an older planner.
+    // Use the shared live selection for production error handling too.
     const ai = this as unknown as AiFallbackInternals;
     ai.fallbackToMainThread = () => {
       if (!ai.aiTurnInProgress || game.state.winner || game.state.currentPlayer !== 2) {
@@ -129,9 +128,9 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       ai.aiWorker?.terminate();
       ai.aiWorker = null;
       ai.stopAiHeartbeat();
-      setDebugStatus('AI: Worker unavailable; using V8 planner on main thread.', 'warning');
+      setDebugStatus('AI: Worker unavailable; using the live planner on main thread.', 'warning');
       try {
-        const plan = planAiTurnV8(game.state, LIVE_AI_OPTIONS_V8);
+        const plan = planLiveAiTurn(game.state, LIVE_AI_OPTIONS);
         void ai.playAiPlan(game, plan).catch((error: unknown) => ai.reportAiFailure(error));
       } catch (error) {
         ai.reportAiFailure(error);
@@ -178,14 +177,15 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.captureHint?.sync();
       this.unitInfoInspector?.sync();
       if (game.state.winner) {
-        this.matchMusic?.stop();
         if (!this.victoryMusicStarted && this.victoryMusic) {
           this.victoryMusicStarted = true;
-          this.victoryMusic.play();
+          this.matchMusic?.stop();
+          this.victoryMusic.play(() => this.matchMusic?.start());
         }
       } else if (this.victoryMusicStarted) {
         this.victoryMusicStarted = false;
         this.victoryMusic?.stop();
+        this.matchMusic?.start();
       }
     };
 

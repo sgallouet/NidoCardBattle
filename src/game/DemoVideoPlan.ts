@@ -1,3 +1,4 @@
+import { MAP_GARRISONS } from '../data/map';
 import type { CardDefinitionId } from '../data/cards';
 import type { GameState, PlayerId, UnitState } from '../data/types';
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
@@ -20,7 +21,7 @@ export const DEMO_VIDEO_ACTIONS: readonly AiAction[] = [
     kind: 'summon',
     handIndex: 0,
     cardId: 'silverwingCavalry',
-    destination: { q: 9, r: 9 },
+    destination: { ...MAP_GARRISONS.find((garrison) => garrison.id === 'garrison-south-north')!.coord },
   },
   { kind: 'thunder', unitId: 'demo-thunder-mage', destination: { q: 10, r: 7 } },
 ];

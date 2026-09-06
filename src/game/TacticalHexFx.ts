@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 
 export type TacticalHexFxKind = 'move' | 'attack' | 'deploy' | 'spell';
+export type TacticalMovePresentation = 'active' | 'reconsider';
 
 interface TacticalHexFxPalette {
   fill: number;
@@ -18,6 +19,7 @@ interface TacticalHexFxEntry {
   points: Phaser.Geom.Point[];
   path?: Phaser.Math.Vector2[];
   palette: TacticalHexFxPalette;
+  kind: TacticalHexFxKind;
   phase: number;
   hovered: boolean;
 }
@@ -27,6 +29,12 @@ const PALETTES: Record<TacticalHexFxKind, TacticalHexFxPalette> = {
   attack: { fill: 0xff243e, glow: 0xff304d, core: 0xff5a6d, hot: 0xffd7dc },
   deploy: { fill: 0xe9ad32, glow: 0xffb82f, core: 0xffdc72, hot: 0xfff5be },
   spell: { fill: 0x8438ff, glow: 0xa23fff, core: 0xe16dff, hot: 0xffdcff },
+};
+const RECONSIDER_MOVE_PALETTE: TacticalHexFxPalette = {
+  fill: 0x727a82,
+  glow: 0x858d95,
+  core: 0xaab1b7,
+  hot: 0xe2e5e8,
 };
 const TRACER_FRAME_MS = 50;
 
@@ -151,6 +159,7 @@ export class TacticalHexFxLayer {
       points,
       path,
       palette,
+      kind,
       phase,
       hovered: false,
     });
@@ -166,6 +175,24 @@ export class TacticalHexFxLayer {
   setHovered(key: string, hovered: boolean): void {
     const effect = this.effects.get(key);
     if (effect) effect.hovered = hovered;
+  }
+
+  setMovePresentation(presentation: TacticalMovePresentation): void {
+    const palette = presentation === 'reconsider' ? RECONSIDER_MOVE_PALETTE : PALETTES.move;
+    for (const effect of this.effects.values()) {
+      if (effect.kind !== 'move') continue;
+      effect.palette = palette;
+      effect.glow.clear();
+      effect.core.clear();
+      effect.glyph.clear();
+      effect.glow.fillStyle(palette.fill, presentation === 'reconsider' ? 0.04 : 0.025);
+      effect.glow.fillPoints(effect.points, true);
+      effect.glow.lineStyle(8, palette.glow, presentation === 'reconsider' ? 0.16 : 0.1);
+      drawHexCorners(effect.glow, effect.points, 7);
+      effect.core.lineStyle(1.5, palette.core, presentation === 'reconsider' ? 0.58 : 0.46);
+      drawHexCorners(effect.core, effect.points, 6);
+      this.drawGlyph(effect.glyph, 'move', palette, effect.path);
+    }
   }
 
   destroy(): void {

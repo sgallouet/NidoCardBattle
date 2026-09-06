@@ -55,7 +55,7 @@ Human identity: formation, mobility, ranged support, sustain, and controlled rep
 
 | Rule | Unit | Mana | HP | DMG | Move | Range | Traits | Spell / Ability | Implementation |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
-| **HUR1** | Human Commander | — | 10 | 3 | 2 | 1 | Blocking, Retaliates | Rally | ✅ Implemented. |
+| **HUR1** | Human Commander | — | 10 | 3 | 2 | 1 | Blocking, Retaliates, Assist | Rally | ✅ Implemented. |
 | **HUR2** | Royal Guard | 2 | 3 | 2 | 2 | 1 | Blocking, Retaliates, Assist | — | ✅ Implemented. |
 | **HUR3** | Longbow Ranger | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
 | **HUR4** | Silverwing Cavalry | 6 | 5 | 4 | 3 | 1 | Flying, Agile Assault | — | ✅ Implemented. |
@@ -70,7 +70,7 @@ Undead identity: disruption, attrition, damage redirection, necromancy, and puni
 
 | Rule | Unit | Mana | HP | DMG | Move | Range | Traits | Spell / Ability | Implementation |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
-| **UDR1** | Undead Commander | — | 10 | 3 | 2 | 1 | Blocking, Dark Reflection | Soul Link | ✅ Implemented. |
+| **UDR1** | Undead Commander | — | 10 | 3 | 2 | 1 | Blocking, Dark Reflection, Assist | Soul Link | ✅ Implemented. |
 | **UDR2** | Skeletal Infantry | 1 | 2 | 2 | 2 | 1 | Blocking, Assist | — | ✅ Implemented. |
 | **UDR3** | Bone Archer | 3 | 1 | 1 | 2 | 3 | Ranged, Assist, Set Shot | — | ✅ Implemented. |
 | **UDR4** | Necromancer | 5 | 4 | 1 | 2 | 3 | Ranged, Necromancy, Set Shot | Curse | ✅ Implemented. |

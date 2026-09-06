@@ -14,7 +14,7 @@ import {
   attackUnit,
   findUnit,
   getRallyTargets,
-  neighbors,
+  getThunderChainCoords,
   sameCoord,
   unitDefinition,
 } from './engine';
@@ -213,16 +213,15 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
     }
 
     if (action.kind === 'thunder') {
+      // Resolve the visual chain before the spell removes any 1 HP units.
+      const affected = getThunderChainCoords(game.state, action.unitId, action.destination);
       const result = applyAiAction(game.state, action);
       if (result.ok) {
         game.playAbilityThunder();
         await game.presentAbilityVfx({
           kind: 'thunder',
           destination: { ...action.destination },
-          affected: [
-            { ...action.destination },
-            ...neighbors(action.destination).map((coord) => ({ ...coord })),
-          ],
+          affected,
         });
       }
       return result;

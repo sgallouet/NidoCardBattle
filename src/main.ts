@@ -6,8 +6,10 @@ import './game/TileInsightSelectionFix.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
 import { loadingScreen } from './game/LoadingScreen';
 import { ProductionGameScene } from './game/ProductionGameScene';
+import { WarCodex } from './game/WarCodex';
 import './game/BattleFinaleFx.css';
 import './game/CardReadability.css';
+import './game/WarCodex.css';
 
 type TileBorderMode = 'full' | 'half' | 'off';
 type FinalePreviewMode = 'victory' | 'defeat';
@@ -103,6 +105,7 @@ document.addEventListener('fullscreenchange', updateFullscreenButton);
 updateFullscreenButton();
 
 updateTileBorderButton();
+new WarCodex();
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,

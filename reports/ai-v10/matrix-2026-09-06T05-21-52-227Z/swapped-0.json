@@ -1,0 +1,3373 @@
+{
+  "planners": [
+    "v9",
+    "v10"
+  ],
+  "pairs": 3,
+  "games": 6,
+  "winsByPlanner": {
+    "v2": 0,
+    "v3": 0,
+    "v4": 0,
+    "v5": 0,
+    "v6": 0,
+    "v7": 0,
+    "v8": 0,
+    "v9": 0,
+    "v10": 6
+  },
+  "winRateByPlanner": {
+    "v2": 0,
+    "v3": 0,
+    "v4": 0,
+    "v5": 0,
+    "v6": 0,
+    "v7": 0,
+    "v8": 0,
+    "v9": 0,
+    "v10": 1
+  },
+  "decisiveWinRateByPlanner": {
+    "v2": 0,
+    "v3": 0,
+    "v4": 0,
+    "v5": 0,
+    "v6": 0,
+    "v7": 0,
+    "v8": 0,
+    "v9": 0,
+    "v10": 1
+  },
+  "draws": 0,
+  "firstPlayerWins": 3,
+  "firstPlayerWinRate": 0.5,
+  "pairWinsByPlanner": {
+    "v2": 0,
+    "v3": 0,
+    "v4": 0,
+    "v5": 0,
+    "v6": 0,
+    "v7": 0,
+    "v8": 0,
+    "v9": 0,
+    "v10": 3
+  },
+  "pairTies": 0,
+  "averageHalfTurns": 45.166666666666664,
+  "averageActionsPerTurn": {
+    "v2": 0,
+    "v3": 0,
+    "v4": 0,
+    "v5": 0,
+    "v6": 0,
+    "v7": 0,
+    "v8": 0,
+    "v9": 3.716417910447761,
+    "v10": 7.62043795620438
+  },
+  "capturesByPlanner": {
+    "v2": 0,
+    "v3": 0,
+    "v4": 0,
+    "v5": 0,
+    "v6": 0,
+    "v7": 0,
+    "v8": 0,
+    "v9": 63,
+    "v10": 91
+  },
+  "killsByPlanner": {
+    "v2": 0,
+    "v3": 0,
+    "v4": 0,
+    "v5": 0,
+    "v6": 0,
+    "v7": 0,
+    "v8": 0,
+    "v9": 74,
+    "v10": 93
+  },
+  "replayFailuresByPlanner": {
+    "v2": 0,
+    "v3": 0,
+    "v4": 0,
+    "v5": 0,
+    "v6": 0,
+    "v7": 0,
+    "v8": 0,
+    "v9": 0,
+    "v10": 0
+  },
+  "factionWinsByPlanner": {
+    "v2": {
+      "human": 0,
+      "undead": 0
+    },
+    "v3": {
+      "human": 0,
+      "undead": 0
+    },
+    "v4": {
+      "human": 0,
+      "undead": 0
+    },
+    "v5": {
+      "human": 0,
+      "undead": 0
+    },
+    "v6": {
+      "human": 0,
+      "undead": 0
+    },
+    "v7": {
+      "human": 0,
+      "undead": 0
+    },
+    "v8": {
+      "human": 0,
+      "undead": 0
+    },
+    "v9": {
+      "human": 0,
+      "undead": 0
+    },
+    "v10": {
+      "human": 3,
+      "undead": 3
+    }
+  },
+  "doctrineSelections": {},
+  "doctrineSelectionsByPlanner": {
+    "v2": {},
+    "v3": {},
+    "v4": {},
+    "v5": {},
+    "v6": {},
+    "v7": {},
+    "v8": {},
+    "v9": {},
+    "v10": {}
+  },
+  "searchTelemetryByPlanner": {
+    "v2": {
+      "plans": 0,
+      "strategyNodes": 0,
+      "tacticalNodes": 0,
+      "strategyStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "tacticalStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "candidatesGenerated": 0,
+      "candidatesAfterDeduplication": 0,
+      "tacticalCandidatesAssessed": 0,
+      "responseSequencesChecked": 0
+    },
+    "v3": {
+      "plans": 0,
+      "strategyNodes": 0,
+      "tacticalNodes": 0,
+      "strategyStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "tacticalStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "candidatesGenerated": 0,
+      "candidatesAfterDeduplication": 0,
+      "tacticalCandidatesAssessed": 0,
+      "responseSequencesChecked": 0
+    },
+    "v4": {
+      "plans": 0,
+      "strategyNodes": 0,
+      "tacticalNodes": 0,
+      "strategyStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "tacticalStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "candidatesGenerated": 0,
+      "candidatesAfterDeduplication": 0,
+      "tacticalCandidatesAssessed": 0,
+      "responseSequencesChecked": 0
+    },
+    "v5": {
+      "plans": 0,
+      "strategyNodes": 0,
+      "tacticalNodes": 0,
+      "strategyStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "tacticalStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "candidatesGenerated": 0,
+      "candidatesAfterDeduplication": 0,
+      "tacticalCandidatesAssessed": 0,
+      "responseSequencesChecked": 0
+    },
+    "v6": {
+      "plans": 0,
+      "strategyNodes": 0,
+      "tacticalNodes": 0,
+      "strategyStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "tacticalStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "candidatesGenerated": 0,
+      "candidatesAfterDeduplication": 0,
+      "tacticalCandidatesAssessed": 0,
+      "responseSequencesChecked": 0
+    },
+    "v7": {
+      "plans": 0,
+      "strategyNodes": 0,
+      "tacticalNodes": 0,
+      "strategyStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "tacticalStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "candidatesGenerated": 0,
+      "candidatesAfterDeduplication": 0,
+      "tacticalCandidatesAssessed": 0,
+      "responseSequencesChecked": 0
+    },
+    "v8": {
+      "plans": 0,
+      "strategyNodes": 0,
+      "tacticalNodes": 0,
+      "strategyStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "tacticalStopReasons": {
+        "complete": 0,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "candidatesGenerated": 0,
+      "candidatesAfterDeduplication": 0,
+      "tacticalCandidatesAssessed": 0,
+      "responseSequencesChecked": 0
+    },
+    "v9": {
+      "plans": 134,
+      "strategyNodes": 61596,
+      "tacticalNodes": 188981,
+      "strategyStopReasons": {
+        "complete": 134,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "tacticalStopReasons": {
+        "complete": 134,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "candidatesGenerated": 669,
+      "candidatesAfterDeduplication": 669,
+      "tacticalCandidatesAssessed": 669,
+      "responseSequencesChecked": 1338
+    },
+    "v10": {
+      "plans": 137,
+      "strategyNodes": 339660,
+      "tacticalNodes": 125030,
+      "strategyStopReasons": {
+        "complete": 137,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "tacticalStopReasons": {
+        "complete": 137,
+        "node-limit": 0,
+        "time-limit": 0
+      },
+      "candidatesGenerated": 5033,
+      "candidatesAfterDeduplication": 3264,
+      "tacticalCandidatesAssessed": 442,
+      "responseSequencesChecked": 852
+    }
+  },
+  "gamesDetail": [
+    {
+      "seed": 20270823,
+      "assignment": {
+        "1": "v9",
+        "2": "v10"
+      },
+      "playerFactions": {
+        "1": "human",
+        "2": "undead"
+      },
+      "winnerPlayer": 2,
+      "winnerPlanner": "v10",
+      "winnerFaction": "undead",
+      "termination": "victory",
+      "halfTurns": 36,
+      "actionsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 73,
+        "v10": 132
+      },
+      "capturesByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 9,
+        "v10": 12
+      },
+      "killsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 9,
+        "v10": 16
+      },
+      "replayFailuresByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 0,
+        "v10": 0
+      },
+      "doctrineSelections": {},
+      "doctrineSelectionsByPlanner": {
+        "v2": {},
+        "v3": {},
+        "v4": {},
+        "v5": {},
+        "v6": {},
+        "v7": {},
+        "v8": {},
+        "v9": {},
+        "v10": {}
+      },
+      "searchTelemetryByPlanner": {
+        "v2": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v3": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v4": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v5": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v6": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v7": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v8": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v9": {
+          "plans": 18,
+          "strategyNodes": 10763,
+          "tacticalNodes": 25847,
+          "strategyStopReasons": {
+            "complete": 18,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 18,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 90,
+          "candidatesAfterDeduplication": 90,
+          "tacticalCandidatesAssessed": 90,
+          "responseSequencesChecked": 180
+        },
+        "v10": {
+          "plans": 18,
+          "strategyNodes": 42129,
+          "tacticalNodes": 18335,
+          "strategyStopReasons": {
+            "complete": 18,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 18,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 671,
+          "candidatesAfterDeduplication": 408,
+          "tacticalCandidatesAssessed": 58,
+          "responseSequencesChecked": 110
+        }
+      },
+      "openingTurns": [
+        {
+          "halfTurn": 1,
+          "player": 1,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 12,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 13,
+                "r": 4
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 2,
+              "cardId": "royalGuard",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 2,
+          "player": 2,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "summon",
+              "handIndex": 0,
+              "cardId": "boneArcher",
+              "destination": {
+                "q": 2,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 4,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 3,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 3,
+                "r": 7
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 3,
+          "player": 1,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 14,
+                "r": 4
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 3,
+              "cardId": "royalGuard",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 10,
+                "r": 5
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 11,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 15,
+                "r": 2
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 4,
+          "player": 2,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-8",
+              "destination": {
+                "q": 2,
+                "r": 7
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 2,
+              "cardId": "skeletalInfantry",
+              "destination": {
+                "q": 2,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 4,
+                "r": 6
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 4,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 3,
+                "r": 5
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 5,
+          "player": 1,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-9",
+              "destination": {
+                "q": 13,
+                "r": 3
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 4,
+              "cardId": "windAdept",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 10,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 9,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 16,
+                "r": 2
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 13,
+                "r": 6
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 6,
+          "player": 2,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-10",
+              "destination": {
+                "q": 3,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 5,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 4,
+                "r": 5
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-8",
+              "destination": {
+                "q": 4,
+                "r": 6
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 4,
+                "r": 4
+              }
+            }
+          ]
+        }
+      ],
+      "logPath": "D:\\Github\\NidoCardBattle\\reports\\ai-v10\\matrix-2026-09-06T05-21-52-227Z\\swapped-0-games\\20270823-v9-v10.json"
+    },
+    {
+      "seed": 20270823,
+      "assignment": {
+        "1": "v10",
+        "2": "v9"
+      },
+      "playerFactions": {
+        "1": "human",
+        "2": "undead"
+      },
+      "winnerPlayer": 1,
+      "winnerPlanner": "v10",
+      "winnerFaction": "human",
+      "termination": "victory",
+      "halfTurns": 65,
+      "actionsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 130,
+        "v10": 235
+      },
+      "capturesByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 20,
+        "v10": 26
+      },
+      "killsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 23,
+        "v10": 21
+      },
+      "replayFailuresByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 0,
+        "v10": 0
+      },
+      "doctrineSelections": {},
+      "doctrineSelectionsByPlanner": {
+        "v2": {},
+        "v3": {},
+        "v4": {},
+        "v5": {},
+        "v6": {},
+        "v7": {},
+        "v8": {},
+        "v9": {},
+        "v10": {}
+      },
+      "searchTelemetryByPlanner": {
+        "v2": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v3": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v4": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v5": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v6": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v7": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v8": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v9": {
+          "plans": 32,
+          "strategyNodes": 12475,
+          "tacticalNodes": 44069,
+          "strategyStopReasons": {
+            "complete": 32,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 32,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 159,
+          "candidatesAfterDeduplication": 159,
+          "tacticalCandidatesAssessed": 159,
+          "responseSequencesChecked": 318
+        },
+        "v10": {
+          "plans": 33,
+          "strategyNodes": 81512,
+          "tacticalNodes": 30374,
+          "strategyStopReasons": {
+            "complete": 33,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 33,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 1212,
+          "candidatesAfterDeduplication": 790,
+          "tacticalCandidatesAssessed": 106,
+          "responseSequencesChecked": 206
+        }
+      },
+      "openingTurns": [
+        {
+          "halfTurn": 1,
+          "player": 1,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "summon",
+              "handIndex": 2,
+              "cardId": "royalGuard",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 13,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 13,
+                "r": 5
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 14,
+                "r": 4
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 2,
+          "player": 2,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "summon",
+              "handIndex": 3,
+              "cardId": "skeletalInfantry",
+              "destination": {
+                "q": 2,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 4,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 0,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 4,
+                "r": 6
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 3,
+          "player": 1,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 14,
+                "r": 5
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 3,
+              "cardId": "royalGuard",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 12,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 13,
+                "r": 6
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 11,
+                "r": 4
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 4,
+          "player": 2,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-8",
+              "destination": {
+                "q": 4,
+                "r": 9
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 0,
+              "cardId": "boneArcher",
+              "destination": {
+                "q": 2,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 5,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 5,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 0,
+                "r": 9
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 5,
+          "player": 1,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-9",
+              "destination": {
+                "q": 14,
+                "r": 4
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 4,
+              "cardId": "windAdept",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 11,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 9,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 13,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 12,
+                "r": 8
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 6,
+          "player": 2,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 6,
+                "r": 2
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-8",
+              "destination": {
+                "q": 6,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-10",
+              "destination": {
+                "q": 4,
+                "r": 9
+              }
+            }
+          ]
+        }
+      ],
+      "logPath": "D:\\Github\\NidoCardBattle\\reports\\ai-v10\\matrix-2026-09-06T05-21-52-227Z\\swapped-0-games\\20270823-v10-v9.json"
+    },
+    {
+      "seed": 2674706584,
+      "assignment": {
+        "1": "v9",
+        "2": "v10"
+      },
+      "playerFactions": {
+        "1": "human",
+        "2": "undead"
+      },
+      "winnerPlayer": 2,
+      "winnerPlanner": "v10",
+      "winnerFaction": "undead",
+      "termination": "victory",
+      "halfTurns": 40,
+      "actionsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 64,
+        "v10": 147
+      },
+      "capturesByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 8,
+        "v10": 12
+      },
+      "killsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 10,
+        "v10": 12
+      },
+      "replayFailuresByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 0,
+        "v10": 0
+      },
+      "doctrineSelections": {},
+      "doctrineSelectionsByPlanner": {
+        "v2": {},
+        "v3": {},
+        "v4": {},
+        "v5": {},
+        "v6": {},
+        "v7": {},
+        "v8": {},
+        "v9": {},
+        "v10": {}
+      },
+      "searchTelemetryByPlanner": {
+        "v2": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v3": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v4": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v5": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v6": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v7": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v8": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v9": {
+          "plans": 20,
+          "strategyNodes": 8034,
+          "tacticalNodes": 26354,
+          "strategyStopReasons": {
+            "complete": 20,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 20,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 100,
+          "candidatesAfterDeduplication": 100,
+          "tacticalCandidatesAssessed": 100,
+          "responseSequencesChecked": 200
+        },
+        "v10": {
+          "plans": 20,
+          "strategyNodes": 51936,
+          "tacticalNodes": 15629,
+          "strategyStopReasons": {
+            "complete": 20,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 20,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 741,
+          "candidatesAfterDeduplication": 499,
+          "tacticalCandidatesAssessed": 64,
+          "responseSequencesChecked": 122
+        }
+      },
+      "openingTurns": [
+        {
+          "halfTurn": 1,
+          "player": 1,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 13,
+                "r": 4
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 4,
+              "cardId": "windAdept",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 13,
+                "r": 6
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 16,
+                "r": 6
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 2,
+          "player": 2,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 3,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 4,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 3,
+                "r": 8
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 3,
+          "player": 1,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 12,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 12,
+                "r": 8
+              }
+            },
+            {
+              "kind": "displace",
+              "unitId": "unit-7",
+              "targetId": "unit-3",
+              "destination": {
+                "q": 11,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 10,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 15,
+                "r": 7
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 4,
+          "player": 2,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "summon",
+              "handIndex": 0,
+              "cardId": "wraith",
+              "destination": {
+                "q": 2,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 4,
+                "r": 5
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 4,
+                "r": 6
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 3,
+                "r": 7
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 5,
+          "player": 1,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "summon",
+              "handIndex": 5,
+              "cardId": "royalGuard",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 11,
+                "r": 10
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 8,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 10,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 14,
+                "r": 5
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 6,
+          "player": 2,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-8",
+              "destination": {
+                "q": 6,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 5,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 5,
+                "r": 4
+              }
+            },
+            {
+              "kind": "attack",
+              "unitId": "unit-6",
+              "targetId": "unit-3"
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 4,
+                "r": 5
+              }
+            }
+          ]
+        }
+      ],
+      "logPath": "D:\\Github\\NidoCardBattle\\reports\\ai-v10\\matrix-2026-09-06T05-21-52-227Z\\swapped-0-games\\2674706584-v9-v10.json"
+    },
+    {
+      "seed": 2674706584,
+      "assignment": {
+        "1": "v10",
+        "2": "v9"
+      },
+      "playerFactions": {
+        "1": "human",
+        "2": "undead"
+      },
+      "winnerPlayer": 1,
+      "winnerPlanner": "v10",
+      "winnerFaction": "human",
+      "termination": "victory",
+      "halfTurns": 37,
+      "actionsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 43,
+        "v10": 145
+      },
+      "capturesByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 5,
+        "v10": 11
+      },
+      "killsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 7,
+        "v10": 10
+      },
+      "replayFailuresByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 0,
+        "v10": 0
+      },
+      "doctrineSelections": {},
+      "doctrineSelectionsByPlanner": {
+        "v2": {},
+        "v3": {},
+        "v4": {},
+        "v5": {},
+        "v6": {},
+        "v7": {},
+        "v8": {},
+        "v9": {},
+        "v10": {}
+      },
+      "searchTelemetryByPlanner": {
+        "v2": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v3": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v4": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v5": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v6": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v7": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v8": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v9": {
+          "plans": 18,
+          "strategyNodes": 5722,
+          "tacticalNodes": 22529,
+          "strategyStopReasons": {
+            "complete": 18,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 18,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 90,
+          "candidatesAfterDeduplication": 90,
+          "tacticalCandidatesAssessed": 90,
+          "responseSequencesChecked": 180
+        },
+        "v10": {
+          "plans": 19,
+          "strategyNodes": 46902,
+          "tacticalNodes": 13489,
+          "strategyStopReasons": {
+            "complete": 19,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 19,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 699,
+          "candidatesAfterDeduplication": 428,
+          "tacticalCandidatesAssessed": 62,
+          "responseSequencesChecked": 118
+        }
+      },
+      "openingTurns": [
+        {
+          "halfTurn": 1,
+          "player": 1,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "summon",
+              "handIndex": 2,
+              "cardId": "longbowRanger",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 13,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 13,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 13,
+                "r": 5
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 2,
+          "player": 2,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 4,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 4,
+                "r": 6
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 3,
+          "player": 1,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 14,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 11,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 12,
+                "r": 5
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 12,
+                "r": 7
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 4,
+          "player": 2,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "summon",
+              "handIndex": 0,
+              "cardId": "wraith",
+              "destination": {
+                "q": 2,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 5,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 5,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 0,
+                "r": 8
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 5,
+          "player": 1,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 11,
+                "r": 8
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 5,
+              "cardId": "royalGuard",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 9,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 12,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 13,
+                "r": 6
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 6,
+          "player": 2,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 6,
+                "r": 2
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-8",
+              "destination": {
+                "q": 6,
+                "r": 9
+              }
+            }
+          ]
+        }
+      ],
+      "logPath": "D:\\Github\\NidoCardBattle\\reports\\ai-v10\\matrix-2026-09-06T05-21-52-227Z\\swapped-0-games\\2674706584-v10-v9.json"
+    },
+    {
+      "seed": 5329142345,
+      "assignment": {
+        "1": "v9",
+        "2": "v10"
+      },
+      "playerFactions": {
+        "1": "human",
+        "2": "undead"
+      },
+      "winnerPlayer": 2,
+      "winnerPlanner": "v10",
+      "winnerFaction": "undead",
+      "termination": "victory",
+      "halfTurns": 48,
+      "actionsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 97,
+        "v10": 202
+      },
+      "capturesByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 9,
+        "v10": 12
+      },
+      "killsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 10,
+        "v10": 20
+      },
+      "replayFailuresByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 0,
+        "v10": 0
+      },
+      "doctrineSelections": {},
+      "doctrineSelectionsByPlanner": {
+        "v2": {},
+        "v3": {},
+        "v4": {},
+        "v5": {},
+        "v6": {},
+        "v7": {},
+        "v8": {},
+        "v9": {},
+        "v10": {}
+      },
+      "searchTelemetryByPlanner": {
+        "v2": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v3": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v4": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v5": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v6": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v7": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v8": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v9": {
+          "plans": 24,
+          "strategyNodes": 12912,
+          "tacticalNodes": 35207,
+          "strategyStopReasons": {
+            "complete": 24,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 24,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 120,
+          "candidatesAfterDeduplication": 120,
+          "tacticalCandidatesAssessed": 120,
+          "responseSequencesChecked": 240
+        },
+        "v10": {
+          "plans": 24,
+          "strategyNodes": 61149,
+          "tacticalNodes": 24100,
+          "strategyStopReasons": {
+            "complete": 24,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 24,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 874,
+          "candidatesAfterDeduplication": 566,
+          "tacticalCandidatesAssessed": 78,
+          "responseSequencesChecked": 152
+        }
+      },
+      "openingTurns": [
+        {
+          "halfTurn": 1,
+          "player": 1,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 13,
+                "r": 4
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 0,
+              "cardId": "royalGuard",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 12,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 15,
+                "r": 2
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 2,
+          "player": 2,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "summon",
+              "handIndex": 0,
+              "cardId": "boneArcher",
+              "destination": {
+                "q": 2,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 4,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 3,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 3,
+                "r": 7
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 3,
+          "player": 1,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 14,
+                "r": 4
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 1,
+              "cardId": "royalGuard",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 16,
+                "r": 2
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 11,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 10,
+                "r": 3
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 4,
+          "player": 2,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-8",
+              "destination": {
+                "q": 2,
+                "r": 7
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 1,
+              "cardId": "skeletalInfantry",
+              "destination": {
+                "q": 2,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 4,
+                "r": 6
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 4,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 3,
+                "r": 5
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 5,
+          "player": 1,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-9",
+              "destination": {
+                "q": 13,
+                "r": 3
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 2,
+              "cardId": "windAdept",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 13,
+                "r": 6
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 16,
+                "r": 1
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 9,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 10,
+                "r": 6
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 6,
+          "player": 2,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-10",
+              "destination": {
+                "q": 3,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 5,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 4,
+                "r": 5
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-8",
+              "destination": {
+                "q": 4,
+                "r": 6
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 4,
+                "r": 4
+              }
+            }
+          ]
+        }
+      ],
+      "logPath": "D:\\Github\\NidoCardBattle\\reports\\ai-v10\\matrix-2026-09-06T05-21-52-227Z\\swapped-0-games\\5329142345-v9-v10.json"
+    },
+    {
+      "seed": 5329142345,
+      "assignment": {
+        "1": "v10",
+        "2": "v9"
+      },
+      "playerFactions": {
+        "1": "human",
+        "2": "undead"
+      },
+      "winnerPlayer": 1,
+      "winnerPlanner": "v10",
+      "winnerFaction": "human",
+      "termination": "victory",
+      "halfTurns": 45,
+      "actionsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 91,
+        "v10": 183
+      },
+      "capturesByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 12,
+        "v10": 18
+      },
+      "killsByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 15,
+        "v10": 14
+      },
+      "replayFailuresByPlanner": {
+        "v2": 0,
+        "v3": 0,
+        "v4": 0,
+        "v5": 0,
+        "v6": 0,
+        "v7": 0,
+        "v8": 0,
+        "v9": 0,
+        "v10": 0
+      },
+      "doctrineSelections": {},
+      "doctrineSelectionsByPlanner": {
+        "v2": {},
+        "v3": {},
+        "v4": {},
+        "v5": {},
+        "v6": {},
+        "v7": {},
+        "v8": {},
+        "v9": {},
+        "v10": {}
+      },
+      "searchTelemetryByPlanner": {
+        "v2": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v3": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v4": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v5": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v6": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v7": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v8": {
+          "plans": 0,
+          "strategyNodes": 0,
+          "tacticalNodes": 0,
+          "strategyStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 0,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 0,
+          "candidatesAfterDeduplication": 0,
+          "tacticalCandidatesAssessed": 0,
+          "responseSequencesChecked": 0
+        },
+        "v9": {
+          "plans": 22,
+          "strategyNodes": 11690,
+          "tacticalNodes": 34975,
+          "strategyStopReasons": {
+            "complete": 22,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 22,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 110,
+          "candidatesAfterDeduplication": 110,
+          "tacticalCandidatesAssessed": 110,
+          "responseSequencesChecked": 220
+        },
+        "v10": {
+          "plans": 23,
+          "strategyNodes": 56032,
+          "tacticalNodes": 23103,
+          "strategyStopReasons": {
+            "complete": 23,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "tacticalStopReasons": {
+            "complete": 23,
+            "node-limit": 0,
+            "time-limit": 0
+          },
+          "candidatesGenerated": 836,
+          "candidatesAfterDeduplication": 573,
+          "tacticalCandidatesAssessed": 74,
+          "responseSequencesChecked": 144
+        }
+      },
+      "openingTurns": [
+        {
+          "halfTurn": 1,
+          "player": 1,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "summon",
+              "handIndex": 0,
+              "cardId": "royalGuard",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 13,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 13,
+                "r": 5
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 14,
+                "r": 4
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 2,
+          "player": 2,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "summon",
+              "handIndex": 2,
+              "cardId": "skeletalInfantry",
+              "destination": {
+                "q": 2,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 4,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 0,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 4,
+                "r": 6
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 3,
+          "player": 1,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 14,
+                "r": 5
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 1,
+              "cardId": "royalGuard",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 12,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 13,
+                "r": 6
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 11,
+                "r": 4
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 4,
+          "player": 2,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-8",
+              "destination": {
+                "q": 4,
+                "r": 9
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 0,
+              "cardId": "boneArcher",
+              "destination": {
+                "q": 2,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-6",
+              "destination": {
+                "q": 5,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 5,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-4",
+              "destination": {
+                "q": 0,
+                "r": 9
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 5,
+          "player": 1,
+          "planner": "v10",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-9",
+              "destination": {
+                "q": 14,
+                "r": 4
+              }
+            },
+            {
+              "kind": "summon",
+              "handIndex": 2,
+              "cardId": "windAdept",
+              "destination": {
+                "q": 15,
+                "r": 3
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-2",
+              "destination": {
+                "q": 11,
+                "r": 8
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-3",
+              "destination": {
+                "q": 9,
+                "r": 4
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-7",
+              "destination": {
+                "q": 13,
+                "r": 7
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-1",
+              "destination": {
+                "q": 12,
+                "r": 8
+              }
+            }
+          ]
+        },
+        {
+          "halfTurn": 6,
+          "player": 2,
+          "planner": "v9",
+          "actions": [
+            {
+              "kind": "move",
+              "unitId": "unit-5",
+              "destination": {
+                "q": 6,
+                "r": 2
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-8",
+              "destination": {
+                "q": 6,
+                "r": 9
+              }
+            },
+            {
+              "kind": "move",
+              "unitId": "unit-10",
+              "destination": {
+                "q": 4,
+                "r": 9
+              }
+            }
+          ]
+        }
+      ],
+      "logPath": "D:\\Github\\NidoCardBattle\\reports\\ai-v10\\matrix-2026-09-06T05-21-52-227Z\\swapped-0-games\\5329142345-v10-v9.json"
+    }
+  ],
+  "configuration": {
+    "pairs": 3,
+    "seed": 20270823,
+    "maxHalfTurns": 140,
+    "repetitionLimit": 4,
+    "swapStarts": true,
+    "aiOptionsByPlanner": {},
+    "aiOptions": {
+      "strategyMaxNodes": 7200,
+      "tacticalMaxNodes": 3000,
+      "strategyMaxPlanningMs": 60000,
+      "tacticalMaxPlanningMs": 60000
+    },
+    "plannerA": "v9",
+    "plannerB": "v10",
+    "clock": "nodes",
+    "sourceFingerprint": "5fe860a386872477"
+  },
+  "elapsedSeconds": 358.331
+}

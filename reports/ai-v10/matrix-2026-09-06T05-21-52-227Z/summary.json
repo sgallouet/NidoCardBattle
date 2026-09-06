@@ -1,0 +1,79 @@
+{
+  "games": 48,
+  "v10": {
+    "wins": 41,
+    "losses": 7,
+    "draws": 0
+  },
+  "cells": {
+    "v9/human/bottom-left": {
+      "games": 12,
+      "wins": 3,
+      "draws": 0,
+      "winPercent": 25,
+      "scorePercent": 25
+    },
+    "v10/undead/upper-right": {
+      "games": 12,
+      "wins": 9,
+      "draws": 0,
+      "winPercent": 75,
+      "scorePercent": 75
+    },
+    "v10/human/bottom-left": {
+      "games": 12,
+      "wins": 11,
+      "draws": 0,
+      "winPercent": 91.7,
+      "scorePercent": 91.7
+    },
+    "v9/undead/upper-right": {
+      "games": 12,
+      "wins": 1,
+      "draws": 0,
+      "winPercent": 8.3,
+      "scorePercent": 8.3
+    },
+    "v9/human/upper-right": {
+      "games": 12,
+      "wins": 1,
+      "draws": 0,
+      "winPercent": 8.3,
+      "scorePercent": 8.3
+    },
+    "v10/undead/bottom-left": {
+      "games": 12,
+      "wins": 11,
+      "draws": 0,
+      "winPercent": 91.7,
+      "scorePercent": 91.7
+    },
+    "v10/human/upper-right": {
+      "games": 12,
+      "wins": 10,
+      "draws": 0,
+      "winPercent": 83.3,
+      "scorePercent": 83.3
+    },
+    "v9/undead/bottom-left": {
+      "games": 12,
+      "wins": 2,
+      "draws": 0,
+      "winPercent": 16.7,
+      "scorePercent": 16.7
+    }
+  },
+  "weaknesses": {
+    "losses": 7,
+    "lostCommanderFirst": 7,
+    "lossesWithMoreCaptures": 1,
+    "lossesWithMoreKills": 2,
+    "commanderMovedBeforeDeath": 4,
+    "lossesWhileAheadOnSitesAtCommanderDeath": 1
+  },
+  "replayFailures": 0,
+  "timeLimits": 0,
+  "sourceFingerprint": "5fe860a386872477",
+  "caveat": "Fixed-node comparison. Humans always act first: faction and turn-order effects are confounded.",
+  "output": "D:\\Github\\NidoCardBattle\\reports\\ai-v10\\matrix-2026-09-06T05-21-52-227Z"
+}

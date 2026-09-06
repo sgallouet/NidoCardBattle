@@ -8,7 +8,7 @@ This file owns unit stats, activation, combat, movement, traits, abilities, fact
 - **UNS3** - Faction roster tables below define the target stats; the Implementation column shows whether the prototype currently matches the target and is not a second source of gameplay rules.
 
 ## Activation
-- **UNA1** - A unit may Move once and Attack once during its activation unless one of its Traits changes that sequence.
+- **UNA1** - A unit has one pre-action Move decision and one Attack or Ability during its activation unless one of its Traits changes that sequence. Until that unit attacks or uses its Ability/Spell, the player may revise its movement destination to any currently legal destination that was reachable from the position where that movement began; the revised destination replaces the previous movement rather than adding to it, and returning to the starting position fully cancels that movement.
 - **UNA2** - Movement must happen before the attack; either action may be skipped.
 - **UNA3** - An Exhausted unit cannot Move or Attack until its owner's next turn.
 

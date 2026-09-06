@@ -40,6 +40,10 @@ interface CombatPreview {
 
 interface ActionAura {
   graphics: Phaser.GameObjects.Graphics;
+  shimmer: Phaser.GameObjects.Graphics;
+  centerX: number;
+  centerY: number;
+  radius: number;
   phase: number;
 }
 
@@ -114,12 +118,23 @@ export class ActionReadabilityLayer {
   private readonly handleUpdate = (): void => {
     const seconds = this.scene.time.now / 1000;
 
-    // The readiness aurora is intentionally almost fixed. A tiny luminance breath keeps
-    // it feeling magical without making it look like a moving UI widget.
+    // Keep the aura anchored to the lower slice of the hex. Only its light intensity and
+    // one small travelling glint move, so readiness feels alive without the marker itself
+    // sliding around under the unit.
     for (const aura of this.actionAuras) {
-      if (!aura.graphics.active) continue;
-      const breath = 0.5 + Math.sin(seconds * 1.45 + aura.phase) * 0.5;
-      aura.graphics.setAlpha(0.91 + breath * 0.07);
+      if (!aura.graphics.active || !aura.shimmer.active) continue;
+      const breath = 0.5 + Math.sin(seconds * 1.7 + aura.phase) * 0.5;
+      aura.graphics.setAlpha(0.80 + breath * 0.18);
+
+      const sweep = (seconds * 0.20 + aura.phase / (Math.PI * 2)) % 1;
+      const angle = Phaser.Math.DegToRad(207 + sweep * 126);
+      aura.shimmer.setPosition(
+        aura.centerX + Math.cos(angle) * aura.radius,
+        aura.centerY + Math.sin(angle) * aura.radius,
+      );
+      const sparkle = 0.5 + Math.sin(seconds * 4.2 + aura.phase) * 0.5;
+      aura.shimmer.setAlpha(0.36 + sparkle * 0.54);
+      aura.shimmer.setScale(0.82 + sparkle * 0.24);
     }
 
     for (const badge of this.healthBadges) {
@@ -167,27 +182,52 @@ export class ActionReadabilityLayer {
   }
 
   /**
-   * A fixed aurora strip hugs roughly the bottom fifth of the hex. Blue means a genuine
-   * movement action remains; red means an attack/active ability remains. Reconsidering a
-   * previous move does not count as fresh movement and therefore never lights this blue.
+   * A fixed aurora crescent hugs roughly the bottom fifth of the hex. Movement always owns
+   * the full light-blue base so it remains immediately readable; when an action is also
+   * available, a smaller red inner crescent layers on top instead of splitting the blue cue.
    */
   private drawActionAura(unit: UnitState, canMove: boolean, canAct: boolean): void {
     const center = this.game.center(unit.coord);
     const graphics = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
     const y = center.y + 35;
 
-    if (canMove && canAct) {
-      this.drawAuroraBand(graphics, center.x - 17, y, 38, MOVE_COLOR, MOVE_HOT);
-      this.drawAuroraBand(graphics, center.x + 17, y, 38, ATTACK_COLOR, ATTACK_HOT);
-    } else if (canMove) {
-      this.drawAuroraBand(graphics, center.x, y, 70, MOVE_COLOR, MOVE_HOT);
-    } else if (canAct) {
-      this.drawAuroraBand(graphics, center.x, y, 70, ATTACK_COLOR, ATTACK_HOT);
+    if (canMove) {
+      this.drawAuroraBand(graphics, center.x, y, 74, MOVE_COLOR, MOVE_HOT, 1);
+    }
+    if (canAct) {
+      this.drawAuroraBand(
+        graphics,
+        center.x,
+        canMove ? y + 2 : y,
+        canMove ? 46 : 70,
+        ATTACK_COLOR,
+        ATTACK_HOT,
+        canMove ? 0.62 : 1,
+      );
     }
 
-    this.layer?.add(graphics);
+    // The moving glint follows the primary state cue: blue whenever movement remains,
+    // otherwise red. The crescent itself never travels across the tile.
+    const shimmerColor = canMove ? MOVE_HOT : ATTACK_HOT;
+    const shimmerWidth = canMove ? 74 : 70;
+    const shimmer = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    shimmer.fillStyle(shimmerColor, 0.12);
+    shimmer.fillCircle(0, 0, 6.5);
+    shimmer.fillStyle(shimmerColor, 0.34);
+    shimmer.fillCircle(0, 0, 3.4);
+    shimmer.fillStyle(0xffffff, 0.96);
+    shimmer.fillCircle(0, 0, 1.15);
+    shimmer.lineStyle(0.9, shimmerColor, 0.55);
+    shimmer.lineBetween(-4.8, 0, 4.8, 0);
+    shimmer.lineBetween(0, -3.8, 0, 3.8);
+
+    this.layer?.add([graphics, shimmer]);
     this.actionAuras.push({
       graphics,
+      shimmer,
+      centerX: center.x,
+      centerY: y + 3,
+      radius: shimmerWidth * 0.40,
       phase: [...unit.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) * 0.13,
     });
   }
@@ -199,26 +239,30 @@ export class ActionReadabilityLayer {
     width: number,
     color: number,
     hot: number,
+    intensity = 1,
   ): void {
-    // Broad low glow stays inside the lower slice of the tile instead of chasing the feet.
-    graphics.fillStyle(color, 0.055);
-    graphics.fillEllipse(x, y + 1, width, 15);
-    graphics.fillStyle(color, 0.09);
-    graphics.fillEllipse(x, y + 3, width * 0.82, 9);
+    // A luminous crescent rather than a progress bar: broad atmospheric hue, a crisp hot
+    // edge and a few short aurora tongues, all confined to the lower portion of the hex.
+    graphics.fillStyle(color, 0.085 * intensity);
+    graphics.fillEllipse(x, y + 1, width, 17);
+    graphics.fillStyle(color, 0.145 * intensity);
+    graphics.fillEllipse(x, y + 3, width * 0.82, 10);
+    graphics.fillStyle(hot, 0.045 * intensity);
+    graphics.fillEllipse(x, y + 2, width * 0.58, 6);
 
-    graphics.lineStyle(5.5, color, 0.12);
+    graphics.lineStyle(7, color, 0.14 * intensity);
     graphics.beginPath();
     graphics.arc(
       x,
       y + 4,
       width * 0.43,
-      Phaser.Math.DegToRad(205),
-      Phaser.Math.DegToRad(335),
+      Phaser.Math.DegToRad(203),
+      Phaser.Math.DegToRad(337),
       false,
     );
     graphics.strokePath();
 
-    graphics.lineStyle(1.7, hot, 0.62);
+    graphics.lineStyle(2.15, hot, 0.82 * intensity);
     graphics.beginPath();
     graphics.arc(
       x,
@@ -230,19 +274,31 @@ export class ActionReadabilityLayer {
     );
     graphics.strokePath();
 
-    // Sparse fixed wisps make the band read as light/aurora rather than a progress bar.
+    graphics.lineStyle(0.8, 0xffffff, 0.38 * intensity);
+    graphics.beginPath();
+    graphics.arc(
+      x,
+      y + 2.5,
+      width * 0.385,
+      Phaser.Math.DegToRad(223),
+      Phaser.Math.DegToRad(285),
+      false,
+    );
+    graphics.strokePath();
+
     const wispScale = width / 70;
     for (const [dx, height, alpha] of [
-      [-22, 7, 0.22],
-      [-8, 11, 0.30],
-      [8, 8, 0.24],
-      [22, 10, 0.27],
+      [-23, 5, 0.22],
+      [-11, 8, 0.27],
+      [2, 6, 0.20],
+      [15, 9, 0.25],
+      [25, 5, 0.18],
     ] as const) {
       const wx = x + dx * wispScale;
-      graphics.lineStyle(2.2, color, alpha);
-      graphics.lineBetween(wx, y + 5, wx + 1.5 * wispScale, y + 5 - height);
-      graphics.lineStyle(0.9, hot, alpha * 1.3);
-      graphics.lineBetween(wx + 0.5, y + 4, wx + 1.4 * wispScale, y + 6 - height);
+      graphics.lineStyle(2.1, color, alpha * intensity);
+      graphics.lineBetween(wx, y + 5, wx + 1.3 * wispScale, y + 5 - height);
+      graphics.lineStyle(0.85, hot, alpha * 1.45 * intensity);
+      graphics.lineBetween(wx + 0.4, y + 4, wx + 1.2 * wispScale, y + 6 - height);
     }
   }
 

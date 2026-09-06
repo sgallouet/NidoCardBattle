@@ -150,6 +150,7 @@ const beginTurn = (state: GameState, random: () => number): { villageHealed: boo
     unit.moved = false;
     unit.attacked = false;
     unit.movementSpent = 0;
+    delete unit.movementOrigin;
     unit.postAttackMoved = false;
     delete unit.pendingAdvance;
     unit.moveBonus = 0;
@@ -244,6 +245,7 @@ export const isStoppedByBlocking = (state: GameState, unit: UnitState, coord: Co
 interface MovementSearch {
   reachable: Map<string, number>;
   previous: Map<string, Coord>;
+  origin: Coord;
 }
 
 const availableAdvance = (state: GameState, unit: UnitState): Coord | undefined => {
@@ -257,16 +259,21 @@ const availableAdvance = (state: GameState, unit: UnitState): Coord | undefined 
 
 const canStartMovementPhase = (unit: UnitState): boolean => {
   if (unit.exhausted) return false;
-  const agile = unitDefinition(unit).traits.includes('AgileAssault');
-  if (!agile) return !unit.moved && !unit.attacked;
-  if (unit.attacked) return !unit.postAttackMoved;
-  return !unit.moved;
+  if (!unit.attacked) return true;
+  return unitDefinition(unit).traits.includes('AgileAssault') && !unit.postAttackMoved;
 };
 
 const searchMovement = (state: GameState, unitId: string): MovementSearch => {
   const unit = findUnit(state, unitId);
-  if (state.winner || !unit || unit.owner !== state.currentPlayer || isGraveLocked(state, unit.coord)) {
-    return { reachable: new Map(), previous: new Map() };
+  const fallbackOrigin = unit?.coord ?? { q: 0, r: 0 };
+  if (state.winner || !unit || unit.owner !== state.currentPlayer) {
+    return { reachable: new Map(), previous: new Map(), origin: fallbackOrigin };
+  }
+
+  const agilePostAttack = unit.attacked && unitDefinition(unit).traits.includes('AgileAssault');
+  const origin = agilePostAttack ? { ...unit.coord } : { ...(unit.movementOrigin ?? unit.coord) };
+  if (isGraveLocked(state, origin)) {
+    return { reachable: new Map(), previous: new Map(), origin };
   }
 
   const advance = availableAdvance(state, unit);
@@ -274,16 +281,14 @@ const searchMovement = (state: GameState, unitId: string): MovementSearch => {
     return advance ? {
       reachable: new Map([[coordKey(advance), 0]]),
       previous: new Map([[coordKey(advance), { ...unit.coord }]]),
-    } : { reachable: new Map(), previous: new Map() };
+      origin: { ...unit.coord },
+    } : { reachable: new Map(), previous: new Map(), origin };
   }
 
-  const reachable = new Map<string, number>([[coordKey(unit.coord), 0]]);
+  const reachable = new Map<string, number>([[coordKey(origin), 0]]);
   const previous = new Map<string, Coord>();
-  const queue: Array<{ coord: Coord; cost: number }> = [{ coord: unit.coord, cost: 0 }];
-  const agilePostAttack = unit.attacked && unitDefinition(unit).traits.includes('AgileAssault');
-  const moveRemaining = agilePostAttack
-    ? effectiveMove(unit)
-    : effectiveMove(unit) - (unit.movementSpent ?? 0);
+  const queue: Array<{ coord: Coord; cost: number }> = [{ coord: origin, cost: 0 }];
+  const moveRemaining = effectiveMove(unit);
 
   while (queue.length > 0) {
     queue.sort((a, b) => a.cost - b.cost);
@@ -310,7 +315,21 @@ const searchMovement = (state: GameState, unitId: string): MovementSearch => {
     reachable.set(coordKey(advance), 0);
     previous.set(coordKey(advance), { ...unit.coord });
   }
-  return { reachable, previous };
+  return { reachable, previous, origin };
+};
+
+const reconstructMovementPath = (
+  movement: MovementSearch,
+  destination: Coord,
+): Coord[] => {
+  const path = [{ ...destination }];
+  while (!sameCoord(path[path.length - 1], movement.origin)) {
+    const previous = movement.previous.get(coordKey(path[path.length - 1]));
+    if (!previous) throw new Error('Reachable movement destination is missing its resolved path.');
+    path.push({ ...previous });
+  }
+  path.reverse();
+  return path;
 };
 
 export const getReachableCoords = (state: GameState, unitId: string): Map<string, number> => {
@@ -336,19 +355,32 @@ export const moveUnit = (state: GameState, unitId: string, destination: Coord): 
     return { ok: false, message: 'That hex is not reachable.' };
   }
 
-  const path = [{ ...destination }];
-  while (!sameCoord(path[path.length - 1], start)) {
-    const previous = movement.previous.get(coordKey(path[path.length - 1]));
-    if (!previous) throw new Error('Reachable movement destination is missing its resolved path.');
-    path.push({ ...previous });
+  const destinationPath = reconstructMovementPath(movement, destination);
+  const agilePostAttack = unit.attacked && unitDefinition(unit).traits.includes('AgileAssault');
+  const reconsidering = !unit.attacked && unit.movementOrigin !== undefined;
+  let path = destinationPath;
+  if (reconsidering && !sameCoord(start, movement.origin)) {
+    const currentPath = reconstructMovementPath(movement, start);
+    path = [...currentPath.reverse(), ...destinationPath.slice(1)];
   }
-  path.reverse();
 
   unit.coord = { ...destination };
   delete unit.pendingAdvance;
-  unit.movementSpent = (unit.movementSpent ?? 0) + spent;
-  if (unit.attacked && unitDefinition(unit).traits.includes('AgileAssault')) unit.postAttackMoved = true;
-  else unit.moved = true;
+  if (agilePostAttack) {
+    unit.movementSpent = (unit.movementSpent ?? 0) + spent;
+    unit.postAttackMoved = true;
+  } else {
+    const original = unit.movementOrigin ?? start;
+    if (sameCoord(destination, original)) {
+      unit.moved = false;
+      unit.movementSpent = 0;
+      delete unit.movementOrigin;
+    } else {
+      unit.movementOrigin = { ...original };
+      unit.moved = true;
+      unit.movementSpent = spent;
+    }
+  }
   return { ok: true, message: `${unitDefinition(unit).name} moved.`, path };
 };
 

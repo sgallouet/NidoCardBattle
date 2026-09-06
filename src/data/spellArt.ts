@@ -20,7 +20,7 @@ export const SPELL_UI: Record<SpellUiId, SpellUiDefinition> = {
   Curse: {
     id: 'Curse',
     name: 'Curse',
-    description: '1 damage at end of turn for 3 turns.',
+    description: 'Curse one enemy for 1 damage at the end of its next 3 turns. Each Necromancer can maintain only one Curse at a time.',
     art: curse,
     accent: '#b76cff',
   },
@@ -48,14 +48,14 @@ export const SPELL_UI: Record<SpellUiId, SpellUiDefinition> = {
   Thunder: {
     id: 'Thunder',
     name: 'Thunder',
-    description: 'Deal 1 damage on a chosen hex and every adjacent hex, allies included.',
+    description: 'Strike one enemy for 1 damage, then chain through every connected adjacent enemy for 1 damage each.',
     art: thunder,
     accent: '#79c8ff',
   },
   InvokeBeast: {
     id: 'InvokeBeast',
     name: 'Invoke Beast',
-    description: 'Summon an Invoked Beast on a free adjacent hex.',
+    description: 'Summon an Invoked Beast on a free adjacent hex. This Mage can have only one living Beast at a time.',
     art: invokeBeast,
     accent: '#ffd36f',
   },

@@ -1,0 +1,10 @@
+.tile-insight,
+.tile-insight * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tile-insight ::selection {
+  color: inherit;
+  background: transparent;
+}

@@ -505,9 +505,12 @@ export class AiGameScene extends GameScene {
 
   private reportAiFailure(error: unknown): void {
     this.stopAiHeartbeat();
+    const scene = this as unknown as GameSceneInternals;
     const message = error instanceof Error ? error.message : String(error);
+    scene.message = `AI failed: ${message}`;
     setDebugStatus(`AI failed during planning/replay after ${elapsedSince(this.aiStartedAt)}: ${message}`, 'error');
     console.error('AI turn failed.', error);
+    this.finishAiUi(scene);
   }
 
   private hideAiHand(): void {

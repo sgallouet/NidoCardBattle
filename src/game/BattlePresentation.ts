@@ -1,30 +1,14 @@
 import type Phaser from 'phaser';
 import type { Coord, GameState, PlayerId, VictoryCountdown } from '../data/types';
+import {
+  buildBattleResultPresentation,
+  keepAnchorsFromGameState,
+  type ArmyResultPresentation,
+  type StartingKeepAnchor,
+} from './BattleResultPresentation';
 import './BattlePresentation.css';
 
-export const describeBattleFinale = (
-  winner: PlayerId,
-  localPlayer: PlayerId,
-  cause: 'elimination' | 'countdown',
-): { localVictory: boolean; title: string; subtitle: string } => {
-  const localVictory = winner === localPlayer;
-  if (cause === 'elimination') {
-    return {
-      localVictory,
-      title: localVictory ? 'Victory' : 'Defeat',
-      subtitle: localVictory
-        ? 'The opposing army was eliminated.'
-        : 'Your army was eliminated.',
-    };
-  }
-  return {
-    localVictory,
-    title: localVictory ? 'Victory' : 'Defeat',
-    subtitle: localVictory
-      ? 'The enemy commander fell and the three-turn survival hold is complete.'
-      : 'Your commander fell. The enemy survived the three-turn hold.',
-  };
-};
+export { describeBattleFinale } from './BattleResultPresentation';
 
 interface Snapshot {
   currentPlayer: PlayerId;
@@ -69,13 +53,16 @@ export class BattlePresentation {
   private finaleWorldFx: Phaser.GameObjects.Graphics[] = [];
   private queue: BannerMessage[] = [];
   private playing = false;
+  private readonly startingKeepAnchors: StartingKeepAnchor[];
 
   constructor(
     private readonly scene: Phaser.Scene,
     initialState: GameState,
     private readonly center?: (coord: Coord) => Phaser.Math.Vector2,
+    options?: { startingKeepAnchors?: StartingKeepAnchor[] },
   ) {
     this.previous = snapshot(initialState);
+    this.startingKeepAnchors = options?.startingKeepAnchors ?? keepAnchorsFromGameState(initialState);
     this.scene.events.once('shutdown', () => this.destroy());
   }
 
@@ -124,15 +111,14 @@ export class BattlePresentation {
 
     const winner = next.winner;
     const defeated: PlayerId = winner === 1 ? 2 : 1;
+    const result = buildBattleResultPresentation(state, 1, this.startingKeepAnchors);
     const winnerFaction = state.players[winner].faction;
-    const eliminated = next.unitsRemaining[defeated] === 0;
-    const { localVictory, title: titleText, subtitle: subtitleText } = describeBattleFinale(
-      winner,
-      1,
-      eliminated ? 'elimination' : 'countdown',
-    );
-    const accent = winnerFaction === 'undead' ? '#b56cff' : '#67d9ff';
-    const light = winnerFaction === 'undead' ? '#f0d9ff' : '#ddf8ff';
+    const accent = result.localVictory
+      ? (winnerFaction === 'undead' ? '#c48dff' : '#7be0ff')
+      : (winnerFaction === 'undead' ? '#8a6aa8' : '#6a8896');
+    const light = result.localVictory
+      ? (winnerFaction === 'undead' ? '#f3e4ff' : '#e7fbff')
+      : (winnerFaction === 'undead' ? '#d9cce4' : '#d5dde2');
     const focusCoord = next.commanderCoords[winner]
       ?? this.previous.commanderCoords[defeated]
       ?? next.commanderCoords[defeated];
@@ -147,16 +133,25 @@ export class BattlePresentation {
     }
 
     const finale = document.createElement('div');
-    finale.className = `battle-finale ${localVictory ? 'is-victory' : 'is-defeat'} faction-${winnerFaction}`;
+    finale.className = `battle-finale ${result.localVictory ? 'is-victory' : 'is-defeat'} faction-${winnerFaction}`;
     finale.style.setProperty('--finale-accent', accent);
     finale.style.setProperty('--finale-light', light);
     finale.setAttribute('role', 'dialog');
     finale.setAttribute('aria-modal', 'true');
-    finale.setAttribute('aria-label', localVictory ? 'Victory' : 'Defeat');
+    finale.setAttribute('aria-label', result.localVictory ? 'Victory' : 'Defeat');
 
     const vignette = document.createElement('div');
     vignette.className = 'battle-finale-vignette';
     vignette.setAttribute('aria-hidden', 'true');
+
+    const rays = document.createElement('div');
+    rays.className = 'battle-finale-rays';
+    rays.setAttribute('aria-hidden', 'true');
+
+    const sparks = document.createElement('div');
+    sparks.className = 'battle-finale-sparks';
+    sparks.setAttribute('aria-hidden', 'true');
+    sparks.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i>';
 
     const panel = document.createElement('section');
     panel.className = 'battle-finale-panel';
@@ -168,13 +163,13 @@ export class BattlePresentation {
 
     const eyebrow = document.createElement('span');
     eyebrow.className = 'battle-finale-eyebrow';
-    eyebrow.textContent = `${winnerFaction === 'undead' ? 'Undead' : 'Human'} ${localVictory ? 'triumph' : 'victory'}`;
+    eyebrow.textContent = result.factionSubtitle;
 
     const title = document.createElement('h2');
-    title.textContent = titleText;
+    title.textContent = result.title;
 
     const subtitle = document.createElement('p');
-    subtitle.textContent = subtitleText;
+    subtitle.textContent = result.subtitle;
 
     const actions = document.createElement('div');
     actions.className = 'battle-finale-actions';
@@ -196,9 +191,27 @@ export class BattlePresentation {
       existingNewGame?.click();
     });
 
-    actions.append(download, playAgain);
+    const armyImage = (side: 'left' | 'right', army: ArmyResultPresentation): HTMLImageElement => {
+      const image = document.createElement('img');
+      image.className = `battle-finale-army is-${side} is-${army.outcome}`;
+      image.src = army.artwork;
+      image.alt = '';
+      image.draggable = false;
+      image.setAttribute('aria-hidden', 'true');
+      return image;
+    };
+
+    actions.append(playAgain, download);
     panel.append(crest, eyebrow, title, subtitle, actions);
-    finale.append(vignette, panel);
+    finale.append(
+      vignette,
+      rays,
+      sparks,
+      armyImage('left', result.left),
+      armyImage('right', result.right),
+      panel,
+    );
+    document.querySelector<HTMLElement>('#victory-log-actions')?.setAttribute('hidden', '');
     app.append(finale);
     this.finale = finale;
 

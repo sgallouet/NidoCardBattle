@@ -5,6 +5,7 @@ import { AbilityVfxAnimator, type AbilityVfxEvent } from './AbilityVfxAnimator';
 import { ActionFxAnimator } from './ActionFxAnimator';
 import { applyAiAction, type AiAction } from './ai';
 import { BattlePresentation } from './BattlePresentation';
+import { keepAnchorsFromCompactSites, keepAnchorsFromGameState } from './BattleResultPresentation';
 import {
   previewAssistPresentations,
   previewPrimaryTargetDamage,
@@ -73,7 +74,13 @@ export class AnimatedPrototypeGameScene extends PrototypeGameScene {
     this.motion = new UnitMotionAnimator(this, () => game.boardLayer);
     this.actionFx = new ActionFxAnimator(this, () => game.boardLayer, game.center.bind(this));
     this.abilityVfx = new AbilityVfxAnimator(this, () => game.boardLayer, game.center.bind(this));
-    this.battlePresentation = new BattlePresentation(this, game.state);
+    let startingKeepAnchors = keepAnchorsFromGameState(game.state);
+    try {
+      startingKeepAnchors = keepAnchorsFromCompactSites(this.createLiveBattleLogDraft().initial.sites);
+    } catch {
+      // Prototype scenes without a live battle log still use the current Home Keep owners.
+    }
+    this.battlePresentation = new BattlePresentation(this, game.state, game.center, { startingKeepAnchors });
 
     game.renderAll = () => {
       originalRenderAll();

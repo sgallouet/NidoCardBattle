@@ -685,6 +685,10 @@ button { font: inherit; }
 
 .victory-log-actions[hidden] { display: none; }
 
+#app:has(.battle-finale) #victory-log-actions {
+  display: none !important;
+}
+
 .battle-log-download {
   padding: 9px 15px;
   border-color: #d8b967;

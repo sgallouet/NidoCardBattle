@@ -2043,7 +2043,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     const status = document.querySelector<HTMLElement>('#status');
     if (status) status.textContent = this.message;
     const victoryLogActions = document.querySelector<HTMLElement>('#victory-log-actions');
-    if (victoryLogActions) victoryLogActions.hidden = this.state.winner === null;
+    if (victoryLogActions) victoryLogActions.hidden = true;
     const cancelButton = document.querySelector<HTMLButtonElement>('#cancel-button');
     if (cancelButton) cancelButton.disabled = !selected || this.animationInProgress;
     this.renderHand();

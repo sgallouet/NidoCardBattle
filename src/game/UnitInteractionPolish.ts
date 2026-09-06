@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { Coord, GameState, PlayerId } from '../data/types';
+import type { Coord, GameState } from '../data/types';
 
 interface RenderedUnitView {
   container: Phaser.GameObjects.Container;
@@ -14,7 +14,6 @@ export interface UnitInteractionSceneInternals {
   center: (coord: Coord) => Phaser.Math.Vector2;
 }
 
-const PLAYER_COLORS: Record<PlayerId, number> = { 1: 0x55b9f3, 2: 0xf05b67 };
 const HOVER_RADIUS = 44;
 const HOVER_SCALE = 1.025;
 const SELECTED_SCALE = 1.05;
@@ -22,7 +21,6 @@ const SELECTED_SCALE = 1.05;
 /** Presentation-only tactile response for battlefield units. */
 export class UnitInteractionPolish {
   private hoveredUnitId: string | null = null;
-  private haloObjects: Phaser.GameObjects.Graphics[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -36,13 +34,11 @@ export class UnitInteractionPolish {
   }
 
   render(): void {
-    this.clearHalos();
     if (this.game.animationInProgress) return;
 
     for (const [unitId, view] of this.game.renderedUnits) {
       view.container.setScale(this.targetScale(unitId));
     }
-    this.renderHalos();
   }
 
   private readonly handlePointerMove = (pointer: Phaser.Input.Pointer): void => {
@@ -52,16 +48,12 @@ export class UnitInteractionPolish {
     if (next === this.hoveredUnitId) return;
     this.hoveredUnitId = next;
     this.animateUnitScales();
-    this.clearHalos();
-    this.renderHalos();
   };
 
   private readonly handleGameOut = (): void => {
     if (this.hoveredUnitId === null) return;
     this.hoveredUnitId = null;
     this.animateUnitScales();
-    this.clearHalos();
-    this.renderHalos();
   };
 
   private unitAtWorldPoint(x: number, y: number): string | null {
@@ -96,41 +88,9 @@ export class UnitInteractionPolish {
     }
   }
 
-  private renderHalos(): void {
-    const board = this.game.boardLayer;
-    const unitId = this.hoveredUnitId;
-    if (!board || !unitId || this.game.animationInProgress) return;
-
-    // Selection is already communicated by the hex selection FX. Keep this layer
-    // hover-only so selecting a unit never adds a second yellow ring at its feet.
-    if (unitId === this.game.selectedUnitId) return;
-
-    const unit = this.game.state.units.find((candidate) => candidate.id === unitId);
-    const view = this.game.renderedUnits.get(unitId);
-    if (!unit || !view) return;
-
-    const center = this.game.center(unit.coord);
-    const color = PLAYER_COLORS[unit.owner];
-    const halo = this.scene.add.graphics();
-    halo.fillStyle(color, 0.06);
-    halo.fillEllipse(center.x, center.y + 21, 62, 19);
-    halo.lineStyle(1.5, color, 0.48);
-    halo.strokeEllipse(center.x, center.y + 21, 64, 21);
-
-    const unitIndex = board.getIndex(view.container);
-    board.addAt(halo, unitIndex >= 0 ? unitIndex : board.list.length);
-    this.haloObjects.push(halo);
-  }
-
-  private clearHalos(): void {
-    for (const halo of this.haloObjects) halo.destroy();
-    this.haloObjects = [];
-  }
-
   private destroy(): void {
     this.scene.input.off('pointermove', this.handlePointerMove);
     this.scene.input.off('gameout', this.handleGameOut);
-    this.clearHalos();
     this.hoveredUnitId = null;
   }
 }

@@ -62,6 +62,7 @@ export interface UnitState {
   moved: boolean;
   attacked: boolean;
   movementSpent?: number;
+  movementOrigin?: Coord;
   postAttackMoved?: boolean;
   pendingAdvance?: Coord;
   moveBonus?: number;

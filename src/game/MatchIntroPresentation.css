@@ -97,6 +97,7 @@
 
 #app.match-intro-active .hand-dock,
 #app.match-intro-active .mana-count,
+#app.match-intro-active .mana-delivery-schedule,
 #app.match-intro-active .zoom-controls,
 #app.match-intro-active .unit-inspector,
 #app.match-intro-active .spell-dock,
@@ -104,11 +105,21 @@
 #app.match-intro-active .fullscreen-button,
 #app.match-intro-active .debug-status,
 #app.match-intro-active .debug-map-toggle,
-#app.match-intro-active .selection-fx-toggle {
+#app.match-intro-active .selection-fx-toggle,
+#app.match-intro-active .victory-objective-hud,
+#app.match-intro-active .capture-hint,
+#app.match-intro-active .first-turn-guide,
+#app.match-intro-active .first-turn-guide-beacon {
   opacity: 0;
   pointer-events: none;
   transform: translateY(18px);
   transition: opacity 320ms ease, transform 420ms cubic-bezier(.16,.78,.22,1);
+}
+
+/* The battlefield reveal is now the tutorial. Keep explanatory copy off the top
+   of the screen so the camera, unit summons, and confrontation animation read cleanly. */
+#app.match-intro-active .match-intro-guide {
+  display: none;
 }
 
 #app.match-intro-active .tile-insight { display: none; }

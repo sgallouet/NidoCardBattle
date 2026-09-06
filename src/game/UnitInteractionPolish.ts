@@ -98,34 +98,28 @@ export class UnitInteractionPolish {
 
   private renderHalos(): void {
     const board = this.game.boardLayer;
-    if (!board || this.game.animationInProgress) return;
+    const unitId = this.hoveredUnitId;
+    if (!board || !unitId || this.game.animationInProgress) return;
 
-    const ids = new Set<string>();
-    if (this.hoveredUnitId) ids.add(this.hoveredUnitId);
-    if (this.game.selectedUnitId) ids.add(this.game.selectedUnitId);
+    // Selection is already communicated by the hex selection FX. Keep this layer
+    // hover-only so selecting a unit never adds a second yellow ring at its feet.
+    if (unitId === this.game.selectedUnitId) return;
 
-    for (const unitId of ids) {
-      const unit = this.game.state.units.find((candidate) => candidate.id === unitId);
-      const view = this.game.renderedUnits.get(unitId);
-      if (!unit || !view) continue;
-      const center = this.game.center(unit.coord);
-      const selected = unitId === this.game.selectedUnitId;
-      const color = PLAYER_COLORS[unit.owner];
-      const halo = this.scene.add.graphics();
+    const unit = this.game.state.units.find((candidate) => candidate.id === unitId);
+    const view = this.game.renderedUnits.get(unitId);
+    if (!unit || !view) return;
 
-      halo.fillStyle(color, selected ? 0.11 : 0.06);
-      halo.fillEllipse(center.x, center.y + 21, selected ? 70 : 62, selected ? 23 : 19);
-      halo.lineStyle(selected ? 2.5 : 1.5, selected ? 0xffe5a3 : color, selected ? 0.82 : 0.48);
-      halo.strokeEllipse(center.x, center.y + 21, selected ? 72 : 64, selected ? 25 : 21);
-      if (selected) {
-        halo.lineStyle(1, color, 0.5);
-        halo.strokeEllipse(center.x, center.y + 21, 82, 29);
-      }
+    const center = this.game.center(unit.coord);
+    const color = PLAYER_COLORS[unit.owner];
+    const halo = this.scene.add.graphics();
+    halo.fillStyle(color, 0.06);
+    halo.fillEllipse(center.x, center.y + 21, 62, 19);
+    halo.lineStyle(1.5, color, 0.48);
+    halo.strokeEllipse(center.x, center.y + 21, 64, 21);
 
-      const unitIndex = board.getIndex(view.container);
-      board.addAt(halo, unitIndex >= 0 ? unitIndex : board.list.length);
-      this.haloObjects.push(halo);
-    }
+    const unitIndex = board.getIndex(view.container);
+    board.addAt(halo, unitIndex >= 0 ? unitIndex : board.list.length);
+    this.haloObjects.push(halo);
   }
 
   private clearHalos(): void {

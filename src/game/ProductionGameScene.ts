@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { Coord } from '../data/types';
+import type { Coord, GameState } from '../data/types';
 import type { AiPlan } from './ai';
 import { LIVE_AI_OPTIONS, planLiveAiTurn } from './aiLive';
 import {
@@ -42,7 +42,15 @@ import {
   MatchIntroPresentation,
   type MatchIntroSceneInternals,
 } from './MatchIntroPresentation';
-import { ManaPresentation, type ManaPresentationSceneInternals } from './ManaPresentation';
+import {
+  getManaDeliverySchedule,
+  ManaPresentation,
+  type ManaPresentationSceneInternals,
+} from './ManaPresentation';
+import {
+  reconsiderationPreviewCoordPaths,
+  shortestReconsiderationPresentationPath,
+} from './MovementReconsiderationPresentation';
 
 interface ProductionSceneInternals extends
   CelShadedRiverSceneInternals,
@@ -60,6 +68,8 @@ interface ProductionSceneInternals extends
   boardLayer?: Phaser.GameObjects.Container;
   center: (coord: Coord) => Phaser.Math.Vector2;
   hexPoints: (center: Phaser.Math.Vector2, inset?: number) => Phaser.Geom.Point[];
+  animateMovement: (unitId: string, path: Coord[]) => Promise<void>;
+  movementHighlightPaths: () => Map<string, Phaser.Math.Vector2[]>;
 }
 
 interface AiFallbackInternals {
@@ -71,6 +81,23 @@ interface AiFallbackInternals {
   playAiPlan: (scene: unknown, plan: AiPlan) => Promise<void>;
   reportAiFailure: (error: unknown) => void;
 }
+
+const compactManaSchedule = (state: GameState): void => {
+  const element = document.querySelector<HTMLElement>('.mana-delivery-schedule');
+  if (!element) return;
+  const schedule = getManaDeliverySchedule(state);
+  const number = (value: string | number): string => `<span class="mana-schedule-number">${value}</span>`;
+  const ruins = schedule.ruins > 0
+    ? ` · Ruin ${number('+1')}/t ×${number(schedule.ruins)}`
+    : '';
+  const wellTiming = schedule.wellDeliveryNow
+    ? `now · next ${number(3)}t`
+    : `next ${number(schedule.wellTurnsRemaining)}t`;
+
+  element.innerHTML = `
+    <span class="mana-schedule-line">Keep ${number('+1')}/t ×${number(schedule.keeps)}${ruins}</span>
+    <span class="mana-schedule-line">Well ${number('+2')}/${number(3)}t ×${number(schedule.wells)} · ${wellTiming}</span>`;
+};
 
 export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private settingsMenu?: SettingsMenu;
@@ -106,6 +133,27 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     };
 
     super.create();
+
+    // UNA1 remains engine-owned. Only the presentation changes: revised movement
+    // previews stay rooted at the original move origin while the rendered unit walks
+    // the shortest visual route from its current on-screen position to the replacement.
+    const originalAnimateMovement = game.animateMovement.bind(this);
+    game.animateMovement = (unitId, path) => originalAnimateMovement(
+      unitId,
+      shortestReconsiderationPresentationPath(game.state, unitId, path),
+    );
+    const originalMovementHighlightPaths = game.movementHighlightPaths.bind(this);
+    game.movementHighlightPaths = () => {
+      const selected = game.selectedUnitId
+        ? game.state.units.find((unit) => unit.id === game.selectedUnitId)
+        : undefined;
+      if (!selected?.movementOrigin || selected.attacked) return originalMovementHighlightPaths();
+      const coordPaths = reconsiderationPreviewCoordPaths(game.state, selected.id);
+      return new Map([...coordPaths].map(([key, path]) => [
+        key,
+        path.map((coord) => game.center(coord)),
+      ]));
+    };
 
     this.manaPresentation = new ManaPresentation(this, game);
     this.manaPresentation.install();
@@ -189,6 +237,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     const originalRenderAll = game.renderAll.bind(this);
     game.renderAll = () => {
       originalRenderAll();
+      compactManaSchedule(game.state);
       const selectedUnit = game.selectedUnitId
         ? game.state.units.find((unit) => unit.id === game.selectedUnitId)
         : undefined;
@@ -213,6 +262,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
         this.matchMusic?.start();
       }
     };
+    compactManaSchedule(game.state);
 
     if (this.shouldPlayFreshMatchIntro()) {
       this.matchIntro = new MatchIntroPresentation(

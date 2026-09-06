@@ -268,70 +268,63 @@ export class ActionReadabilityLayer {
     const center = this.game.center(unit.coord);
     const definition = unitDefinition(unit);
     const ratio = Phaser.Math.Clamp(unit.hp / Math.max(1, definition.maxHp), 0, 1);
-    const accent = ratio > 0.6 ? 0x55dc82 : ratio > 0.3 ? 0xe5aa3a : 0xe13f54;
-    const accentHot = ratio > 0.6 ? 0xb9ffd0 : ratio > 0.3 ? 0xffe3a0 : 0xffb6c0;
-    const x = center.x + 28;
+    const accent = ratio > 0.6 ? 0x5ee58a : ratio > 0.3 ? 0xe9b34e : 0xed4c61;
+    const accentHot = ratio > 0.6 ? 0xc8ffd7 : ratio > 0.3 ? 0xffe5a6 : 0xffc0ca;
+
+    // Concept 2: a deliberately minimal RPG bar. Keep it very light visually: heart,
+    // slim gauge, current/max value. No large medallion or chunky ornamental frame.
+    const x = center.x + 27;
     const y = center.y + 29;
-    const width = 50;
-    const height = 22;
+    const width = 62;
+    const height = 17;
     const left = x - width / 2;
     const top = y - height / 2;
     const graphics = this.scene.add.graphics();
 
-    // Compact RPG health plaque: warm metal frame, inset leather/glass face, a proper
-    // heart emblem and a tiny health strip. It should look like part of the game art,
-    // not a circular debug counter pasted over the unit.
-    graphics.fillStyle(0x020302, 0.48);
-    graphics.fillRoundedRect(left + 2, top + 4, width, height, 7);
+    // Soft shadow and restrained dark capsule.
+    graphics.fillStyle(0x000000, 0.34);
+    graphics.fillRoundedRect(left + 1.5, top + 2.5, width, height, height / 2);
+    graphics.fillStyle(0x11140f, 0.93);
+    graphics.fillRoundedRect(left, top, width, height, height / 2);
+    graphics.lineStyle(1, 0x8f7545, 0.72);
+    graphics.strokeRoundedRect(left + 0.5, top + 0.5, width - 1, height - 1, (height - 1) / 2);
 
-    graphics.fillStyle(0x17100c, 0.98);
-    graphics.fillRoundedRect(left, top, width, height, 7);
-    graphics.lineStyle(3.5, 0x26160d, 0.95);
-    graphics.strokeRoundedRect(left, top, width, height, 7);
-    graphics.lineStyle(1.2, 0xd6b56f, 0.86);
-    graphics.strokeRoundedRect(left + 1.2, top + 1.2, width - 2.4, height - 2.4, 6);
+    // Small clean heart, separated from the gauge so it reads instantly at battlefield scale.
+    const heartX = left + 9.5;
+    const heartY = y - 0.7;
+    graphics.fillStyle(0x8b1322, 0.52);
+    graphics.fillCircle(heartX, heartY + 1, 7.2);
+    graphics.fillStyle(0xe63950, 1);
+    graphics.fillCircle(heartX - 2.6, heartY - 2.2, 3.25);
+    graphics.fillCircle(heartX + 2.6, heartY - 2.2, 3.25);
+    graphics.fillTriangle(heartX - 5.4, heartY - 0.3, heartX + 5.4, heartY - 0.3, heartX, heartY + 6.2);
+    graphics.fillStyle(0xffd6dc, 0.9);
+    graphics.fillCircle(heartX - 2.7, heartY - 3.1, 0.95);
 
-    graphics.fillStyle(0x3b0d12, 0.92);
-    graphics.fillRoundedRect(left + 3.5, top + 3.5, 18, height - 7, 4.5);
-    graphics.lineStyle(1, 0x7b342e, 0.7);
-    graphics.strokeRoundedRect(left + 3.5, top + 3.5, 18, height - 7, 4.5);
-
-    const heartX = left + 12.5;
-    const heartY = y - 1.5;
-    graphics.fillStyle(0xc62f45, 1);
-    graphics.fillCircle(heartX - 3.1, heartY - 2.2, 3.9);
-    graphics.fillCircle(heartX + 3.1, heartY - 2.2, 3.9);
-    graphics.fillTriangle(heartX - 6.3, heartY, heartX + 6.3, heartY, heartX, heartY + 7.7);
-    graphics.fillStyle(0xffd7dc, 0.76);
-    graphics.fillCircle(heartX - 3.2, heartY - 3.7, 1.15);
-
-    // The sliver of color gives health state at a glance without wrapping the number in
-    // another ring. It deliberately stays subordinate to the heart + numeric HP.
-    const meterLeft = left + 24;
-    const meterTop = top + height - 5;
-    const meterWidth = width - 28;
-    graphics.fillStyle(0x050504, 0.95);
-    graphics.fillRoundedRect(meterLeft, meterTop, meterWidth, 2.7, 1.3);
+    // The gauge is intentionally the dominant information at a glance.
+    const meterLeft = left + 19;
+    const meterTop = y - 3.25;
+    const meterWidth = 25;
+    const meterHeight = 6.5;
+    graphics.fillStyle(0x030504, 0.95);
+    graphics.fillRoundedRect(meterLeft, meterTop, meterWidth, meterHeight, meterHeight / 2);
+    graphics.lineStyle(0.8, 0x443e31, 0.78);
+    graphics.strokeRoundedRect(meterLeft + 0.4, meterTop + 0.4, meterWidth - 0.8, meterHeight - 0.8, 2.7);
     if (ratio > 0) {
-      graphics.fillStyle(accent, 0.95);
-      graphics.fillRoundedRect(meterLeft, meterTop, Math.max(1.5, meterWidth * ratio), 2.7, 1.3);
-      graphics.fillStyle(accentHot, 0.55);
-      graphics.fillRect(meterLeft, meterTop, Math.max(1, meterWidth * ratio), 0.8);
+      const fillWidth = Math.max(meterHeight, meterWidth * ratio);
+      graphics.fillStyle(accent, 0.98);
+      graphics.fillRoundedRect(meterLeft + 1, meterTop + 1, Math.max(1, fillWidth - 2), meterHeight - 2, (meterHeight - 2) / 2);
+      graphics.fillStyle(accentHot, 0.52);
+      graphics.fillRoundedRect(meterLeft + 2, meterTop + 1.2, Math.max(1, fillWidth - 4), 1.3, 0.65);
     }
 
-    graphics.fillStyle(0xf3d48d, 0.9);
-    graphics.fillCircle(left + 3.2, y, 1.2);
-    graphics.fillCircle(left + width - 3.2, y, 1.2);
-    graphics.fillStyle(0xffffff, 0.08);
-    graphics.fillRoundedRect(left + 23, top + 3, width - 28, 3, 1.5);
-
-    const text = this.scene.add.text(left + 34.5, y - 1.8, `${unit.hp}`, {
-      fontFamily: 'Georgia, serif',
-      fontSize: '13px',
-      color: '#fff4d4',
+    const text = this.scene.add.text(left + 52.5, y - 0.3, `${unit.hp}/${definition.maxHp}`, {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '10px',
+      color: '#fff8e8',
       fontStyle: 'bold',
-      stroke: '#090502',
-      strokeThickness: 3.2,
+      stroke: '#070806',
+      strokeThickness: 2.4,
     }).setOrigin(0.5);
 
     this.layer?.add([graphics, text]);

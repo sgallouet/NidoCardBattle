@@ -7,6 +7,7 @@ import { MAP_RENDER_MODE } from './data/mapRenderMode';
 import { loadingScreen } from './game/LoadingScreen';
 import { ProductionGameScene } from './game/ProductionGameScene';
 import './game/BattleFinaleFx.css';
+import './game/CardReadability.css';
 
 type TileBorderMode = 'full' | 'half' | 'off';
 type FinalePreviewMode = 'victory' | 'defeat';

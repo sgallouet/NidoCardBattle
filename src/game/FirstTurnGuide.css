@@ -1,52 +1,75 @@
 .first-turn-guide {
   position: absolute;
   z-index: 18;
-  top: max(16px, env(safe-area-inset-top));
-  left: 50%;
   display: grid;
-  width: min(360px, calc(100vw - 32px));
-  padding: 10px 14px 11px;
-  border: 1px solid rgba(103, 214, 255, .42);
-  border-radius: 12px;
+  width: min(242px, calc(100vw - 24px));
+  padding: 8px 10px 9px;
+  border: 1px solid rgba(103, 214, 255, .36);
+  border-radius: 10px;
   color: #f7f3e8;
   background:
-    radial-gradient(circle at 50% 0, rgba(91, 210, 255, .13), transparent 54%),
-    linear-gradient(145deg, rgba(18, 26, 24, .96), rgba(7, 12, 11, .93));
-  box-shadow: 0 14px 34px rgba(0, 0, 0, .45), inset 0 1px rgba(255, 255, 255, .045);
-  text-align: center;
+    radial-gradient(circle at 20% 0, rgba(91, 210, 255, .12), transparent 52%),
+    linear-gradient(145deg, rgba(18, 26, 24, .94), rgba(7, 12, 11, .91));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .4), inset 0 1px rgba(255, 255, 255, .04);
+  text-align: left;
   pointer-events: none;
-  transform: translateX(-50%);
-  backdrop-filter: blur(12px) saturate(1.08);
-  transition: opacity 220ms ease, transform 260ms ease;
+  backdrop-filter: blur(10px) saturate(1.06);
+  transition: opacity 180ms ease, transform 210ms ease, top 110ms ease, left 110ms ease;
+}
+
+.first-turn-guide::after {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-right: 1px solid rgba(103, 214, 255, .36);
+  border-bottom: 1px solid rgba(103, 214, 255, .36);
+  background: rgba(9, 15, 13, .94);
+  content: "";
+}
+
+.first-turn-guide[data-placement="above"]::after {
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.first-turn-guide[data-placement="right"]::after {
+  top: 50%;
+  left: -5px;
+  transform: translateY(-50%) rotate(135deg);
+}
+
+.first-turn-guide[data-placement="left"]::after {
+  top: 50%;
+  right: -5px;
+  transform: translateY(-50%) rotate(-45deg);
 }
 
 .first-turn-guide.is-complete {
   opacity: 0;
-  transform: translate(-50%, -10px) scale(.98);
+  transform: translateY(-7px) scale(.98);
 }
 
 .first-turn-guide-step {
   color: #6fdfff;
-  font: 900 9px/1 Inter, ui-sans-serif, sans-serif;
+  font: 900 8px/1 Inter, ui-sans-serif, sans-serif;
   letter-spacing: .16em;
   text-transform: uppercase;
 }
 
 .first-turn-guide-title {
-  margin-top: 3px;
+  margin-top: 2px;
   color: #fff9ec;
-  font: 700 18px/1.15 Georgia, serif;
+  font: 700 15px/1.15 Georgia, serif;
 }
 
 .first-turn-guide-copy {
-  margin-top: 4px;
+  margin-top: 3px;
   color: #d4cfc3;
-  font: 600 11px/1.35 Inter, ui-sans-serif, sans-serif;
+  font: 600 10px/1.3 Inter, ui-sans-serif, sans-serif;
 }
 
-.card.ftue-card-target {
-  z-index: 13;
-}
+.card.ftue-card-target { z-index: 13; }
 
 .card.ftue-card-target .card-surface {
   box-shadow:
@@ -67,14 +90,14 @@
 .first-turn-guide-beacon {
   position: fixed;
   z-index: 17;
-  width: 74px;
-  height: 74px;
-  border: 3px solid rgba(105, 224, 255, .92);
+  width: 68px;
+  height: 68px;
+  border: 3px solid rgba(105, 224, 255, .88);
   border-radius: 50%;
   box-shadow:
-    0 0 0 5px rgba(105, 224, 255, .11),
-    0 0 24px rgba(105, 224, 255, .62),
-    inset 0 0 18px rgba(105, 224, 255, .22);
+    0 0 0 5px rgba(105, 224, 255, .09),
+    0 0 20px rgba(105, 224, 255, .54),
+    inset 0 0 16px rgba(105, 224, 255, .18);
   pointer-events: none;
   transform: translate(-50%, -50%);
   animation: ftue-unit-pulse .9s ease-in-out infinite alternate;
@@ -101,21 +124,20 @@
 
 @keyframes ftue-unit-pulse {
   to {
-    width: 86px;
-    height: 86px;
+    width: 78px;
+    height: 78px;
     opacity: .72;
   }
 }
 
 @media (max-width: 700px), (max-height: 500px) {
   .first-turn-guide {
-    top: max(76px, calc(env(safe-area-inset-top) + 68px));
-    width: min(320px, calc(100vw - 20px));
-    padding: 8px 11px 9px;
+    width: min(210px, calc(100vw - 18px));
+    padding: 7px 9px 8px;
   }
-  .first-turn-guide-title { font-size: 16px; }
-  .first-turn-guide-copy { font-size: 10px; }
-  .first-turn-guide-beacon { width: 60px; height: 60px; }
+  .first-turn-guide-title { font-size: 14px; }
+  .first-turn-guide-copy { font-size: 9px; }
+  .first-turn-guide-beacon { width: 56px; height: 56px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -30,6 +30,7 @@ export class CardAvailabilityTips {
     const hand = document.querySelector<HTMLElement>('#hand');
     if (!hand) return;
     this.hand = hand;
+    hand.addEventListener('pointerdown', this.handlePointerDown, true);
     hand.addEventListener('click', this.handleClick, true);
     hand.addEventListener('pointerover', this.handlePointerOver);
     hand.addEventListener('pointerout', this.handlePointerOut);
@@ -39,6 +40,7 @@ export class CardAvailabilityTips {
   }
 
   destroy(): void {
+    this.hand?.removeEventListener('pointerdown', this.handlePointerDown, true);
     this.hand?.removeEventListener('click', this.handleClick, true);
     this.hand?.removeEventListener('pointerover', this.handlePointerOver);
     this.hand?.removeEventListener('pointerout', this.handlePointerOut);
@@ -61,6 +63,7 @@ export class CardAvailabilityTips {
         if (!hardDisabled) button.disabled = false;
       } else {
         delete button.dataset.availabilityBlocked;
+        delete button.dataset.invalidPointerFeedback;
         button.removeAttribute('aria-disabled');
       }
     }
@@ -70,27 +73,46 @@ export class CardAvailabilityTips {
     }
   }
 
+  private readonly handlePointerDown = (event: PointerEvent): void => {
+    const button = this.cardFromEvent(event);
+    if (!button) return;
+    const context = this.blockContextFor(button);
+    if (!context) return;
+
+    this.presentBlockedFeedback(button, context);
+    button.dataset.invalidPointerFeedback = 'true';
+    window.setTimeout(() => {
+      if (button.dataset.invalidPointerFeedback === 'true') delete button.dataset.invalidPointerFeedback;
+    }, 700);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+
   private readonly handleClick = (event: MouseEvent): void => {
     const button = this.cardFromEvent(event);
     if (!button) return;
     const context = this.blockContextFor(button);
     if (!context) return;
 
+    if (button.dataset.invalidPointerFeedback !== 'true') this.presentBlockedFeedback(button, context);
+    delete button.dataset.invalidPointerFeedback;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+
+  private presentBlockedFeedback(button: HTMLButtonElement, context: BlockContext): void {
     if (context.reason.kind === 'mana') {
       showInvalidCardFeedback(button, {
         title: `Need ${context.reason.missing} more Mana`,
         detail: `${context.cardName} costs ${context.reason.cost} · you have ${context.reason.mana}`,
       }, true);
-    } else {
-      showInvalidCardFeedback(button, {
-        title: 'No deployment site',
-        detail: 'Need an empty controlled Keep, Fort, or Garrison',
-      });
+      return;
     }
-
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  };
+    showInvalidCardFeedback(button, {
+      title: 'No deployment site',
+      detail: 'Need an empty controlled Keep, Fort, or Garrison',
+    });
+  }
 
   private readonly handlePointerOver = (event: PointerEvent): void => {
     if (event.pointerType && event.pointerType !== 'mouse') return;

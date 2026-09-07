@@ -1,91 +1,69 @@
 .new-game-setup-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 6000;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(2, 6, 18, 0.72);
-  backdrop-filter: blur(10px);
-}
-
-.new-game-setup-dialog {
-  width: min(560px, calc(100vw - 36px));
-  padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 22px;
-  background: rgba(12, 18, 31, 0.96);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-  color: #f4f7ff;
+  position: fixed; inset: 0; z-index: 6000; overflow: auto; isolation: isolate;
+  color: #f5f1e8; background: #090e18 url('../../assets/game/ui/new-battle/background.webp') center / cover;
   font-family: Inter, system-ui, sans-serif;
 }
-
-.new-game-setup-dialog h2 {
-  margin: 0 0 8px;
-  font-size: 25px;
+.new-game-setup-overlay::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, #050a15a8, #060b1320 35%, #050915e8 100%), linear-gradient(90deg, #07152680, transparent 50%, #180b2e80);
+}
+.new-game-setup-dialog { min-height: 100%; min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; padding: 24px 4vw 18px; box-sizing: border-box; overflow: hidden; }
+.new-game-heading { text-align: center; position: relative; z-index: 2; }
+.new-game-heading > span { color: #cbbb97; font-size: 10px; letter-spacing: .4em; }
+.new-game-heading h2 { font: 500 clamp(32px, 4.5vw, 64px)/1.1 Georgia, serif; margin: 8px 0; letter-spacing: .035em; text-shadow: 0 3px 22px #000; }
+.new-game-heading p, .new-game-setup-actions p { color: #c1c4cc; font-size: 12px; margin: 8px 0; }
+.new-game-armies { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 8vw; width: min(1400px, 100%); margin: auto; min-height: 0; }
+.new-game-army { --glow: #54afff; --rgb: 84, 175, 255; position: relative; text-align: center; min-width: 0; }
+.new-game-army[data-selected='undead'] { --glow: #bb7cff; --rgb: 187, 124, 255; }
+.new-game-role { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 12px; margin-top: 18px; padding: 9px 20px; border-top: 1px solid var(--glow); background: #080d1cce; font-size: 15px; font-weight: 800; letter-spacing: .18em; }
+.new-game-role span { font-size: 9px; font-weight: 500; color: #c2c8d7; letter-spacing: .13em; }
+.new-game-art { position: relative; height: clamp(160px, calc(100dvh - 440px), 650px); margin: -15px -5vw -50px; pointer-events: none; }
+.new-game-art::before { content: ''; position: absolute; inset: 14% 12% 2%; background: radial-gradient(ellipse, rgba(var(--rgb), .36), transparent 67%); }
+.new-game-art img { position: relative; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 24px rgba(var(--rgb), .45)); animation: new-army-enter .65s ease-out both; }
+.new-game-army[data-side='player'][data-selected='undead'] .new-game-art img,
+.new-game-army[data-side='ai'][data-selected='human'] .new-game-art img { scale: -1 1; }
+.new-game-army-info { position: relative; z-index: 2; padding: 28px 12px 8px; background: linear-gradient(transparent, #090e1abb 35%, transparent); }
+.new-game-army-info h3 { font: 500 clamp(30px, 3.4vw, 48px)/1 Georgia, serif; margin: 0; text-shadow: 0 2px 16px #000; }
+.new-game-army-info p { color: #d0d2db; font-size: 12px; margin: 9px 0 18px; }
+.new-game-factions { display: flex; justify-content: center; gap: 8px; }
+.new-game-setup-overlay button { cursor: pointer; font: inherit; color: inherit; transition: background .2s, box-shadow .2s, transform .2s; }
+.new-game-factions button { min-height: 44px; width: 140px; padding: 10px; border: 1px solid #ffffff38; border-radius: 4px; background: #0a1020d9; font-size: 13px; }
+.new-game-factions button[aria-pressed='true'] { border-color: var(--glow); background: linear-gradient(135deg, rgba(var(--rgb), .3), #0b1021); box-shadow: 0 0 20px rgba(var(--rgb), .24), inset 0 0 12px rgba(var(--rgb), .12); }
+.new-game-factions button[aria-pressed='true']::before { content: '✓ '; color: var(--glow); }
+.new-game-setup-overlay button:hover { transform: translateY(-2px); background-color: #334568; }
+.new-game-setup-overlay button:focus-visible { outline: 2px solid #fff2c6; outline-offset: 4px; }
+.new-game-versus { position: absolute; left: 50%; top: 43%; transform: translate(-50%, -50%); color: #e7d5b6; font: italic 24px Georgia, serif; text-shadow: 0 0 24px #e9bb76; }
+.new-game-setup-actions { position: relative; z-index: 3; text-align: center; padding-top: 22px; }
+.new-game-start { min-width: min(340px, 100%); padding: 18px 36px; border: 1px solid #e8ca8d; border-radius: 5px; background: linear-gradient(#e0c38a, #9f7540); color: #21170c !important; font-weight: 800 !important; letter-spacing: .15em; box-shadow: 0 0 36px #d6a34c35, inset 0 1px #fff4c5; }
+.new-game-start span { margin-left: 22px; }
+.new-game-setup-cancel { min-height: 44px; padding: 10px 22px; border: 0; background: transparent; font-size: 12px !important; color: #c3c8d3 !important; }
+@keyframes new-army-enter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 600px) {
+  .new-game-setup-dialog { padding: 20px 12px 12px; }
+  .new-game-armies { gap: 16px; }
+  .new-game-role { font-size: 12px; padding: 8px 14px; flex-direction: column; gap: 4px; }
+  .new-game-art { height: clamp(220px, 36vh, 360px); margin: -4px -28px -28px; }
+  .new-game-army-info { padding: 18px 0 0; }
+  .new-game-army-info p { min-height: 30px; font-size: 10px; }
+  .new-game-factions { gap: 5px; flex-direction: column; }
+  .new-game-factions button { width: 100%; }
+  .new-game-versus { font-size: 15px; top: 38%; }
+}
+@media (max-height: 600px) and (min-width: 601px) {
+  .new-game-setup-dialog { padding-top: 10px; }
+  .new-game-heading h2 { font-size: 30px; }
+  .new-game-art { height: 230px; }
+  .new-game-role { margin-top: 4px; }
+  .new-game-setup-actions { padding-top: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .new-game-setup-overlay *, .new-game-setup-overlay *::before { animation: none !important; transition: none !important; }
 }
 
-.new-game-setup-dialog p {
-  margin: 0 0 18px;
-  color: rgba(235, 241, 255, 0.72);
-  line-height: 1.45;
+.new-game-armies::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(circle, #b5d8ff99 1px, transparent 2px), radial-gradient(circle, #d8b3ff80 1px, transparent 2px);
+  background-size: 137px 173px, 211px 239px; opacity: .35;
+  animation: new-battle-motes 24s linear infinite;
 }
-
-.new-game-factions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.new-game-faction {
-  min-height: 112px;
-  padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.055);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.new-game-faction:hover,
-.new-game-faction:focus-visible {
-  background: rgba(255, 255, 255, 0.11);
-  border-color: rgba(255, 255, 255, 0.34);
-  outline: none;
-}
-
-.new-game-faction strong {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 20px;
-}
-
-.new-game-faction span {
-  color: rgba(235, 241, 255, 0.68);
-  line-height: 1.35;
-}
-
-.new-game-setup-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-
-.new-game-setup-cancel {
-  border: 0;
-  background: transparent;
-  color: rgba(235, 241, 255, 0.7);
-  cursor: pointer;
-  padding: 8px 10px;
-}
-
-@media (max-width: 560px) {
-  .new-game-factions {
-    grid-template-columns: 1fr;
-  }
-
-  .new-game-setup-dialog {
-    padding: 18px;
-  }
-}
+@keyframes new-battle-motes { to { background-position: 40px -173px, -30px -239px; } }

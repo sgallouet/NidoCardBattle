@@ -5,6 +5,7 @@ import type {
   CardDefinition,
   Coord,
   GameState,
+  Faction,
   PlayerId,
   Terrain,
   UnitState,
@@ -220,6 +221,24 @@ export const createGameState = (random: () => number = Math.random): GameState =
   }
   beginTurn(state, random);
   return state;
+};
+
+export const setStartingFaction = (state: GameState, playerId: PlayerId, faction: Faction): void => {
+  const player = state.players[playerId];
+  const handSize = player.hand.length;
+  player.faction = faction;
+  player.deck = shuffle(FACTION_DECKS[faction], Math.random);
+  player.hand = [];
+  player.discard = [];
+  for (let i = 0; i < handSize; i += 1) drawCard(state, playerId, Math.random);
+  for (const unit of state.units.filter((candidate) => candidate.owner === playerId)) {
+    if (unit.definitionId === 'commander') continue;
+    const frontline = unit.definitionId === 'royalGuard' || unit.definitionId === 'skeletalInfantry';
+    unit.definitionId = frontline
+      ? (faction === 'human' ? 'royalGuard' : 'skeletalInfantry')
+      : (faction === 'human' ? 'longbowRanger' : 'necromancer');
+    unit.hp = UNIT_DEFINITIONS[unit.definitionId as UnitDefinitionId].maxHp;
+  }
 };
 
 export const movementCost = (state: GameState, unit: UnitState, coord: Coord): number =>

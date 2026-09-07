@@ -51,14 +51,14 @@ export class PersistentAiGameScene extends AiGameScene {
     if (saved) {
       scene.state = saved.state;
       this.restoredBattleLog = saved.battleLog;
-      alignCommanderRuntimeForLocalFaction(saved.state.players[1].faction);
+      alignCommanderRuntimeForLocalFaction(saved.state.players[1].faction, saved.state.players[2].faction);
       scene.message = `Saved match resumed on turn ${saved.state.turnNumber}.`;
     } else if (pendingSetup) {
       configureFreshGameState(scene.state, pendingSetup);
       const factionName = pendingSetup.faction === 'human' ? 'Human' : 'Undead';
       scene.message = `${factionName} deployed at the ${startSideLabel(pendingSetup.side)} start.`;
     } else {
-      alignCommanderRuntimeForLocalFaction(scene.state.players[1].faction);
+      alignCommanderRuntimeForLocalFaction(scene.state.players[1].faction, scene.state.players[2].faction);
     }
 
     super.create();

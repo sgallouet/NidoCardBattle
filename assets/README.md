@@ -23,3 +23,5 @@
 - `assets/game/ui/endgame/` contains the runtime transparent army illustrations used by the match-result screen.
 
 Keep source art separate from generated game-ready files so automated processing remains safe and reversible.
+
+- `assets/source/ui/new-battle/` preserves the three user-approved New Battle PNGs (Human army, Undead army, background). `assets/game/ui/new-battle/` contains same-size WebP exports using Pillow quality 90, method 6, preserving army alpha. The mockup is excluded.

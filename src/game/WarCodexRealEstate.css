@@ -1,0 +1,336 @@
+/* Third-pass Codex layout: preserve the tome identity while using the spread as a real reference page. */
+
+@media (min-width: 1181px) and (min-height: 650px) {
+  .war-codex-header {
+    height: 86px;
+    padding-top: 4px;
+  }
+
+  .war-codex-books { top: 66px; }
+
+  .war-codex-body {
+    grid-template-columns: 165px minmax(410px, 470px) minmax(0, 1fr);
+    gap: clamp(28px, 2.1vw, 38px);
+    height: calc(100% - 96px);
+    padding: 7px 39px 27px;
+  }
+
+  .war-codex-index {
+    padding: 5px 0 14px 3px;
+  }
+
+  .war-codex-index-heading {
+    margin-bottom: 11px;
+    padding-bottom: 8px;
+  }
+
+  .war-codex-index-heading strong { font-size: 22px; }
+  .war-codex-faction + .war-codex-faction { margin-top: 12px; }
+  .war-codex-faction h3 { margin-bottom: 4px; }
+  .war-codex-unit-link { padding: 4px 5px 4px 16px; }
+
+  .war-codex-showcase {
+    align-items: start;
+    padding: clamp(38px, 5.4vh, 62px) 0 28px;
+  }
+
+  .war-codex .codex-hero-card {
+    width: min(385px, 26vw);
+  }
+
+  .codex-battlefield-showcase {
+    width: min(420px, 100%);
+  }
+
+  .war-codex-card-aura {
+    top: 43%;
+    width: 92%;
+  }
+
+  .war-codex-card-caption { bottom: 13px; }
+
+  .war-codex-details {
+    display: grid;
+    grid-template-rows: auto auto auto auto minmax(180px, 1fr);
+    align-content: start;
+    padding: 10px 4px 20px 8px;
+  }
+
+  .war-codex-entry-header { padding-bottom: 11px; }
+  .war-codex-entry-header h2 { font-size: clamp(31px, 2.35vw, 38px); }
+  .war-codex-entry-header p { font-size: 10.5px; }
+  .war-codex-tagline { margin: 12px 0 9px; font-size: 14px; line-height: 1.45; }
+  .war-codex-section { margin-top: 11px; }
+  .war-codex-section h3 { margin-bottom: 8px; font-size: 10.5px; }
+
+  .war-codex-mechanics {
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 5px 12px;
+  }
+
+  .war-codex-mechanic {
+    min-height: 43px;
+    padding: 6px 8px 6px 3px;
+  }
+
+  .war-codex-mechanic strong { font-size: 10.5px; }
+  .war-codex-mechanic div > span { font-size: 10.5px; line-height: 1.32; }
+
+  .war-codex-stats {
+    min-height: 61px;
+    background: rgba(111, 78, 35, .07);
+  }
+
+  .war-codex-stat { padding: 9px 4px 7px; }
+  .war-codex-stat-icon { font-size: 13px; }
+  .war-codex-stat > span:nth-child(2) { font-size: 8.5px; }
+  .war-codex-stat strong { font-size: 18px; }
+
+  .war-codex-matchups {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-self: stretch;
+    min-height: clamp(180px, 26vh, 270px);
+    margin-top: 12px;
+  }
+
+  .war-codex-matchups .war-codex-section {
+    position: relative;
+    min-width: 0;
+    margin-top: 0;
+    padding: 13px 15px 14px;
+    border: 1px solid rgba(91, 62, 28, .17);
+    border-radius: 6px 2px 7px 2px;
+    background:
+      linear-gradient(145deg, rgba(255, 247, 207, .18), transparent 46%),
+      rgba(112, 78, 34, .045);
+    box-shadow: inset 0 1px rgba(255, 250, 219, .24);
+  }
+
+  .war-codex-strong { border-left: 2px solid color-mix(in srgb, var(--codex-accent) 52%, transparent) !important; }
+  .war-codex-weak { border-left: 2px solid rgba(123, 61, 53, .44) !important; }
+  .war-codex-matchups ul { gap: 8px; }
+  .war-codex-matchups li { padding-left: 17px; font-size: 11.5px; line-height: 1.34; }
+
+  .war-codex-field-rules {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 9px 15px;
+  }
+
+  .war-codex-field-rule {
+    min-height: 42px;
+    padding: 7px 8px 7px 20px;
+    border-bottom: 1px solid rgba(71, 48, 25, .12);
+    font-size: 12px;
+  }
+}
+
+@media (min-width: 821px) and (max-width: 1180px) {
+  .war-codex-body {
+    grid-template-columns: 155px minmax(285px, 350px) minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .war-codex-details { padding-left: 6px; }
+  .war-codex-mechanics { gap: 3px; }
+  .war-codex-matchups .war-codex-section {
+    padding: 8px 9px;
+    border: 1px solid rgba(91, 62, 28, .14);
+    background: rgba(112, 78, 34, .035);
+  }
+}
+
+/* Phones and narrow tablets read as one continuous parchment instead of three squeezed columns. */
+@media (max-width: 760px) {
+  .war-codex { padding: 0; }
+
+  .war-codex-book {
+    width: 100vw;
+    height: 100vh;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-width: 0;
+    border-radius: 0;
+    background:
+      radial-gradient(circle at 22% 10%, rgba(255, 248, 210, .60), transparent 28%),
+      radial-gradient(circle at 84% 76%, rgba(112, 77, 37, .09), transparent 34%),
+      repeating-linear-gradient(7deg, transparent 0 30px, rgba(87, 55, 24, .021) 31px 32px),
+      linear-gradient(100deg, #e5cf99, #f0dfb3 46%, #e7d29f);
+  }
+
+  .war-codex-book::before,
+  .war-codex-book::after,
+  .war-codex-spine { display: none; }
+
+  .war-codex-header {
+    position: sticky;
+    z-index: 9;
+    top: 0;
+    height: 58px;
+    padding: 4px 46px 0;
+    background: rgba(232, 214, 170, .94);
+    box-shadow: 0 5px 16px rgba(62, 39, 19, .16);
+    backdrop-filter: blur(7px);
+  }
+
+  .war-codex-header h1 { font-size: clamp(22px, 7vw, 29px); }
+  .war-codex-kicker,
+  .war-codex-title-ornament { display: none; }
+
+  .war-codex-close {
+    position: fixed;
+    z-index: 12;
+    top: 9px;
+    right: 9px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .war-codex-books {
+    position: sticky;
+    z-index: 8;
+    top: 58px;
+    left: auto;
+    width: max-content;
+    max-width: calc(100vw - 20px);
+    margin: 5px auto 4px;
+    transform: none;
+    background: rgba(220, 198, 144, .94);
+    box-shadow: 0 3px 10px rgba(71, 45, 20, .09);
+    backdrop-filter: blur(6px);
+  }
+
+  .war-codex-book-tab {
+    min-width: 0;
+    padding: 6px 11px 5px;
+    font-size: 8.5px;
+  }
+
+  .war-codex-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    height: auto;
+    min-height: calc(100vh - 106px);
+    padding: 4px 13px 28px;
+  }
+
+  .war-codex-index {
+    overflow: visible;
+    padding: 5px 0 4px;
+  }
+
+  .war-codex-index-heading { display: none; }
+
+  .war-codex-index > [data-codex-navigation] {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 1px 1px 6px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .war-codex-faction,
+  .war-codex-faction + .war-codex-faction {
+    flex: 0 0 auto;
+    margin: 0 !important;
+    scroll-snap-align: start;
+  }
+
+  .war-codex-faction h3 {
+    margin: 0 0 3px 2px;
+    font-size: 9px;
+  }
+
+  .war-codex-faction h3 span { font-size: 11px; }
+
+  .war-codex-unit-list {
+    display: flex;
+    gap: 4px;
+    overflow: visible;
+  }
+
+  .war-codex-unit-link {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 30px;
+    padding: 6px 9px;
+    border: 1px solid rgba(84, 56, 25, .18);
+    border-radius: 999px;
+    background: rgba(255, 247, 210, .08);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .war-codex-unit-link::before { display: none; }
+  .war-codex-unit-link.is-selected {
+    border-color: color-mix(in srgb, var(--codex-accent) 46%, transparent);
+    background: rgba(129, 89, 35, .13);
+  }
+
+  .war-codex-showcase {
+    min-height: 0;
+    padding: 14px 0 19px;
+  }
+
+  .war-codex .codex-hero-card {
+    width: min(292px, 76vw);
+  }
+
+  .codex-battlefield-showcase {
+    width: min(300px, 78vw);
+  }
+
+  .war-codex-card-aura { width: min(330px, 86vw); }
+  .war-codex-card-caption { display: none; }
+
+  .war-codex-details {
+    overflow: visible;
+    padding: 7px 3px 22px;
+  }
+
+  .war-codex-entry-header {
+    gap: 9px;
+    padding-bottom: 8px;
+  }
+
+  .war-codex-entry-rune {
+    width: 35px;
+    height: 35px;
+    font-size: 18px;
+  }
+
+  .war-codex-entry-header h2 { font-size: clamp(25px, 8vw, 32px); }
+  .war-codex-tagline { margin: 9px 0; font-size: 12px; }
+  .war-codex-section { margin-top: 10px; }
+
+  .war-codex-mechanics,
+  .war-codex-field-rules { grid-template-columns: 1fr; }
+
+  .war-codex-mechanic { min-height: 38px; }
+  .war-codex-stats { grid-template-columns: repeat(5, minmax(48px, 1fr)); overflow-x: auto; }
+  .war-codex-stat { padding: 8px 3px 7px; }
+
+  .war-codex-matchups {
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    margin-top: 10px;
+  }
+
+  .war-codex-matchups .war-codex-section {
+    margin: 0;
+    padding: 9px 10px 10px;
+    border: 1px solid rgba(91, 62, 28, .15);
+    border-radius: 5px;
+    background: rgba(112, 78, 34, .04);
+  }
+}
+
+@media (max-width: 430px) {
+  .war-codex-body { padding-inline: 10px; }
+  .war-codex .codex-hero-card { width: min(278px, 79vw); }
+  .war-codex-matchups { grid-template-columns: 1fr; }
+  .war-codex-entry-rune { display: none; }
+}

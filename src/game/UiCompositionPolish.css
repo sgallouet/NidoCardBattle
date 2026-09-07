@@ -1,4 +1,4 @@
-/* Final composition pass: make the hand feel held, reduce HUD chrome, and use the Codex spread. */
+/* Final composition pass: make the hand feel held and reduce persistent HUD chrome. */
 
 .hand-dock {
   min-height: 292px;
@@ -105,7 +105,7 @@
     rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
 }
 
-/* The primary action remains dominant; Codex reads as a small attached book tab. */
+/* Keep End Turn visually dominant; the Codex becomes a compact attached book tab. */
 .turn-control { min-width: 252px; }
 .turn-primary-actions { gap: 3px; padding: 3px; }
 
@@ -138,84 +138,7 @@
 .mana-source-chip strong { font-size: 8px; }
 .turn-indicator { margin-top: 5px; font-size: 10px; }
 
-/* Wide Codex: slimmer index, larger card page, and a two-column field-notes page. */
-@media (min-width: 1181px) and (min-height: 640px) {
-  .war-codex-header { height: 88px; }
-  .war-codex-books { top: 68px; }
-  .war-codex-body {
-    grid-template-columns: 168px minmax(390px, 450px) minmax(0, 1fr);
-    gap: clamp(18px, 1.7vw, 28px);
-    height: calc(100% - 100px);
-    padding: 3px 31px 25px;
-  }
-
-  .war-codex-index { padding-right: 0; }
-  .war-codex-index-heading { margin-bottom: 11px; }
-  .war-codex-faction + .war-codex-faction { margin-top: 12px; }
-  .war-codex-unit-link { padding-top: 5px; padding-bottom: 5px; font-size: 11px; }
-
-  .war-codex-showcase { padding: 5px 0 24px; }
-  .war-codex .codex-hero-card {
-    width: min(390px, 28vw, calc((100vh - 155px) * .6667));
-  }
-
-  .war-codex-details {
-    display: grid;
-    grid-template-columns: minmax(0, 1.16fr) minmax(225px, .84fr);
-    grid-auto-rows: max-content;
-    column-gap: 20px;
-    align-content: start;
-    padding: 5px 8px 20px 4px;
-  }
-
-  .war-codex-entry-header,
-  .war-codex-tagline {
-    grid-column: 1 / -1;
-  }
-
-  .war-codex-entry-header h2 { font-size: clamp(30px, 2.25vw, 38px); }
-  .war-codex-tagline { margin: 11px 0 9px; font-size: 14px; }
-
-  .war-codex-details > .war-codex-section:has([data-codex-mechanics-title]) {
-    grid-column: 1;
-  }
-
-  .war-codex-details > [data-codex-stats-section] {
-    grid-column: 1;
-  }
-
-  .war-codex-mechanic {
-    min-height: 40px;
-    padding-block: 6px;
-  }
-  .war-codex-mechanic strong { font-size: 11px; }
-  .war-codex-mechanic div > span { font-size: 11px; line-height: 1.32; }
-
-  .war-codex-matchups {
-    grid-column: 2;
-    grid-row: 3 / span 3;
-    grid-template-columns: 1fr;
-    gap: 12px;
-    align-self: start;
-    margin-top: 13px;
-  }
-
-  .war-codex-matchups .war-codex-section {
-    margin-top: 0;
-    padding: 10px 11px 11px;
-    border: 1px solid rgba(91, 62, 28, .14);
-    border-radius: 7px;
-    background: rgba(111, 78, 35, .035);
-  }
-
-  .war-codex-matchups li {
-    padding-top: 2px;
-    padding-bottom: 2px;
-    font-size: 11px;
-    line-height: 1.35;
-  }
-}
-
+/* Long press on touch devices gets a readable copy without committing the card. */
 .touch-card-preview {
   position: fixed !important;
   z-index: 480 !important;
@@ -226,7 +149,7 @@
   margin: 0 !important;
   opacity: 0;
   pointer-events: none !important;
-  transform: translate(-50%, 10px) scale(.94) !important;
+  transform: translate(-50%, 10px) scale(.94);
   transform-origin: center !important;
   animation: touch-card-preview-in 150ms ease-out forwards;
 }
@@ -237,7 +160,7 @@
 }
 
 @keyframes touch-card-preview-in {
-  to { opacity: 1; transform: translate(-50%, 0) scale(1) !important; }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 
 @media (max-width: 1150px) {
@@ -289,10 +212,12 @@
 
   .mana-delivery-schedule { display: none; }
   .turn-indicator { font-size: 8px; }
-
-  .war-codex-details { display: block; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .touch-card-preview { animation: none; opacity: 1; transform: translate(-50%, 0) !important; }
+  .touch-card-preview {
+    animation: none;
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }

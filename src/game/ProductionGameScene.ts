@@ -13,6 +13,7 @@ import {
   DemoVideoRecorder,
   type DemoVideoSceneInternals,
 } from './DemoVideoRecorder';
+import { EndTurnPresentation } from './EndTurnPresentation';
 import {
   EnemyUnitThreatPreview,
   type EnemyUnitThreatPreviewSceneInternals,
@@ -99,6 +100,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private settingsMenu?: SettingsMenu;
   private premiumFeedback?: PremiumFeedback;
   private persistentHand?: PersistentHandRenderer;
+  private endTurnPresentation?: EndTurnPresentation;
   private cardAvailabilityTips?: CardAvailabilityTips;
   private actionAvailabilityTips?: ActionAvailabilityTips;
   private captureHint?: CaptureHint;
@@ -130,6 +132,9 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.cardAvailabilityTips?.sync();
     };
     game.renderHand();
+
+    this.endTurnPresentation = new EndTurnPresentation({ getState: () => game.state });
+    this.endTurnPresentation.install();
 
     // UNA1 remains engine-owned. Only the presentation changes: revised movement
     // previews stay rooted at the original move origin while the rendered unit walks
@@ -258,6 +263,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.victoryObjective?.sync(game.state);
       this.firstTurnGuide?.sync();
       this.captureHint?.sync();
+      this.endTurnPresentation?.sync();
       this.unitInfoInspector?.sync();
       this.enemyUnitThreatPreview?.sync();
       if (game.state.winner) {
@@ -273,6 +279,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       }
     };
     compactManaSchedule(game.state);
+    this.endTurnPresentation.sync();
 
     if (this.shouldPlayFreshMatchIntro()) {
       this.matchIntro = new MatchIntroPresentation(
@@ -304,6 +311,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.unitInfoInspector = undefined;
       this.captureHint?.destroy();
       this.captureHint = undefined;
+      this.endTurnPresentation?.destroy();
+      this.endTurnPresentation = undefined;
       this.actionAvailabilityTips?.destroy();
       this.actionAvailabilityTips = undefined;
       this.premiumFeedback?.destroy();

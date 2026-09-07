@@ -79,21 +79,10 @@ interface AiFallbackInternals {
   reportAiFailure: (error: unknown) => void;
 }
 
+// ManaPresentation is the single owner of mana schedule markup and animation.
+// Keep this compatibility hook non-mutating while older production wiring still calls it.
 const compactManaSchedule = (state: GameState): void => {
-  const element = document.querySelector<HTMLElement>('.mana-delivery-schedule');
-  if (!element) return;
-  const schedule = getManaDeliverySchedule(state);
-  const number = (value: string | number): string => `<span class="mana-schedule-number">${value}</span>`;
-  const ruins = schedule.ruins > 0
-    ? ` · Ruin ${number('+1')}/t ×${number(schedule.ruins)}`
-    : '';
-  const wellTiming = schedule.wellDeliveryNow
-    ? `now · next ${number(3)}t`
-    : `next ${number(schedule.wellTurnsRemaining)}t`;
-
-  element.innerHTML = `
-    <span class="mana-schedule-line">Keep ${number('+1')}/t ×${number(schedule.keeps)}${ruins}</span>
-    <span class="mana-schedule-line">Well ${number('+2')}/${number(3)}t ×${number(schedule.wells)} · ${wellTiming}</span>`;
+  void getManaDeliverySchedule(state);
 };
 
 export class ProductionGameScene extends PlayerCameraChoreographyGameScene {

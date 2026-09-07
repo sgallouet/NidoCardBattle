@@ -1,0 +1,298 @@
+/* Final composition pass: make the hand feel held, reduce HUD chrome, and use the Codex spread. */
+
+.hand-dock {
+  min-height: 292px;
+  padding-top: 54px;
+  background:
+    radial-gradient(
+      ellipse 66% 122% at 50% 121%,
+      rgba(5, 7, 6, .82) 0%,
+      rgba(5, 7, 6, .66) 44%,
+      rgba(5, 7, 6, .28) 69%,
+      rgba(5, 7, 6, .055) 88%,
+      transparent 100%
+    ),
+    linear-gradient(transparent 42%, rgba(5, 7, 6, .05) 68%, rgba(5, 7, 6, .22) 100%);
+}
+
+.hand {
+  gap: 0;
+  min-height: 268px;
+  padding-top: 35px;
+}
+
+.card {
+  --fan-sink: 0px;
+  --fan-spread-x: 0px;
+  transform:
+    translateX(var(--fan-spread-x))
+    translateY(calc(var(--fan-y) + var(--fan-sink)))
+    rotate(var(--fan-angle));
+  transform-origin: 50% 132%;
+  transition:
+    transform 270ms cubic-bezier(.18,.82,.2,1),
+    filter 190ms ease;
+}
+
+.card + .card { margin-left: -36px; }
+
+.card[data-availability-blocked="true"],
+.card:disabled {
+  --fan-sink: 8px;
+}
+
+.card:hover:not(:disabled) {
+  --fan-sink: 0px;
+  z-index: 24;
+  transform:
+    translateX(var(--fan-spread-x))
+    translateY(calc(var(--fan-y) - 22px))
+    rotate(0deg);
+}
+
+.card.selected,
+.card.selected:hover {
+  --fan-sink: 0px;
+  z-index: 25;
+  transform:
+    translateX(var(--fan-spread-x))
+    translateY(calc(var(--fan-y) - 36px))
+    rotate(0deg);
+}
+
+@media (hover: hover) {
+  .hand:has(.card:hover) .card:has(~ .card:hover) { --fan-spread-x: -11px; }
+  .hand:has(.card:hover) .card:hover ~ .card { --fan-spread-x: 11px; }
+}
+
+.card:hover:not(:disabled) .card-surface {
+  box-shadow:
+    0 22px 36px #000e,
+    0 0 0 2px #fff1a680,
+    0 0 22px #5bd2ff70;
+  transform: perspective(850px) scale(1.055)
+    rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+}
+
+.card.selected .card-surface,
+.card.selected:hover .card-surface {
+  box-shadow:
+    0 24px 39px #000e,
+    0 0 0 3px #fff1a6,
+    0 0 30px #b66cffb8;
+  transform: perspective(850px) scale(1.07)
+    rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+}
+
+.hand.targeting .card + .card { margin-left: -16px; }
+.hand.targeting .card:hover:not(:disabled) {
+  transform:
+    translateX(var(--fan-spread-x))
+    translateY(calc(var(--fan-y) - 8px))
+    rotate(0deg);
+}
+.hand.targeting .card.selected,
+.hand.targeting .card.selected:hover {
+  transform:
+    translateX(var(--fan-spread-x))
+    translateY(calc(var(--fan-y) - 12px))
+    rotate(0deg);
+}
+.hand.targeting .card:hover:not(:disabled) .card-surface,
+.hand.targeting .card.selected .card-surface,
+.hand.targeting .card.selected:hover .card-surface {
+  transform: perspective(850px) scale(1.045)
+    rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+}
+
+/* The primary action remains dominant; Codex reads as a small attached book tab. */
+.turn-control { min-width: 252px; }
+.turn-primary-actions { gap: 3px; padding: 3px; }
+
+.war-codex-launch {
+  flex-basis: 64px;
+  width: 64px;
+  height: 60px;
+  margin-left: 0;
+  padding-inline: 5px;
+  letter-spacing: .08em;
+}
+
+.war-codex-launch::before { left: 9px; }
+.war-codex-launch::after { inset: 5px 5px 5px 14px; }
+.war-codex-launch-icon { margin-left: 5px; font-size: 19px; }
+.war-codex-launch > span:last-child { font-size: 7px; letter-spacing: .11em; }
+
+#app .turn-control .mana-count { margin-top: 4px; }
+.mana-delivery-schedule {
+  max-width: 164px;
+  margin-top: 3px;
+  padding: 3px;
+  gap: 3px;
+  border-color: rgba(109, 202, 255, .10);
+  background: rgba(5, 11, 15, .48);
+}
+.mana-source-chip { padding: 3px 4px; gap: 3px; }
+.mana-source-chip small { display: none; }
+.mana-source-chip > i { width: 13px; height: 13px; }
+.mana-source-chip strong { font-size: 8px; }
+.turn-indicator { margin-top: 5px; font-size: 10px; }
+
+/* Wide Codex: slimmer index, larger card page, and a two-column field-notes page. */
+@media (min-width: 1181px) and (min-height: 640px) {
+  .war-codex-header { height: 88px; }
+  .war-codex-books { top: 68px; }
+  .war-codex-body {
+    grid-template-columns: 168px minmax(390px, 450px) minmax(0, 1fr);
+    gap: clamp(18px, 1.7vw, 28px);
+    height: calc(100% - 100px);
+    padding: 3px 31px 25px;
+  }
+
+  .war-codex-index { padding-right: 0; }
+  .war-codex-index-heading { margin-bottom: 11px; }
+  .war-codex-faction + .war-codex-faction { margin-top: 12px; }
+  .war-codex-unit-link { padding-top: 5px; padding-bottom: 5px; font-size: 11px; }
+
+  .war-codex-showcase { padding: 5px 0 24px; }
+  .war-codex .codex-hero-card {
+    width: min(390px, 28vw, calc((100vh - 155px) * .6667));
+  }
+
+  .war-codex-details {
+    display: grid;
+    grid-template-columns: minmax(0, 1.16fr) minmax(225px, .84fr);
+    grid-auto-rows: max-content;
+    column-gap: 20px;
+    align-content: start;
+    padding: 5px 8px 20px 4px;
+  }
+
+  .war-codex-entry-header,
+  .war-codex-tagline {
+    grid-column: 1 / -1;
+  }
+
+  .war-codex-entry-header h2 { font-size: clamp(30px, 2.25vw, 38px); }
+  .war-codex-tagline { margin: 11px 0 9px; font-size: 14px; }
+
+  .war-codex-details > .war-codex-section:has([data-codex-mechanics-title]) {
+    grid-column: 1;
+  }
+
+  .war-codex-details > [data-codex-stats-section] {
+    grid-column: 1;
+  }
+
+  .war-codex-mechanic {
+    min-height: 40px;
+    padding-block: 6px;
+  }
+  .war-codex-mechanic strong { font-size: 11px; }
+  .war-codex-mechanic div > span { font-size: 11px; line-height: 1.32; }
+
+  .war-codex-matchups {
+    grid-column: 2;
+    grid-row: 3 / span 3;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    align-self: start;
+    margin-top: 13px;
+  }
+
+  .war-codex-matchups .war-codex-section {
+    margin-top: 0;
+    padding: 10px 11px 11px;
+    border: 1px solid rgba(91, 62, 28, .14);
+    border-radius: 7px;
+    background: rgba(111, 78, 35, .035);
+  }
+
+  .war-codex-matchups li {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+}
+
+.touch-card-preview {
+  position: fixed !important;
+  z-index: 480 !important;
+  bottom: max(142px, calc(env(safe-area-inset-bottom) + 126px));
+  left: 50%;
+  width: min(250px, 62vw) !important;
+  flex: none !important;
+  margin: 0 !important;
+  opacity: 0;
+  pointer-events: none !important;
+  transform: translate(-50%, 10px) scale(.94) !important;
+  transform-origin: center !important;
+  animation: touch-card-preview-in 150ms ease-out forwards;
+}
+
+.touch-card-preview .card-surface {
+  box-shadow: 0 24px 50px #000e, 0 0 0 2px rgba(126, 224, 255, .55), 0 0 26px rgba(77, 203, 255, .28);
+  transform: none !important;
+}
+
+@keyframes touch-card-preview-in {
+  to { opacity: 1; transform: translate(-50%, 0) scale(1) !important; }
+}
+
+@media (max-width: 1150px) {
+  .card + .card { margin-left: -31px; }
+  .turn-control { min-width: 214px; }
+  .war-codex-launch { flex-basis: 58px; width: 58px; height: 54px; }
+}
+
+@media (max-width: 700px), (max-height: 500px) {
+  .hand-dock {
+    min-height: 124px;
+    padding-top: 12px;
+    background: radial-gradient(
+      ellipse 80% 145% at 44% 122%,
+      rgba(5, 7, 6, .78) 0%,
+      rgba(5, 7, 6, .58) 49%,
+      rgba(5, 7, 6, .16) 77%,
+      transparent 100%
+    );
+  }
+
+  .hand { min-height: 108px; padding-top: 15px; }
+  .card { transform-origin: 50% 142%; }
+  .card + .card { margin-left: -18px; }
+  .card[data-availability-blocked="true"],
+  .card:disabled { --fan-sink: 4px; }
+
+  .card.selected,
+  .card.selected:hover {
+    transform: translateY(calc(var(--fan-y) - 10px)) rotate(0deg);
+  }
+
+  .turn-control { min-width: 0; width: 96px; }
+  .turn-primary-actions { position: relative; width: 96px; padding: 2px; }
+  .war-codex-launch {
+    position: absolute;
+    right: calc(100% + 4px);
+    bottom: 0;
+    width: 38px;
+    height: 38px;
+    min-height: 0;
+    padding: 3px;
+    border-radius: 9px 3px 9px 3px;
+  }
+  .war-codex-launch::before,
+  .war-codex-launch::after,
+  .war-codex-launch > span:last-child { display: none; }
+  .war-codex-launch-icon { margin: 0; font-size: 17px; }
+
+  .mana-delivery-schedule { display: none; }
+  .turn-indicator { font-size: 8px; }
+
+  .war-codex-details { display: block; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .touch-card-preview { animation: none; opacity: 1; transform: translate(-50%, 0) !important; }
+}

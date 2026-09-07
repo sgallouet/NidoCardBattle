@@ -19,6 +19,7 @@ import {
 } from './EnemyUnitThreatPreview';
 import { FirstTurnGuide, type FirstTurnGuideSceneInternals } from './FirstTurnGuide';
 import { PlayerCameraChoreographyGameScene } from './PlayerCameraChoreographyGameScene';
+import { PersistentHandRenderer } from './PersistentHandRenderer';
 import {
   PremiumFeedback,
   type PremiumFeedbackSceneInternals,
@@ -52,8 +53,13 @@ interface ProductionSceneInternals extends
   UnitInfoInspectorSceneInternals,
   ManaPresentationSceneInternals {
   renderAll: () => void;
+  renderHand: () => void;
   hideTileInsight: (clearHover?: boolean) => void;
   selectedUnitId: string | null;
+  selectedCardIndex: number | null;
+  mode: string | null;
+  animationInProgress: boolean;
+  selectCard: (index: number) => void;
   tacticalHexFx?: TacticalHexFxLayer;
   boardLayer?: Phaser.GameObjects.Container;
   center: (coord: Coord) => Phaser.Math.Vector2;
@@ -92,6 +98,7 @@ const compactManaSchedule = (state: GameState): void => {
 export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private settingsMenu?: SettingsMenu;
   private premiumFeedback?: PremiumFeedback;
+  private persistentHand?: PersistentHandRenderer;
   private cardAvailabilityTips?: CardAvailabilityTips;
   private actionAvailabilityTips?: ActionAvailabilityTips;
   private captureHint?: CaptureHint;
@@ -110,6 +117,19 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
     const game = this as unknown as ProductionSceneInternals;
 
     super.create();
+
+    this.persistentHand = new PersistentHandRenderer({
+      getState: () => game.state,
+      getSelectedCardIndex: () => game.selectedCardIndex,
+      getMode: () => game.mode,
+      isAnimationInProgress: () => game.animationInProgress,
+      selectCard: (index) => game.selectCard(index),
+    });
+    game.renderHand = () => {
+      this.persistentHand?.render();
+      this.cardAvailabilityTips?.sync();
+    };
+    game.renderHand();
 
     // UNA1 remains engine-owned. Only the presentation changes: revised movement
     // previews stay rooted at the original move origin while the rendered unit walks
@@ -290,6 +310,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.premiumFeedback = undefined;
       this.cardAvailabilityTips?.destroy();
       this.cardAvailabilityTips = undefined;
+      this.persistentHand?.destroy();
+      this.persistentHand = undefined;
       this.matchMusic?.dispose();
       this.matchMusic = undefined;
       this.victoryMusic?.dispose();

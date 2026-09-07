@@ -1,28 +1,21 @@
 import Phaser from 'phaser';
 import turnStartHumanUrl from '../../assets/game/audio/sfx/turn-start-human.mp3?url';
 import turnStartUndeadUrl from '../../assets/game/audio/sfx/turn-start-undead.mp3?url';
-import type { Coord, GameState, PlayerId } from '../data/types';
-import { MAX_MANA } from './engine';
+import type { GameState, PlayerId } from '../data/types';
 import './PremiumFeedback.css';
 
 export interface PremiumFeedbackSceneInternals {
   state: GameState;
   message: string;
-  center: (coord: Coord) => Phaser.Math.Vector2;
 }
 
 interface FeedbackSnapshot {
   currentPlayer: PlayerId;
-  mana: Record<PlayerId, number>;
   message: string;
 }
 
 const snapshot = (state: GameState, message: string): FeedbackSnapshot => ({
   currentPlayer: state.currentPlayer,
-  mana: {
-    1: state.players[1].mana,
-    2: state.players[2].mana,
-  },
   message,
 });
 
@@ -34,7 +27,6 @@ export class PremiumFeedback {
   private undeadTurnAudio?: HTMLAudioElement;
   private activeTurnAudio?: HTMLAudioElement;
   private lastHoveredCard?: HTMLElement;
-  private manaTimers: number[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -63,13 +55,6 @@ export class PremiumFeedback {
       this.presentTurn(next.currentPlayer, state);
     }
 
-    for (const player of [1, 2] as const) {
-      const delta = next.mana[player] - this.previous.mana[player];
-      if (delta !== 0 && player === next.currentPlayer) {
-        this.presentManaChange(player, this.previous.mana[player], next.mana[player], delta, state);
-      }
-    }
-
     if (next.message !== this.previous.message && this.isRejectedMessage(next.message)) {
       this.playRejectedCue();
     }
@@ -85,8 +70,6 @@ export class PremiumFeedback {
     this.scene.input.off('gameobjectup', this.handleBoardObjectUp);
     this.turnOverlay?.remove();
     this.turnOverlay = undefined;
-    for (const timer of this.manaTimers) window.clearTimeout(timer);
-    this.manaTimers = [];
     void this.audioContext?.close().catch(() => undefined);
     this.audioContext = undefined;
     for (const audio of [this.humanTurnAudio, this.undeadTurnAudio]) {
@@ -136,120 +119,6 @@ export class PremiumFeedback {
         overlay.remove();
       }, reducedMotion ? 80 : 240);
     }, lifetime);
-  }
-
-  private presentManaChange(
-    player: PlayerId,
-    from: number,
-    to: number,
-    delta: number,
-    state: GameState,
-  ): void {
-    const wrapper = document.querySelector<HTMLElement>('.mana-count');
-    const count = document.querySelector<HTMLElement>('#mana-count');
-    const gem = document.querySelector<HTMLElement>('.mana-gem');
-    if (!wrapper || !count || !gem) return;
-
-    for (const timer of this.manaTimers) window.clearTimeout(timer);
-    this.manaTimers = [];
-    wrapper.classList.remove('mana-gain', 'mana-spend');
-    void wrapper.offsetWidth;
-    wrapper.classList.add(delta > 0 ? 'mana-gain' : 'mana-spend');
-
-    const deltaLabel = document.createElement('span');
-    deltaLabel.className = `mana-delta ${delta > 0 ? 'is-gain' : 'is-spend'}`;
-    deltaLabel.textContent = `${delta > 0 ? '+' : ''}${delta}`;
-    wrapper.append(deltaLabel);
-    deltaLabel.animate([
-      { opacity: 0, transform: 'translate3d(0,8px,0) scale(.8)' },
-      { offset: .22, opacity: 1, transform: 'translate3d(0,-2px,0) scale(1.08)' },
-      { opacity: 0, transform: 'translate3d(0,-25px,0) scale(.96)' },
-    ], { duration: 720, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' })
-      .finished.finally(() => deltaLabel.remove());
-
-    const steps = Math.max(2, Math.min(7, Math.abs(to - from) * 2));
-    count.textContent = `${from}/${MAX_MANA}`;
-    for (let step = 1; step <= steps; step += 1) {
-      const timer = window.setTimeout(() => {
-        const value = Math.round(from + (to - from) * step / steps);
-        count.textContent = `${value}/${MAX_MANA}`;
-      }, 38 * step);
-      this.manaTimers.push(timer);
-    }
-
-    if (delta > 0) {
-      this.spawnWellManaMotes(player, state, gem);
-      this.playManaGain();
-    } else {
-      this.playManaSpend();
-    }
-  }
-
-  private spawnWellManaMotes(player: PlayerId, state: GameState, gem: HTMLElement): void {
-    const wells = state.sites.filter((site) => site.type === 'well' && site.owner === player).slice(0, 3);
-    const target = gem.getBoundingClientRect();
-    const targetX = target.left + target.width / 2;
-    const targetY = target.top + target.height / 2;
-    const canvasRect = this.scene.game.canvas.getBoundingClientRect();
-
-    if (wells.length === 0) {
-      this.spawnManaMote(targetX + 28, targetY - 18, targetX, targetY, 0);
-      this.spawnManaMote(targetX + 38, targetY + 9, targetX, targetY, 70);
-      return;
-    }
-
-    wells.forEach((well, index) => {
-      const point = this.worldToViewport(well.coord);
-      const onscreen = point.x >= canvasRect.left - 24
-        && point.x <= canvasRect.right + 24
-        && point.y >= canvasRect.top - 24
-        && point.y <= canvasRect.bottom + 24;
-      const startX = onscreen ? point.x : targetX + 42 + index * 8;
-      const startY = onscreen ? point.y : targetY - 24 + index * 14;
-      this.spawnManaMote(startX, startY, targetX, targetY, index * 85);
-      this.spawnManaMote(startX + 7, startY - 5, targetX, targetY, index * 85 + 52);
-    });
-  }
-
-  private spawnManaMote(
-    startX: number,
-    startY: number,
-    targetX: number,
-    targetY: number,
-    delay: number,
-  ): void {
-    const mote = document.createElement('span');
-    mote.className = 'mana-source-mote';
-    mote.style.left = `${startX}px`;
-    mote.style.top = `${startY}px`;
-    document.body.append(mote);
-
-    const dx = targetX - startX;
-    const dy = targetY - startY;
-    const animation = mote.animate([
-      { opacity: 0, transform: 'translate(-50%,-50%) scale(.45)' },
-      { offset: .14, opacity: 1, transform: 'translate(-50%,-50%) scale(1)' },
-      {
-        offset: .58,
-        opacity: .92,
-        transform: `translate(calc(-50% + ${dx * .55}px), calc(-50% + ${dy * .45 - 24}px)) scale(.82)`,
-      },
-      {
-        opacity: 0,
-        transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.25)`,
-      },
-    ], { duration: 650, delay, easing: 'cubic-bezier(.2,.72,.25,1)', fill: 'forwards' });
-    animation.finished.finally(() => mote.remove());
-  }
-
-  private worldToViewport(coord: Coord): Phaser.Math.Vector2 {
-    const world = this.game.center(coord);
-    const camera = this.scene.cameras.main;
-    const rect = this.scene.game.canvas.getBoundingClientRect();
-    return new Phaser.Math.Vector2(
-      rect.left + camera.x + (world.x - camera.worldView.x) * camera.zoom,
-      rect.top + camera.y + (world.y - camera.worldView.y) * camera.zoom,
-    );
   }
 
   private isRejectedMessage(message: string): boolean {
@@ -334,15 +203,6 @@ export class PremiumFeedback {
     void audio.play().catch((error: unknown) => {
       console.warn('Turn-start fanfare playback failed.', error);
     });
-  }
-
-  private playManaGain(): void {
-    this.playUiTone(520, 860, 0.11, 0.02);
-    window.setTimeout(() => this.playUiTone(720, 1050, 0.09, 0.013), 55);
-  }
-
-  private playManaSpend(): void {
-    this.playUiTone(410, 250, 0.1, 0.018);
   }
 
   private playRejectedCue(): void {

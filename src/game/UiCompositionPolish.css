@@ -138,31 +138,6 @@
 .mana-source-chip strong { font-size: 8px; }
 .turn-indicator { margin-top: 5px; font-size: 10px; }
 
-/* Long press on touch devices gets a readable copy without committing the card. */
-.touch-card-preview {
-  position: fixed !important;
-  z-index: 480 !important;
-  bottom: max(142px, calc(env(safe-area-inset-bottom) + 126px));
-  left: 50%;
-  width: min(250px, 62vw) !important;
-  flex: none !important;
-  margin: 0 !important;
-  opacity: 0;
-  pointer-events: none !important;
-  transform: translate(-50%, 10px) scale(.94);
-  transform-origin: center !important;
-  animation: touch-card-preview-in 150ms ease-out forwards;
-}
-
-.touch-card-preview .card-surface {
-  box-shadow: 0 24px 50px #000e, 0 0 0 2px rgba(126, 224, 255, .55), 0 0 26px rgba(77, 203, 255, .28);
-  transform: none !important;
-}
-
-@keyframes touch-card-preview-in {
-  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
-}
-
 @media (max-width: 1150px) {
   .card + .card { margin-left: -31px; }
   .turn-control { min-width: 214px; }
@@ -212,12 +187,4 @@
 
   .mana-delivery-schedule { display: none; }
   .turn-indicator { font-size: 8px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .touch-card-preview {
-    animation: none;
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
 }

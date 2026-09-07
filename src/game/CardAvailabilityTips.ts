@@ -13,8 +13,13 @@ type BlockReason =
   | { kind: 'mana'; missing: number; cost: number; mana: number }
   | { kind: 'deployment' };
 
+interface BlockContext {
+  cardName: string;
+  reason: BlockReason;
+}
+
 export class CardAvailabilityTips {
-  private observer?: MutationObserver;
+  private hand?: HTMLElement;
   private activeCard?: HTMLButtonElement;
   private showTimer: number | null = null;
 
@@ -23,64 +28,125 @@ export class CardAvailabilityTips {
   install(): void {
     const hand = document.querySelector<HTMLElement>('#hand');
     if (!hand) return;
+    this.hand = hand;
+    hand.addEventListener('click', this.handleClick, true);
+    hand.addEventListener('pointerover', this.handlePointerOver);
+    hand.addEventListener('pointerout', this.handlePointerOut);
+    hand.addEventListener('focusin', this.handleFocusIn);
+    hand.addEventListener('focusout', this.handleFocusOut);
     this.sync();
-    this.observer = new MutationObserver(() => this.sync());
-    this.observer.observe(hand, { childList: true });
   }
 
   destroy(): void {
-    this.observer?.disconnect();
-    this.observer = undefined;
+    this.hand?.removeEventListener('click', this.handleClick, true);
+    this.hand?.removeEventListener('pointerover', this.handlePointerOver);
+    this.hand?.removeEventListener('pointerout', this.handlePointerOut);
+    this.hand?.removeEventListener('focusin', this.handleFocusIn);
+    this.hand?.removeEventListener('focusout', this.handleFocusOut);
+    this.hand = undefined;
     this.hide();
   }
 
-  private sync(): void {
-    if (this.activeCard && !this.activeCard.isConnected) this.hide();
-    const hand = document.querySelector<HTMLElement>('#hand');
+  sync(): void {
+    const hand = this.hand ?? document.querySelector<HTMLElement>('#hand');
     if (!hand) return;
-    const state = this.options.getState();
-    const player = state.players[state.currentPlayer];
-    const hasSummonSite = getValidSummonCoords(state).length > 0;
 
     for (const button of hand.querySelectorAll<HTMLButtonElement>('.card[data-hand-index]')) {
-      const index = Number(button.dataset.handIndex);
-      const cardId = player.hand[index] as CardDefinitionId | undefined;
-      if (!cardId) continue;
-      const card = CARD_DEFINITIONS[cardId];
-      let reason: BlockReason | undefined;
-      if (card.cost > player.mana) {
-        reason = { kind: 'mana', missing: card.cost - player.mana, cost: card.cost, mana: player.mana };
-      } else if (card.type === 'unit' && !hasSummonSite) {
-        reason = { kind: 'deployment' };
+      const context = this.blockContextFor(button);
+      const hardDisabled = button.dataset.hardDisabled === 'true' || this.options.getState().winner !== null;
+      if (context) {
+        button.dataset.availabilityBlocked = context.reason.kind;
+        button.setAttribute('aria-disabled', 'true');
+        if (!hardDisabled) button.disabled = false;
+      } else {
+        delete button.dataset.availabilityBlocked;
+        button.removeAttribute('aria-disabled');
       }
-      if (!reason) continue;
+    }
 
-      // Native disabled buttons are unreliable hover targets. Keep the same disabled
-      // presentation and semantics, but block activation ourselves so FTUE can explain why.
-      button.disabled = false;
-      button.dataset.availabilityBlocked = reason.kind;
-      button.setAttribute('aria-disabled', 'true');
-      button.addEventListener('click', this.blockActivation, { capture: true });
-      button.addEventListener('pointerenter', () => this.schedule(button, card.name, reason));
-      button.addEventListener('pointerleave', () => this.hide(button));
-      button.addEventListener('focus', () => this.schedule(button, card.name, reason));
-      button.addEventListener('blur', () => this.hide(button));
+    if (this.activeCard && (!this.activeCard.isConnected || !this.blockContextFor(this.activeCard))) {
+      this.hide(this.activeCard);
     }
   }
 
-  private readonly blockActivation = (event: MouseEvent): void => {
+  private readonly handleClick = (event: MouseEvent): void => {
+    const button = this.cardFromEvent(event);
+    if (!button || !this.blockContextFor(button)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
   };
 
-  private schedule(button: HTMLButtonElement, cardName: string, reason: BlockReason): void {
-    if (!this.options.tileTipsEnabled() || window.matchMedia('(hover: none)').matches) return;
+  private readonly handlePointerOver = (event: PointerEvent): void => {
+    if (event.pointerType && event.pointerType !== 'mouse') return;
+    const button = this.cardFromEvent(event);
+    if (!button || this.isStillInside(button, event.relatedTarget)) return;
+    this.schedule(button, false);
+  };
+
+  private readonly handlePointerOut = (event: PointerEvent): void => {
+    const button = this.cardFromEvent(event);
+    if (!button || this.isStillInside(button, event.relatedTarget)) return;
+    this.hide(button);
+  };
+
+  private readonly handleFocusIn = (event: FocusEvent): void => {
+    const button = this.cardFromEvent(event);
+    if (button) this.schedule(button, true);
+  };
+
+  private readonly handleFocusOut = (event: FocusEvent): void => {
+    const button = this.cardFromEvent(event);
+    if (!button || this.isStillInside(button, event.relatedTarget)) return;
+    this.hide(button);
+  };
+
+  private cardFromEvent(event: Event): HTMLButtonElement | undefined {
+    const target = event.target instanceof Element ? event.target : undefined;
+    return target?.closest<HTMLButtonElement>('.card[data-hand-index]') ?? undefined;
+  }
+
+  private isStillInside(button: HTMLButtonElement, relatedTarget: EventTarget | null): boolean {
+    return relatedTarget instanceof Node && button.contains(relatedTarget);
+  }
+
+  private blockContextFor(button: HTMLButtonElement): BlockContext | undefined {
+    const state = this.options.getState();
+    const player = state.players[state.currentPlayer];
+    const index = Number(button.dataset.handIndex);
+    if (!Number.isInteger(index) || index < 0) return undefined;
+    const cardId = player.hand[index] as CardDefinitionId | undefined;
+    if (!cardId) return undefined;
+    const card = CARD_DEFINITIONS[cardId];
+
+    if (card.cost > player.mana) {
+      return {
+        cardName: card.name,
+        reason: { kind: 'mana', missing: card.cost - player.mana, cost: card.cost, mana: player.mana },
+      };
+    }
+    if (card.type === 'unit' && getValidSummonCoords(state).length === 0) {
+      return { cardName: card.name, reason: { kind: 'deployment' } };
+    }
+    return undefined;
+  }
+
+  private schedule(button: HTMLButtonElement, allowWithoutHover: boolean): void {
+    if (!this.options.tileTipsEnabled()) return;
+    if (!allowWithoutHover && window.matchMedia('(hover: none)').matches) return;
+    const context = this.blockContextFor(button);
+    if (!context) return;
+
     this.hide();
     this.activeCard = button;
     this.showTimer = window.setTimeout(() => {
       this.showTimer = null;
       if (this.activeCard !== button || !button.isConnected) return;
-      this.render(button, cardName, reason);
+      const latest = this.blockContextFor(button);
+      if (!latest) {
+        this.hide(button);
+        return;
+      }
+      this.render(button, latest.cardName, latest.reason);
     }, 220);
   }
 

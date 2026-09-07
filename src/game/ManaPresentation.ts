@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
+import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import { MAP_DECORATIONS } from '../data/map';
 import type { Coord, GameState, PlayerId } from '../data/types';
-import { MAX_MANA, unitAt } from './engine';
+import { getValidSummonCoords, MAX_MANA, unitAt } from './engine';
 import './ManaPresentation.css';
+import './ManaReactiveFeedback.css';
 
 type ManaSourceKind = 'keep' | 'well' | 'ruin';
 
@@ -79,6 +81,7 @@ export class ManaPresentation {
   private schedule?: HTMLDivElement;
   private flightLayer?: HTMLDivElement;
   private manaCount?: HTMLElement;
+  private manaShell?: HTMLElement;
   private originalRenderHud?: () => void;
   private lastTurnNumber = 0;
   private lastPlayer: PlayerId = 1;
@@ -86,6 +89,8 @@ export class ManaPresentation {
   private displayedMana?: number;
   private animationToken = 0;
   private destroyed = false;
+  private audioContext?: AudioContext;
+  private wakeTimers: number[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -101,6 +106,7 @@ export class ManaPresentation {
     manaCount.classList.add('mana-schedule-anchor');
 
     const manaShell = manaCount.closest<HTMLElement>('.mana-count');
+    this.manaShell = manaShell ?? undefined;
     const turnControl = document.querySelector<HTMLElement>('.turn-control');
     const turnIndicator = turnControl?.querySelector<HTMLElement>('#turn-indicator');
     if (manaShell && turnControl) {
@@ -120,6 +126,8 @@ export class ManaPresentation {
     flightLayer.setAttribute('aria-hidden', 'true');
     app.append(flightLayer);
     this.flightLayer = flightLayer;
+
+    app.addEventListener('pointerdown', this.handleFirstInteraction, true);
 
     this.lastTurnNumber = this.game.state.turnNumber;
     this.lastPlayer = this.game.state.currentPlayer;
@@ -147,13 +155,25 @@ export class ManaPresentation {
   destroy(): void {
     this.destroyed = true;
     this.animationToken += 1;
+    document.querySelector<HTMLElement>('#app')?.removeEventListener('pointerdown', this.handleFirstInteraction, true);
+    for (const timer of this.wakeTimers) window.clearTimeout(timer);
+    this.wakeTimers = [];
+    this.clearPendingCards();
     this.schedule?.remove();
     this.flightLayer?.remove();
     this.manaCount?.classList.remove('mana-schedule-anchor', 'mana-counter-impact');
+    this.manaShell?.classList.remove('mana-reactive-gain', 'mana-reactive-spend');
+    void this.audioContext?.close().catch(() => undefined);
+    this.audioContext = undefined;
     this.schedule = undefined;
     this.flightLayer = undefined;
     this.manaCount = undefined;
+    this.manaShell = undefined;
   }
+
+  private readonly handleFirstInteraction = (): void => {
+    this.ensureAudioContext();
+  };
 
   private sync(): void {
     if (this.destroyed) return;
@@ -162,21 +182,28 @@ export class ManaPresentation {
     const state = this.game.state;
     const player = state.currentPlayer;
     const turnChanged = state.turnNumber !== this.lastTurnNumber || player !== this.lastPlayer;
-    if (!turnChanged) {
-      if (this.displayedMana === undefined) this.manaByPlayer[player] = state.players[player].mana;
-      return;
-    }
-
     const previousMana = this.manaByPlayer[player];
     const finalMana = state.players[player].mana;
+
     this.lastTurnNumber = state.turnNumber;
     this.lastPlayer = player;
     this.manaByPlayer[player] = finalMana;
 
-    // Player 1 is the local human in this battle mode. Keep enemy turns instant so
-    // AI actions never wait on presentation while the player's own income feels premium.
-    if (player === 1 && finalMana > previousMana) {
-      void this.animateIncome(previousMana, finalMana, incomeSourcesFor(state, player));
+    // Player 1 is the local human in this battle mode. Enemy mana changes stay instant
+    // so AI presentation never blocks on cosmetic resource feedback.
+    if (player !== 1) {
+      if (this.displayedMana !== undefined) this.cancelActiveAnimation();
+      return;
+    }
+
+    if (finalMana > previousMana) {
+      const sources = turnChanged ? incomeSourcesFor(state, player) : [];
+      void this.animateIncome(previousMana, finalMana, sources);
+      return;
+    }
+
+    if (finalMana < previousMana) {
+      void this.animateSpend(previousMana, finalMana);
     }
   }
 
@@ -191,40 +218,79 @@ export class ManaPresentation {
     const element = this.schedule;
     if (!element) return;
     const schedule = getManaDeliverySchedule(this.game.state);
-    const turnsWord = schedule.wellTurnsRemaining === 1 ? 'turn' : 'turns';
-    const wellTiming = schedule.wellDeliveryNow
-      ? `now · next <span class="mana-schedule-number">3</span> turns`
-      : `next <span class="mana-schedule-number">${schedule.wellTurnsRemaining}</span> ${turnsWord}`;
-    const ruinText = schedule.ruins > 0
-      ? ` · Ruin <span class="mana-schedule-number">+1</span>/turn × <span class="mana-schedule-number">${schedule.ruins}</span>`
-      : '';
+    const keepIncome = schedule.keeps;
+    const ruinIncome = schedule.ruins;
+    const wellIncome = schedule.wells * 2;
+    const wellTiming = schedule.wellDeliveryNow ? 'NOW' : `${schedule.wellTurnsRemaining}T`;
 
     element.innerHTML = `
-      <span class="mana-schedule-line">Keep <span class="mana-schedule-number">+1</span>/turn × <span class="mana-schedule-number">${schedule.keeps}</span>${ruinText}</span>
-      <span class="mana-schedule-line">Well <span class="mana-schedule-number">+2</span>/3 turns × <span class="mana-schedule-number">${schedule.wells}</span> · ${wellTiming}</span>`;
+      <span class="mana-source-chip is-keep" title="Keeps: +1 mana each turn">
+        <i aria-hidden="true">K</i><span><small>Keep</small><strong>+${keepIncome}<em>/T</em></strong></span>
+      </span>
+      ${ruinIncome > 0 ? `
+        <span class="mana-source-chip is-ruin" title="Occupied ruins: +1 mana each turn">
+          <i aria-hidden="true">R</i><span><small>Ruin</small><strong>+${ruinIncome}<em>/T</em></strong></span>
+        </span>` : ''}
+      <span class="mana-source-chip is-well ${schedule.wellDeliveryNow && schedule.wells > 0 ? 'is-due' : ''}" title="Mana Wells: +2 mana each every third turn">
+        <i aria-hidden="true">W</i><span><small>Well</small><strong>${schedule.wells > 0 ? `+${wellIncome}<em>${wellTiming}</em>` : '—'}</strong></span>
+      </span>`;
+
     element.classList.toggle('is-well-delivery', schedule.wellDeliveryNow && schedule.wells > 0);
     element.setAttribute(
       'aria-label',
-      `Mana delivery schedule. ${schedule.keeps} Keeps deliver 1 mana per turn. ${schedule.wells} Mana Wells deliver 2 mana every 3 turns. Next Mana Well delivery in ${schedule.wellTurnsRemaining} turns.`,
+      `Mana income. Keeps provide ${keepIncome} mana per turn. Occupied ruins provide ${ruinIncome} mana per turn. ${schedule.wells} Mana Wells provide ${wellIncome} mana every third turn; ${schedule.wells > 0 ? `next well timing ${wellTiming}` : 'no well is controlled'}.`,
     );
   }
 
   private async animateIncome(previousMana: number, finalMana: number, sources: ManaSource[]): Promise<void> {
     const token = ++this.animationToken;
     this.displayedMana = previousMana;
+    this.markPendingCards(previousMana, finalMana);
     this.decorateHud();
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reducedMotion || sources.length === 0) {
+      const before = this.displayedMana;
       this.displayedMana = finalMana;
-      this.impactMana(finalMana - previousMana);
-      await this.wait(180);
-      this.finishIncomeAnimation(token);
+      if (this.manaCount) this.manaCount.textContent = `${finalMana}/${MAX_MANA}`;
+      this.impactMana(finalMana - previousMana, false);
+      this.wakeNewlyAffordableCards(before, finalMana);
+      await this.wait(reducedMotion ? 40 : 180);
+      this.finishManaAnimation(token);
       return;
     }
 
     await Promise.all(sources.map((source, index) => this.animateSource(source, finalMana, index * 115, token)));
-    this.finishIncomeAnimation(token);
+    this.finishManaAnimation(token);
+  }
+
+  private async animateSpend(previousMana: number, finalMana: number): Promise<void> {
+    const token = ++this.animationToken;
+    this.clearPendingCards();
+    this.displayedMana = previousMana;
+    this.decorateHud();
+    this.presentSpendDelta(previousMana - finalMana);
+    this.dimNewlyUnaffordableCards(previousMana, finalMana);
+    this.playManaSpend();
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) {
+      this.displayedMana = finalMana;
+      if (this.manaCount) this.manaCount.textContent = `${finalMana}/${MAX_MANA}`;
+      this.finishManaAnimation(token);
+      return;
+    }
+
+    const steps = Math.max(2, Math.min(7, Math.abs(previousMana - finalMana) * 2));
+    for (let step = 1; step <= steps; step += 1) {
+      await this.wait(38);
+      if (this.destroyed || token !== this.animationToken) return;
+      const value = Math.round(previousMana + (finalMana - previousMana) * step / steps);
+      this.displayedMana = value;
+      if (this.manaCount) this.manaCount.textContent = `${value}/${MAX_MANA}`;
+    }
+    await this.wait(90);
+    this.finishManaAnimation(token);
   }
 
   private async animateSource(source: ManaSource, finalMana: number, delay: number, token: number): Promise<void> {
@@ -276,15 +342,23 @@ export class ManaPresentation {
   private creditSource(source: ManaSource, finalMana: number): void {
     const before = this.displayedMana ?? finalMana;
     const credited = Math.min(source.amount, Math.max(0, finalMana - before));
-    this.displayedMana = Math.min(finalMana, before + credited);
-    if (this.manaCount) this.manaCount.textContent = `${this.displayedMana}/${MAX_MANA}`;
+    const after = Math.min(finalMana, before + credited);
+    this.displayedMana = after;
+    if (this.manaCount) this.manaCount.textContent = `${after}/${MAX_MANA}`;
     this.impactMana(credited, source.kind === 'well');
+    this.wakeNewlyAffordableCards(before, after);
   }
 
   private impactMana(amount: number, strong = false): void {
     const mana = this.manaCount;
     const layer = this.flightLayer;
     if (!mana || !layer) return;
+
+    this.manaShell?.classList.remove('mana-reactive-spend');
+    this.manaShell?.classList.remove('mana-reactive-gain');
+    void this.manaShell?.offsetWidth;
+    this.manaShell?.classList.add('mana-reactive-gain');
+    window.setTimeout(() => this.manaShell?.classList.remove('mana-reactive-gain'), 520);
 
     mana.classList.remove('mana-counter-impact');
     void mana.offsetWidth;
@@ -305,6 +379,102 @@ export class ManaPresentation {
       { transform: 'translate(-50%, -34px) scale(.92)', opacity: 0 },
     ], { duration: strong ? 700 : 560, easing: 'cubic-bezier(.17,.8,.25,1)' });
     animation.finished.finally(() => pop.remove());
+    if (amount > 0) this.playManaGain(strong);
+  }
+
+  private presentSpendDelta(amount: number): void {
+    const mana = this.manaCount;
+    const layer = this.flightLayer;
+    if (!mana || !layer || amount <= 0) return;
+
+    this.manaShell?.classList.remove('mana-reactive-gain');
+    this.manaShell?.classList.remove('mana-reactive-spend');
+    void this.manaShell?.offsetWidth;
+    this.manaShell?.classList.add('mana-reactive-spend');
+    window.setTimeout(() => this.manaShell?.classList.remove('mana-reactive-spend'), 480);
+
+    const appRect = layer.getBoundingClientRect();
+    const manaRect = mana.getBoundingClientRect();
+    const pop = document.createElement('div');
+    pop.className = 'mana-gain-pop is-spend';
+    pop.textContent = `-${amount}`;
+    pop.style.left = `${manaRect.left + manaRect.width * 0.55 - appRect.left}px`;
+    pop.style.top = `${manaRect.top - appRect.top}px`;
+    layer.append(pop);
+    const animation = pop.animate([
+      { transform: 'translate(-50%, -2px) scale(.78)', opacity: 0 },
+      { transform: 'translate(-50%, -13px) scale(1.08)', opacity: 1, offset: 0.28 },
+      { transform: 'translate(-50%, -28px) scale(.9)', opacity: 0 },
+    ], { duration: 520, easing: 'cubic-bezier(.2,.72,.25,1)' });
+    animation.finished.finally(() => pop.remove());
+  }
+
+  private markPendingCards(previousMana: number, finalMana: number): void {
+    const hasSummonSite = getValidSummonCoords(this.game.state).length > 0;
+    for (const button of document.querySelectorAll<HTMLButtonElement>('.card[data-card-id]')) {
+      const definition = this.cardDefinitionFor(button);
+      if (!definition) continue;
+      const becomesAffordable = definition.cost > previousMana && definition.cost <= finalMana;
+      const canUse = definition.type !== 'unit' || hasSummonSite;
+      button.classList.toggle('mana-awaiting', becomesAffordable && canUse);
+    }
+  }
+
+  private wakeNewlyAffordableCards(previousMana: number, finalMana: number): void {
+    if (finalMana <= previousMana) return;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const hasSummonSite = getValidSummonCoords(this.game.state).length > 0;
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>('.card[data-card-id]')) {
+      const definition = this.cardDefinitionFor(button);
+      if (!definition) continue;
+      if (!(definition.cost > previousMana && definition.cost <= finalMana)) continue;
+      if (definition.type === 'unit' && !hasSummonSite) continue;
+
+      button.classList.remove('mana-awaiting');
+      if (reducedMotion) continue;
+      button.classList.remove('mana-awaken');
+      void button.offsetWidth;
+      button.classList.add('mana-awaken');
+
+      button.querySelector('.mana-card-ready')?.remove();
+      const ready = document.createElement('span');
+      ready.className = 'mana-card-ready';
+      ready.textContent = 'READY';
+      ready.setAttribute('aria-hidden', 'true');
+      button.append(ready);
+
+      const timer = window.setTimeout(() => {
+        button.classList.remove('mana-awaken');
+        ready.remove();
+      }, 820);
+      this.wakeTimers.push(timer);
+    }
+  }
+
+  private dimNewlyUnaffordableCards(previousMana: number, finalMana: number): void {
+    if (finalMana >= previousMana) return;
+    for (const button of document.querySelectorAll<HTMLButtonElement>('.card[data-card-id]')) {
+      const definition = this.cardDefinitionFor(button);
+      if (!definition) continue;
+      if (!(definition.cost <= previousMana && definition.cost > finalMana)) continue;
+      button.classList.remove('mana-sleep');
+      void button.offsetWidth;
+      button.classList.add('mana-sleep');
+      const timer = window.setTimeout(() => button.classList.remove('mana-sleep'), 460);
+      this.wakeTimers.push(timer);
+    }
+  }
+
+  private cardDefinitionFor(button: HTMLButtonElement) {
+    const rawId = button.dataset.cardId as CardDefinitionId | undefined;
+    return rawId ? CARD_DEFINITIONS[rawId] : undefined;
+  }
+
+  private clearPendingCards(): void {
+    for (const card of document.querySelectorAll<HTMLElement>('.card.mana-awaiting')) {
+      card.classList.remove('mana-awaiting');
+    }
   }
 
   private createFlight(source: ManaSource): HTMLDivElement | undefined {
@@ -374,13 +544,58 @@ export class ManaPresentation {
     };
   }
 
-  private finishIncomeAnimation(token: number): void {
+  private finishManaAnimation(token: number): void {
     if (this.destroyed || token !== this.animationToken) return;
+    this.clearPendingCards();
     const player = this.game.state.currentPlayer;
     this.displayedMana = undefined;
     this.manaByPlayer[player] = this.game.state.players[player].mana;
     this.originalRenderHud?.();
     this.decorateHud();
+  }
+
+  private cancelActiveAnimation(): void {
+    this.animationToken += 1;
+    this.clearPendingCards();
+    this.displayedMana = undefined;
+    this.originalRenderHud?.();
+    this.decorateHud();
+  }
+
+  private ensureAudioContext(): AudioContext | undefined {
+    if (!this.audioContext) {
+      const AudioContextCtor = window.AudioContext
+        ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) return undefined;
+      this.audioContext = new AudioContextCtor();
+    }
+    if (this.audioContext.state === 'suspended') void this.audioContext.resume().catch(() => undefined);
+    return this.audioContext;
+  }
+
+  private playTone(startHz: number, endHz: number, duration: number, volume: number): void {
+    const context = this.ensureAudioContext();
+    if (!context || context.state !== 'running') return;
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(startHz, now);
+    oscillator.frequency.exponentialRampToValueAtTime(endHz, now + duration);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(volume, now + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + duration + 0.01);
+  }
+
+  private playManaGain(strong: boolean): void {
+    this.playTone(strong ? 560 : 520, strong ? 940 : 830, strong ? 0.13 : 0.095, strong ? 0.018 : 0.012);
+  }
+
+  private playManaSpend(): void {
+    this.playTone(410, 250, 0.1, 0.016);
   }
 
   private wait(duration: number): Promise<void> {

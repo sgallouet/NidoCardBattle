@@ -6,6 +6,8 @@ import './game/TileInsightSelectionFix.css';
 import { MAP_RENDER_MODE } from './data/mapRenderMode';
 import { loadingScreen } from './game/LoadingScreen';
 import { ProductionGameScene } from './game/ProductionGameScene';
+import { TileInsightUiGuard } from './game/TileInsightUiGuard';
+import { TouchInspection } from './game/TouchInspection';
 import { WarCodex } from './game/WarCodex';
 import './game/BattleFinaleFx.css';
 import './game/CardReadability.css';
@@ -30,6 +32,10 @@ interface FinalePreviewScene {
     countdown: unknown | null;
   };
   renderAll?: () => void;
+}
+
+interface TileInsightScene {
+  hideTileInsight?: (clearHover?: boolean) => void;
 }
 
 const app = document.querySelector<HTMLElement>('#app');
@@ -127,6 +133,16 @@ const game = new Phaser.Game({
     postBoot: () => (window as WavedashWindow).Wavedash?.init(),
   },
 });
+
+const touchInspection = new TouchInspection();
+touchInspection.install();
+
+const tileInsightUiGuard = new TileInsightUiGuard(game.canvas, () => {
+  if (!game.scene.isActive('game')) return;
+  const scene = game.scene.getScene('game') as unknown as TileInsightScene;
+  scene.hideTileInsight?.(true);
+});
+tileInsightUiGuard.install();
 
 const waitForIntroToFinish = async (): Promise<void> => {
   while (document.querySelector('#app')?.classList.contains('match-intro-active')) {

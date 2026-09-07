@@ -8,6 +8,10 @@ import {
 } from './ActionAvailabilityTips';
 import { CardAvailabilityTips } from './CardAvailabilityTips';
 import { CaptureHint } from './CaptureHint';
+import {
+  CommanderObjectiveFx,
+  type CommanderObjectiveFxSceneInternals,
+} from './CommanderObjectiveFx';
 import { setDebugStatus } from './DebugStatus';
 import {
   DemoVideoRecorder,
@@ -52,7 +56,8 @@ interface ProductionSceneInternals extends
   FirstTurnGuideSceneInternals,
   ActionAvailabilitySceneInternals,
   UnitInfoInspectorSceneInternals,
-  ManaPresentationSceneInternals {
+  ManaPresentationSceneInternals,
+  CommanderObjectiveFxSceneInternals {
   renderAll: () => void;
   renderHand: () => void;
   hideTileInsight: (clearHover?: boolean) => void;
@@ -96,6 +101,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
   private unitInfoInspector?: UnitInfoInspector;
   private enemyUnitThreatPreview?: EnemyUnitThreatPreview;
   private victoryObjective?: VictoryObjectiveHud;
+  private commanderObjectiveFx?: CommanderObjectiveFx;
   private firstTurnGuide?: FirstTurnGuide;
   private matchMusic?: MatchMusicDirector;
   private victoryMusic?: VictoryMusicDirector;
@@ -180,6 +186,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
 
     this.victoryObjective = new VictoryObjectiveHud({ getState: () => game.state });
     this.victoryObjective.install();
+    this.commanderObjectiveFx = new CommanderObjectiveFx(this, game);
+    this.commanderObjectiveFx.sync();
     this.firstTurnGuide = new FirstTurnGuide(this, game);
     this.firstTurnGuide.install();
 
@@ -250,6 +258,7 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       );
       this.premiumFeedback?.sync(game.state, game.message);
       this.victoryObjective?.sync(game.state);
+      this.commanderObjectiveFx?.sync();
       this.firstTurnGuide?.sync();
       this.captureHint?.sync();
       this.endTurnPresentation?.sync();
@@ -292,6 +301,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       this.manaPresentation = undefined;
       this.firstTurnGuide?.destroy();
       this.firstTurnGuide = undefined;
+      this.commanderObjectiveFx?.destroy();
+      this.commanderObjectiveFx = undefined;
       this.victoryObjective?.destroy();
       this.victoryObjective = undefined;
       this.enemyUnitThreatPreview?.destroy();

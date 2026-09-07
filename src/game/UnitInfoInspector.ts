@@ -3,9 +3,17 @@ import type { Ability, GameState, Trait, UnitDefinition, UnitState } from '../da
 import { UNIT_DEFINITIONS, type UnitDefinitionId } from '../data/units';
 import {
   coordKey,
+  effectiveMove,
   effectiveRange,
   findUnit,
+  getAttackTargets,
+  getCurseTargets,
+  getDisplaceTargets,
+  getInvokeDestinations,
+  getRallyTargets,
   getReachableCoords,
+  getSoulLinkTargets,
+  getThunderTargetCoords,
   hasActiveCurseFrom,
   unitDefinition,
 } from './engine';
@@ -24,6 +32,23 @@ interface InspectorTag {
   label: string;
   kind: 'ability' | 'trait' | 'status';
   description?: string;
+  icon?: string;
+}
+
+interface UnitVisualSnapshot {
+  hp: number;
+  range: number;
+  move: number;
+  moved: boolean;
+  attacked: boolean;
+  exhausted: boolean;
+}
+
+interface ActionChip {
+  label: string;
+  value: string;
+  icon: string;
+  tone: 'ready' | 'spent' | 'neutral' | 'special';
 }
 
 const TRAIT_LABELS: Record<Trait, string> = {
@@ -71,6 +96,9 @@ export class UnitInfoInspector {
   private observer?: MutationObserver;
   private hoveredCard?: HTMLButtonElement;
   private traitTooltip?: HTMLElement;
+  private readonly snapshots = new Map<string, UnitVisualSnapshot>();
+  private renderedSubject?: string;
+  private entranceTimer?: number;
 
   constructor(private readonly game: UnitInfoInspectorSceneInternals) {}
 
@@ -95,6 +123,10 @@ export class UnitInfoInspector {
     this.observer?.disconnect();
     this.observer = undefined;
     this.hoveredCard = undefined;
+    if (this.entranceTimer !== undefined) window.clearTimeout(this.entranceTimer);
+    this.entranceTimer = undefined;
+    this.snapshots.clear();
+    this.renderedSubject = undefined;
     this.hideTraitTooltip();
     this.traitTooltip?.remove();
     this.traitTooltip = undefined;
@@ -149,6 +181,7 @@ export class UnitInfoInspector {
       this.hideTraitTooltip();
       const inspector = document.querySelector<HTMLElement>('#unit-inspector');
       if (inspector) inspector.hidden = true;
+      this.renderedSubject = undefined;
       return;
     }
     this.render({ kind: 'selected', unit, definition: unitDefinition(unit) });
@@ -162,16 +195,38 @@ export class UnitInfoInspector {
     this.hideTraitTooltip();
     inspector.hidden = false;
     inspector.classList.toggle('is-card-preview', mode.kind === 'card');
+    inspector.classList.remove('hp-damaged', 'hp-healed');
+
     const definition = mode.definition;
+    const owner = mode.kind === 'selected' ? mode.unit.owner : this.game.state.currentPlayer;
+    inspector.dataset.owner = `${owner}`;
+
     const range = mode.kind === 'selected' ? effectiveRange(mode.unit) : definition.range;
-    const hp = mode.kind === 'selected' ? `${mode.unit.hp}/${definition.maxHp}` : `${definition.maxHp}`;
+    const move = mode.kind === 'selected' ? effectiveMove(mode.unit) : definition.move;
+    const hpValue = mode.kind === 'selected' ? mode.unit.hp : definition.maxHp;
+    const hpPercent = Math.max(0, Math.min(100, hpValue / definition.maxHp * 100));
     const attack = definition.normalAttack === false ? '—' : `${definition.attack}`;
+    const subject = mode.kind === 'selected' ? `unit:${mode.unit.id}` : `card:${definition.id}`;
+    const previous = mode.kind === 'selected' ? this.snapshots.get(mode.unit.id) : undefined;
+    const previousHpPercent = previous
+      ? Math.max(0, Math.min(100, previous.hp / definition.maxHp * 100))
+      : hpPercent;
+    const hpDelta = previous ? hpValue - previous.hp : 0;
+    const rangeChanged = previous !== undefined && previous.range !== range;
+    const moveChanged = previous !== undefined && previous.move !== move;
+
+    if (hpDelta < 0) inspector.classList.add('hp-damaged');
+    if (hpDelta > 0) inspector.classList.add('hp-healed');
+    if (subject !== this.renderedSubject) this.playEntrance(inspector);
+    this.renderedSubject = subject;
+
     const status = mode.kind === 'selected' ? this.statusFor(mode.unit) : [];
     const tags: InspectorTag[] = [
       ...(definition.ability ? [{
         label: definition.ability,
         kind: 'ability' as const,
         description: ABILITY_DESCRIPTIONS[definition.ability],
+        icon: '✦',
       }] : []),
       ...definition.traits.map((trait) => ({
         label: TRAIT_LABELS[trait],
@@ -181,34 +236,148 @@ export class UnitInfoInspector {
       ...status,
     ];
     const enemyPreview = mode.kind === 'selected' && mode.unit.owner !== this.game.state.currentPlayer;
+    const ownerLabel = mode.kind === 'card'
+      ? `Unit card · ${mode.cost} Mana`
+      : mode.unit.owner === this.game.state.currentPlayer
+        ? 'Your unit'
+        : 'Enemy unit';
+    const moveBonus = move - definition.move;
+    const rangeBonus = range - definition.range;
+    const actionState = mode.kind === 'selected' && !enemyPreview
+      ? this.renderActionState(mode.unit, definition)
+      : '';
 
     target.innerHTML = `
       <div class="unit-sheet-heading">
         <div>
-          <span class="unit-sheet-kicker">${mode.kind === 'card' ? `Unit card · ${mode.cost} Mana` : `Player ${mode.unit.owner} unit`}</span>
-          <div class="unit-name unit-owner-${mode.kind === 'selected' ? mode.unit.owner : this.game.state.currentPlayer}">${definition.name}</div>
+          <span class="unit-sheet-kicker">${ownerLabel}</span>
+          <div class="unit-name unit-owner-${owner}">${definition.name}</div>
         </div>
         ${mode.kind === 'card' ? '<span class="unit-sheet-preview-badge">Preview</span>' : enemyPreview ? '<span class="unit-sheet-preview-badge is-threat">Threat</span>' : ''}
       </div>
-      <div class="unit-sheet-stats" aria-label="Unit statistics">
-        ${this.stat('HP', hp, 'Health')}
-        ${this.stat('ATK', attack, definition.normalAttack === false ? 'No normal attack' : 'Attack damage')}
-        ${this.stat('MOV', `${definition.move}`, 'Movement')}
-        ${this.stat('RNG', `${range}`, range > definition.range ? `Range (${definition.range} base + terrain bonus)` : 'Attack range')}
+      <div class="unit-health ${hpPercent <= 35 ? 'is-low' : ''}" style="--hp-current:${hpPercent}%;--hp-previous:${previousHpPercent}%">
+        <div class="unit-health-copy">
+          <span>Health</span>
+          <strong>${hpValue}<small> / ${definition.maxHp}</small></strong>
+          ${hpDelta !== 0 ? `<em class="unit-health-delta">${hpDelta > 0 ? '+' : ''}${hpDelta}</em>` : ''}
+        </div>
+        <div class="unit-health-track" aria-label="${hpValue} of ${definition.maxHp} health">
+          <i class="unit-health-lag" aria-hidden="true"></i>
+          <i class="unit-health-fill" aria-hidden="true"></i>
+          <i class="unit-health-spark" aria-hidden="true"></i>
+        </div>
       </div>
+      <div class="unit-sheet-stats" aria-label="Unit statistics">
+        ${this.stat('ATK', attack, definition.normalAttack === false ? 'No normal attack' : 'Attack damage')}
+        ${this.stat('MOV', `${move}`, moveBonus > 0 ? `Movement (${definition.move} base + ${moveBonus} bonus)` : 'Movement', moveBonus > 0 ? `+${moveBonus}` : '', moveChanged)}
+        ${this.stat('RNG', `${range}`, rangeBonus > 0 ? `Range (${definition.range} base + ${rangeBonus} terrain bonus)` : 'Attack range', rangeBonus > 0 ? `+${rangeBonus}` : '', rangeChanged)}
+      </div>
+      ${actionState}
       ${tags.length > 0 ? `<div class="unit-sheet-tags">${tags.map((tag) => this.renderTag(tag)).join('')}</div>` : ''}
       ${enemyPreview ? '<div class="unit-sheet-threat-legend"><span><i class="is-move"></i>Move next turn</span><span><i class="is-attack"></i>Attack threat</span></div>' : ''}
       ${mode.kind === 'card' && definition.traits.includes('Ranged') ? '<div class="unit-sheet-note">Ranged units gain +1 Range while on Hills.</div>' : ''}`;
 
     this.bindTraitTooltips(target);
+    this.enhanceAbilityControls(inspector, mode);
+
+    if (mode.kind === 'selected') {
+      this.snapshots.set(mode.unit.id, {
+        hp: mode.unit.hp,
+        range,
+        move,
+        moved: mode.unit.moved,
+        attacked: mode.unit.attacked,
+        exhausted: mode.unit.exhausted,
+      });
+    }
+  }
+
+  private renderActionState(unit: UnitState, definition: UnitDefinition): string {
+    const chips = [this.moveChip(unit), this.attackChip(unit, definition)];
+    const exhausted = unit.exhausted;
+    return `
+      <div class="unit-action-state ${exhausted ? 'is-exhausted' : ''}" aria-label="Action state">
+        ${chips.map((chip) => `
+          <span class="unit-action-chip is-${chip.tone}">
+            <i aria-hidden="true">${chip.icon}</i>
+            <span><small>${chip.label}</small><strong>${chip.value}</strong></span>
+          </span>`).join('')}
+      </div>`;
+  }
+
+  private moveChip(unit: UnitState): ActionChip {
+    if (unit.exhausted) return { label: 'Move', value: 'Spent', icon: '↠', tone: 'spent' };
+    const reposition = unit.pendingAdvance
+      && getReachableCoords(this.game.state, unit.id).has(coordKey(unit.pendingAdvance));
+    if (reposition) return { label: 'Move', value: 'Reposition', icon: '↠', tone: 'special' };
+
+    const reachable = getReachableCoords(this.game.state, unit.id).size > 0;
+    if (unit.moved && reachable && !unit.attacked) {
+      return { label: 'Move', value: 'Reconsider', icon: '↠', tone: 'special' };
+    }
+    if (reachable) return { label: 'Move', value: 'Ready', icon: '↠', tone: 'ready' };
+    if (unit.moved || unit.attacked) return { label: 'Move', value: 'Used', icon: '↠', tone: 'spent' };
+    return { label: 'Move', value: 'No path', icon: '↠', tone: 'neutral' };
+  }
+
+  private attackChip(unit: UnitState, definition: UnitDefinition): ActionChip {
+    if (unit.exhausted) return { label: 'Attack', value: 'Spent', icon: '⚔', tone: 'spent' };
+    if (unit.attacked) return { label: 'Attack', value: 'Used', icon: '⚔', tone: 'spent' };
+    if (definition.normalAttack === false) return { label: 'Attack', value: 'Ability only', icon: '⚔', tone: 'neutral' };
+    if (definition.traits.includes('SetShot') && (unit.movementSpent ?? 0) > 0) {
+      return { label: 'Attack', value: 'Set Shot lost', icon: '⚔', tone: 'spent' };
+    }
+    if (getAttackTargets(this.game.state, unit.id).length > 0) {
+      return { label: 'Attack', value: 'Target ready', icon: '⚔', tone: 'ready' };
+    }
+    return { label: 'Attack', value: 'Unused', icon: '⚔', tone: 'neutral' };
+  }
+
+  private enhanceAbilityControls(inspector: HTMLElement, mode: InspectorMode): void {
+    const row = inspector.querySelector<HTMLElement>('.action-row');
+    if (!row) return;
+    const ability = inspector.querySelector<HTMLButtonElement>('#ability-button');
+    const invoke = inspector.querySelector<HTMLButtonElement>('#invoke-button');
+    const controls = [ability, invoke].filter((button): button is HTMLButtonElement => Boolean(button && !button.hidden));
+    row.hidden = mode.kind === 'card' || controls.length === 0;
+    if (row.hidden) return;
+
+    for (const button of controls) {
+      const existingLabel = button.querySelector<HTMLElement>('.unit-action-label')?.textContent;
+      const label = (existingLabel ?? button.textContent ?? 'Ability').replace(/^Use\s+/i, '').trim();
+      const isInvoke = button.id === 'invoke-button';
+      const available = !button.disabled && this.activeAbilityAvailable(mode, label, isInvoke);
+      button.classList.add('unit-action-control');
+      button.classList.toggle('is-ready', available);
+      button.innerHTML = `
+        <span class="unit-action-control-icon" aria-hidden="true">${isInvoke ? '◆' : '✦'}</span>
+        <span class="unit-action-control-copy">
+          <strong class="unit-action-label">${this.escape(label)}</strong>
+          <small>${available ? 'Ready · use ability' : 'Unavailable now'}</small>
+        </span>
+        <span class="unit-action-control-arrow" aria-hidden="true">›</span>`;
+    }
+  }
+
+  private activeAbilityAvailable(mode: InspectorMode, label: string, invoke: boolean): boolean {
+    if (mode.kind !== 'selected') return false;
+    const unit = mode.unit;
+    if (invoke) return getInvokeDestinations(this.game.state, unit.id).length > 0;
+    if (label === 'Displace') return getDisplaceTargets(this.game.state, unit.id).length > 0;
+    if (label === 'Rally') return getRallyTargets(this.game.state, unit.id).length > 0;
+    if (label === 'Soul Link') return getSoulLinkTargets(this.game.state, unit.id).length > 0;
+    if (label === 'Curse') return getCurseTargets(this.game.state, unit.id).length > 0;
+    if (label === 'Thunder') return getThunderTargetCoords(this.game.state, unit.id).length > 0;
+    return true;
   }
 
   private renderTag(tag: InspectorTag): string {
+    const icon = tag.icon ? `<i class="unit-sheet-tag-icon" aria-hidden="true">${this.escape(tag.icon)}</i>` : '';
     if (!tag.description) {
-      return `<span class="unit-sheet-tag is-${tag.kind}">${this.escape(tag.label)}</span>`;
+      return `<span class="unit-sheet-tag is-${tag.kind}">${icon}${this.escape(tag.label)}</span>`;
     }
     const description = this.escape(tag.description);
-    return `<span class="unit-sheet-tag is-${tag.kind}" tabindex="0" data-trait-description="${description}" aria-label="${this.escape(`${tag.label}: ${tag.description}`)}">${this.escape(tag.label)}</span>`;
+    return `<span class="unit-sheet-tag is-${tag.kind}" tabindex="0" data-trait-description="${description}" aria-label="${this.escape(`${tag.label}: ${tag.description}`)}">${icon}${this.escape(tag.label)}</span>`;
   }
 
   private bindTraitTooltips(target: HTMLElement): void {
@@ -248,22 +417,26 @@ export class UnitInfoInspector {
     if (this.traitTooltip) this.traitTooltip.hidden = true;
   }
 
-  private stat(label: string, value: string, title: string): string {
-    return `<div class="unit-sheet-stat" title="${this.escape(title)}"><span>${label}</span><strong>${this.escape(value)}</strong></div>`;
+  private stat(label: string, value: string, title: string, bonus = '', changed = false): string {
+    return `
+      <div class="unit-sheet-stat ${bonus ? 'is-boosted' : ''} ${changed ? 'stat-changed' : ''}" title="${this.escape(title)}">
+        <span>${label}</span>
+        <strong>${this.escape(value)}</strong>
+        ${bonus ? `<em>${this.escape(bonus)}</em>` : ''}
+      </div>`;
   }
 
   private statusFor(unit: UnitState): InspectorTag[] {
     const tags: InspectorTag[] = [];
-    if (unit.exhausted) tags.push({ label: 'Exhausted', kind: 'status' });
-    if (unit.moved) tags.push({ label: 'Moved', kind: 'status' });
-    if (unit.attacked) tags.push({ label: 'Attacked', kind: 'status' });
+    if (unit.exhausted) tags.push({ label: 'Exhausted', kind: 'status', icon: '◌' });
     if (unit.pendingAdvance && getReachableCoords(this.game.state, unit.id).has(coordKey(unit.pendingAdvance))) {
-      tags.push({ label: 'Reposition available', kind: 'status' });
+      tags.push({ label: 'Reposition available', kind: 'status', icon: '↠' });
     }
     if (hasActiveCurseFrom(this.game.state, unit.id)) {
       tags.push({
         label: 'Curse active',
         kind: 'status',
+        icon: '☾',
         description: 'This Necromancer already maintains a Curse and cannot cast another until it ends or its target leaves the battlefield.',
       });
     }
@@ -272,10 +445,22 @@ export class UnitInfoInspector {
       tags.push({
         label: 'Beast active',
         kind: 'status',
+        icon: '◆',
         description: 'This Mage already has a living Invoked Beast and cannot invoke another until it is destroyed.',
       });
     }
     return tags;
+  }
+
+  private playEntrance(inspector: HTMLElement): void {
+    inspector.classList.remove('is-entering');
+    void inspector.offsetWidth;
+    inspector.classList.add('is-entering');
+    if (this.entranceTimer !== undefined) window.clearTimeout(this.entranceTimer);
+    this.entranceTimer = window.setTimeout(() => {
+      inspector.classList.remove('is-entering');
+      this.entranceTimer = undefined;
+    }, 360);
   }
 
   private escape(value: string): string {

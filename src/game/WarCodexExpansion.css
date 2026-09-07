@@ -1,0 +1,275 @@
+/* War Codex second-pass polish: larger tome, paired HUD control, and Book II battlefield plates. */
+.turn-primary-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px;
+  border: 1px solid rgba(220, 184, 96, .38);
+  border-radius: 16px 6px 16px 6px;
+  background: linear-gradient(180deg, rgba(24, 18, 11, .86), rgba(7, 9, 7, .72));
+  box-shadow: 0 9px 24px #0009, inset 0 1px rgba(255, 236, 169, .08);
+}
+
+.turn-primary-actions::before {
+  position: absolute;
+  inset: 2px;
+  border: 1px solid rgba(245, 211, 126, .08);
+  border-radius: 12px 4px 12px 4px;
+  content: "";
+  pointer-events: none;
+}
+
+.turn-control { min-width: 304px; }
+
+.war-codex-launch {
+  flex: 0 0 102px;
+  width: 102px;
+  height: 60px;
+  margin-left: 1px;
+  border: 2px double #b88b42;
+  border-radius: 11px 3px 3px 11px;
+  color: #f4e3af;
+  background:
+    radial-gradient(circle at 24% 20%, rgba(255, 223, 136, .15), transparent 30%),
+    linear-gradient(90deg, #24160e 0 12%, #49301c 13% 18%, #2b1d13 19%, #1a1510 100%);
+  box-shadow:
+    inset 5px 0 0 rgba(116, 73, 31, .72),
+    inset 7px 0 0 rgba(231, 189, 91, .20),
+    inset 0 0 0 1px rgba(255, 242, 196, .06),
+    0 6px 14px #0008;
+  font-size: 10px;
+  letter-spacing: .17em;
+}
+
+.war-codex-launch::before {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 13px;
+  width: 1px;
+  background: linear-gradient(transparent, #d6ad5f, transparent);
+  content: "";
+  opacity: .55;
+}
+
+.war-codex-launch::after {
+  inset: 5px 6px 5px 20px;
+  border-color: rgba(239, 205, 124, .18);
+  border-radius: 5px 2px 2px 5px;
+}
+
+.war-codex-launch:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #efd17e;
+  color: #fff4c8;
+  background:
+    radial-gradient(circle at 25% 20%, rgba(255, 226, 143, .23), transparent 33%),
+    linear-gradient(90deg, #2b190f 0 12%, #5b3b20 13% 18%, #372416 19%, #211a11 100%);
+  filter: none;
+}
+
+.war-codex-launch-icon {
+  margin-left: 9px;
+  font-size: 22px;
+  filter: sepia(.36) saturate(.8) drop-shadow(0 2px 2px #000b);
+}
+
+/* Let the tome dominate the viewport instead of reading as a modal. */
+.war-codex { padding: 10px 12px; }
+
+.war-codex-book {
+  width: min(1510px, calc(100vw - 24px));
+  height: min(930px, calc(100vh - 22px));
+  min-height: min(620px, calc(100vh - 22px));
+}
+
+.war-codex-header { height: 94px; padding-top: 7px; }
+
+.war-codex-body {
+  grid-template-columns: 210px minmax(310px, 410px) minmax(410px, 1fr);
+  gap: clamp(20px, 2.1vw, 38px);
+  height: calc(100% - 108px);
+  padding: 5px 39px 30px;
+}
+
+.war-codex .codex-hero-card {
+  width: min(348px, 25vw);
+}
+
+.war-codex-details { padding-right: 18px; }
+
+/* The two volumes sit beneath the title like gilded page tabs. */
+.war-codex-books {
+  position: absolute;
+  z-index: 7;
+  top: 73px;
+  left: 50%;
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgba(103, 70, 31, .24);
+  border-radius: 999px;
+  background: rgba(105, 73, 34, .08);
+  transform: translateX(-50%);
+}
+
+.war-codex-book-tab {
+  min-width: 116px;
+  padding: 5px 13px 4px;
+  border: 0;
+  border-radius: 999px;
+  color: #765b34;
+  background: transparent;
+  font: 700 10px/1 Georgia, serif;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+}
+
+.war-codex-book-tab:hover,
+.war-codex-book-tab:focus-visible {
+  color: #38230f;
+  background: rgba(124, 86, 37, .10);
+  filter: none;
+}
+
+.war-codex-book-tab.is-selected {
+  color: #3d270f;
+  background: linear-gradient(#e5cd91, #c9a765);
+  box-shadow: inset 0 0 0 1px rgba(87, 52, 18, .22), 0 1px 5px rgba(69, 43, 18, .16);
+}
+
+.war-codex[data-mode="battlefield"] {
+  --codex-accent: #4f6a38;
+  --codex-aura: rgba(82, 122, 67, .22);
+}
+
+.war-codex-battlefield-link::before { content: "◇"; font-size: 8px; }
+.war-codex-battlefield-link.is-selected::before { content: "◆"; }
+
+.codex-battlefield-showcase {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: min(360px, 100%);
+  aspect-ratio: 1;
+  filter: drop-shadow(0 25px 25px rgba(45, 27, 12, .30));
+}
+
+.codex-tile-plinth {
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255, 248, 209, .48), rgba(116, 82, 38, .09) 54%, transparent 70%);
+  filter: blur(3px);
+}
+
+.codex-battlefield-art {
+  position: relative;
+  z-index: 2;
+  width: 88%;
+  height: 88%;
+  perspective: 1000px;
+  transform: rotateX(3deg);
+  transform-style: preserve-3d;
+}
+
+.codex-battlefield-layer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  user-select: none;
+  pointer-events: none;
+}
+
+.codex-battlefield-layer.is-hex { width: 83%; height: 83%; }
+.codex-battlefield-layer.is-canopy { opacity: .72; }
+.codex-battlefield-layer.is-overlay { width: 74%; height: 74%; }
+.codex-battlefield-layer.is-bridge { width: 82%; height: auto; }
+.codex-battlefield-layer.is-site { width: 64%; height: 64%; }
+.codex-battlefield-layer.is-large-site { width: 72%; height: 72%; }
+.codex-battlefield-layer.is-small-site { width: 54%; height: 54%; }
+
+.codex-battlefield-glyph {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 72%;
+  aspect-ratio: 1;
+  clip-path: polygon(50% 0, 92% 25%, 92% 75%, 50% 100%, 8% 75%, 8% 25%);
+  color: #d6d0c2;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.16), transparent 32%),
+    linear-gradient(160deg, #6d7372, #363c3d 48%, #242a2c);
+  box-shadow: inset 0 0 0 5px rgba(27, 31, 31, .55), 0 20px 35px rgba(39, 28, 18, .30);
+  font: 900 72px/1 Georgia, serif;
+  text-shadow: 0 4px 0 #2b3031, 0 8px 18px #111;
+  transform: translate(-50%, -50%);
+}
+
+.war-codex-field-rules {
+  display: grid;
+  gap: 7px;
+}
+
+.war-codex-field-rule {
+  position: relative;
+  padding-left: 17px;
+  color: #4e3d28;
+  font: 600 12px/1.38 Georgia, serif;
+}
+
+.war-codex-field-rule::before {
+  position: absolute;
+  left: 2px;
+  color: var(--codex-accent);
+  content: "◆";
+  font-size: 7px;
+  transform: translateY(4px);
+}
+
+@media (max-width: 1180px) {
+  .war-codex-book { width: calc(100vw - 16px); height: calc(100vh - 16px); }
+  .war-codex-body {
+    grid-template-columns: 175px minmax(250px, 330px) minmax(310px, 1fr);
+    gap: 14px;
+    padding-inline: 24px;
+  }
+  .war-codex .codex-hero-card { width: min(290px, 26vw); }
+}
+
+@media (max-width: 820px) {
+  .turn-control { min-width: 250px; }
+  .turn-primary-actions { gap: 3px; padding: 3px; }
+  .war-codex-launch { flex-basis: 76px; width: 76px; height: 54px; font-size: 8px; }
+  .war-codex-launch-icon { margin-left: 7px; font-size: 18px; }
+  .war-codex-book { min-height: 0; }
+  .war-codex-books { top: 68px; }
+  .war-codex-book-tab { min-width: 96px; font-size: 9px; }
+  .war-codex-body {
+    grid-template-columns: 146px minmax(210px, 30vw) minmax(280px, 1fr);
+    padding: 2px 18px 19px;
+  }
+  .codex-battlefield-showcase { width: min(260px, 100%); }
+}
+
+@media (max-width: 650px), (max-height: 560px) {
+  .war-codex-books { position: static; width: max-content; margin: -4px auto 3px; transform: none; }
+  .war-codex-header { height: 70px; }
+  .war-codex-body { height: calc(100% - 78px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .war-codex-launch { transition: none; }
+  .codex-battlefield-art { transform: none; }
+}

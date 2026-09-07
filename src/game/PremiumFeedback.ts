@@ -30,7 +30,7 @@ export class PremiumFeedback {
 
   constructor(
     private readonly scene: Phaser.Scene,
-    private readonly game: PremiumFeedbackSceneInternals,
+    game: PremiumFeedbackSceneInternals,
   ) {
     this.previous = snapshot(game.state, game.message);
   }

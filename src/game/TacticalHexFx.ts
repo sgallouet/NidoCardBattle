@@ -174,7 +174,9 @@ export class TacticalHexFxLayer {
 
   setHovered(key: string, hovered: boolean): void {
     const effect = this.effects.get(key);
-    if (effect) effect.hovered = hovered;
+    if (!effect) return;
+    effect.hovered = hovered;
+    if (!hovered && effect.kind === 'move') effect.tracer.clear();
   }
 
   setMovePresentation(presentation: TacticalMovePresentation): void {
@@ -185,6 +187,7 @@ export class TacticalHexFxLayer {
       effect.glow.clear();
       effect.core.clear();
       effect.glyph.clear();
+      effect.tracer.clear();
       effect.glow.fillStyle(palette.fill, presentation === 'reconsider' ? 0.04 : 0.025);
       effect.glow.fillPoints(effect.points, true);
       effect.glow.lineStyle(8, palette.glow, presentation === 'reconsider' ? 0.16 : 0.1);
@@ -222,7 +225,8 @@ export class TacticalHexFxLayer {
 
   private drawTracer(effect: TacticalHexFxEntry, seconds: number): void {
     if (effect.path && effect.path.length > 1) {
-      this.drawMovementArrows(effect, seconds);
+      if (effect.hovered) this.drawMovementArrows(effect, seconds);
+      else effect.tracer.clear();
       return;
     }
     const progress = seconds * 0.22 + effect.phase / (Math.PI * 2);
@@ -250,15 +254,15 @@ export class TacticalHexFxLayer {
       const behind = samplePath(path, Math.max(0, progress - 0.035));
       const direction = tip.clone().subtract(behind).normalize();
       const perpendicular = new Phaser.Math.Vector2(-direction.y, direction.x);
-      const size = effect.hovered ? 7 : 5.5;
+      const size = 7;
       const tail = tip.clone().subtract(direction.clone().scale(size));
       const left = tail.clone().add(perpendicular.clone().scale(size * 0.55));
       const right = tail.clone().subtract(perpendicular.clone().scale(size * 0.55));
-      const alpha = (index === 0 ? 0.9 : 0.48) + (effect.hovered ? 0.08 : 0);
-      effect.tracer.lineStyle(effect.hovered ? 7 : 5, effect.palette.glow, 0.16);
+      const alpha = index === 0 ? 0.98 : 0.58;
+      effect.tracer.lineStyle(7, effect.palette.glow, 0.19);
       effect.tracer.lineBetween(left.x, left.y, tip.x, tip.y);
       effect.tracer.lineBetween(right.x, right.y, tip.x, tip.y);
-      effect.tracer.lineStyle(effect.hovered ? 3 : 2.2, effect.palette.hot, alpha);
+      effect.tracer.lineStyle(3, effect.palette.hot, alpha);
       effect.tracer.lineBetween(left.x, left.y, tip.x, tip.y);
       effect.tracer.lineBetween(right.x, right.y, tip.x, tip.y);
     }
@@ -271,19 +275,9 @@ export class TacticalHexFxLayer {
     path?: Phaser.Math.Vector2[],
   ): void {
     if (kind === 'move') {
-      if (!path) return;
-      graphics.lineStyle(1.2, palette.core, 0.3);
-      for (let index = 1; index < path.length; index += 1) {
-        const from = path[index - 1];
-        const to = path[index];
-        const direction = to.clone().subtract(from).normalize();
-        graphics.lineBetween(
-          from.x + direction.x * 22,
-          from.y + direction.y * 22,
-          to.x - direction.x * 17,
-          to.y - direction.y * 17,
-        );
-      }
+      // Keep the whole reachable area calm. The actual route is revealed only
+      // when the player hovers a destination, where the animated tracer owns it.
+      void path;
       return;
     }
 

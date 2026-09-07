@@ -1,24 +1,24 @@
 /* Final composition pass: make the hand feel held and reduce persistent HUD chrome. */
 
 .hand-dock {
-  min-height: 292px;
-  padding-top: 54px;
+  min-height: 306px;
+  padding-top: 62px;
   background:
     radial-gradient(
-      ellipse 66% 122% at 50% 121%,
-      rgba(5, 7, 6, .82) 0%,
-      rgba(5, 7, 6, .66) 44%,
-      rgba(5, 7, 6, .28) 69%,
-      rgba(5, 7, 6, .055) 88%,
+      ellipse 62% 116% at 50% 124%,
+      rgba(5, 7, 6, .69) 0%,
+      rgba(5, 7, 6, .46) 42%,
+      rgba(5, 7, 6, .17) 68%,
+      rgba(5, 7, 6, .035) 86%,
       transparent 100%
-    ),
-    linear-gradient(transparent 42%, rgba(5, 7, 6, .05) 68%, rgba(5, 7, 6, .22) 100%);
+    );
 }
 
 .hand {
   gap: 0;
-  min-height: 268px;
-  padding-top: 35px;
+  min-height: 282px;
+  padding-top: 36px;
+  perspective: 1000px;
 }
 
 .card {
@@ -28,17 +28,19 @@
     translateX(var(--fan-spread-x))
     translateY(calc(var(--fan-y) + var(--fan-sink)))
     rotate(var(--fan-angle));
-  transform-origin: 50% 132%;
+  transform-origin: 50% 158%;
   transition:
-    transform 270ms cubic-bezier(.18,.82,.2,1),
-    filter 190ms ease;
+    transform 290ms cubic-bezier(.16,.84,.2,1),
+    filter 190ms ease,
+    margin 240ms cubic-bezier(.18,.82,.2,1);
 }
 
-.card + .card { margin-left: -36px; }
+.card + .card { margin-left: -48px; }
 
+/* Unavailable cards sit slightly deeper in the hand rather than merely looking grey. */
 .card[data-availability-blocked="true"],
 .card:disabled {
-  --fan-sink: 8px;
+  --fan-sink: 11px;
 }
 
 .card:hover:not(:disabled) {
@@ -46,7 +48,7 @@
   z-index: 24;
   transform:
     translateX(var(--fan-spread-x))
-    translateY(calc(var(--fan-y) - 22px))
+    translateY(-42px)
     rotate(0deg);
 }
 
@@ -56,126 +58,128 @@
   z-index: 25;
   transform:
     translateX(var(--fan-spread-x))
-    translateY(calc(var(--fan-y) - 36px))
+    translateY(-62px)
     rotate(0deg);
 }
 
 @media (hover: hover) {
-  .hand:has(.card:hover) .card:has(~ .card:hover) { --fan-spread-x: -11px; }
-  .hand:has(.card:hover) .card:hover ~ .card { --fan-spread-x: 11px; }
+  .hand:has(.card:hover) .card:has(~ .card:hover) { --fan-spread-x: -17px; }
+  .hand:has(.card:hover) .card:hover ~ .card { --fan-spread-x: 17px; }
 }
 
 .card:hover:not(:disabled) .card-surface {
   box-shadow:
-    0 22px 36px #000e,
+    0 24px 40px #000e,
     0 0 0 2px #fff1a680,
-    0 0 22px #5bd2ff70;
-  transform: perspective(850px) scale(1.055)
+    0 0 24px #5bd2ff70;
+  transform: perspective(850px) scale(1.065)
     rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
 }
 
 .card.selected .card-surface,
 .card.selected:hover .card-surface {
   box-shadow:
-    0 24px 39px #000e,
+    0 27px 43px #000e,
     0 0 0 3px #fff1a6,
-    0 0 30px #b66cffb8;
-  transform: perspective(850px) scale(1.07)
+    0 0 32px #b66cffb8;
+  transform: perspective(850px) scale(1.08)
     rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
 }
 
-.hand.targeting .card + .card { margin-left: -16px; }
+/* Once targeting begins, fan back out just enough to keep the chosen card readable
+   without covering the battlefield with the full selection lift. */
+.hand.targeting .card + .card { margin-left: -25px; }
 .hand.targeting .card:hover:not(:disabled) {
   transform:
     translateX(var(--fan-spread-x))
-    translateY(calc(var(--fan-y) - 8px))
+    translateY(-16px)
     rotate(0deg);
 }
 .hand.targeting .card.selected,
 .hand.targeting .card.selected:hover {
   transform:
     translateX(var(--fan-spread-x))
-    translateY(calc(var(--fan-y) - 12px))
+    translateY(-22px)
     rotate(0deg);
 }
 .hand.targeting .card:hover:not(:disabled) .card-surface,
 .hand.targeting .card.selected .card-surface,
 .hand.targeting .card.selected:hover .card-surface {
-  transform: perspective(850px) scale(1.045)
+  transform: perspective(850px) scale(1.05)
     rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
 }
 
 /* Keep End Turn visually dominant; the Codex becomes a compact attached book tab. */
-.turn-control { min-width: 252px; }
+.turn-control { min-width: 244px; }
 .turn-primary-actions { gap: 3px; padding: 3px; }
 
 .war-codex-launch {
-  flex-basis: 64px;
-  width: 64px;
-  height: 60px;
+  flex-basis: 58px;
+  width: 58px;
+  height: 56px;
   margin-left: 0;
-  padding-inline: 5px;
-  letter-spacing: .08em;
+  padding-inline: 4px;
+  letter-spacing: .07em;
 }
 
-.war-codex-launch::before { left: 9px; }
-.war-codex-launch::after { inset: 5px 5px 5px 14px; }
-.war-codex-launch-icon { margin-left: 5px; font-size: 19px; }
-.war-codex-launch > span:last-child { font-size: 7px; letter-spacing: .11em; }
+.war-codex-launch::before { left: 8px; }
+.war-codex-launch::after { inset: 5px 5px 5px 13px; }
+.war-codex-launch-icon { margin-left: 5px; font-size: 18px; }
+.war-codex-launch > span:last-child { font-size: 6.5px; letter-spacing: .1em; }
 
-#app .turn-control .mana-count { margin-top: 4px; }
+#app .turn-control .mana-count { margin-top: 3px; }
 .mana-delivery-schedule {
-  max-width: 164px;
-  margin-top: 3px;
-  padding: 3px;
-  gap: 3px;
-  border-color: rgba(109, 202, 255, .10);
-  background: rgba(5, 11, 15, .48);
+  max-width: 154px;
+  margin-top: 2px;
+  padding: 2px 3px;
+  gap: 2px;
+  border-color: rgba(109, 202, 255, .08);
+  background: rgba(5, 11, 15, .40);
 }
-.mana-source-chip { padding: 3px 4px; gap: 3px; }
+.mana-source-chip { padding: 2px 3px; gap: 3px; }
 .mana-source-chip small { display: none; }
-.mana-source-chip > i { width: 13px; height: 13px; }
+.mana-source-chip > i { width: 12px; height: 12px; }
 .mana-source-chip strong { font-size: 8px; }
-.turn-indicator { margin-top: 5px; font-size: 10px; }
+.turn-indicator { margin-top: 4px; font-size: 9px; opacity: .82; }
 
 @media (max-width: 1150px) {
-  .card + .card { margin-left: -31px; }
-  .turn-control { min-width: 214px; }
-  .war-codex-launch { flex-basis: 58px; width: 58px; height: 54px; }
+  .card + .card { margin-left: -38px; }
+  .turn-control { min-width: 210px; }
+  .war-codex-launch { flex-basis: 54px; width: 54px; height: 52px; }
 }
 
 @media (max-width: 700px), (max-height: 500px) {
   .hand-dock {
-    min-height: 124px;
-    padding-top: 12px;
+    min-height: 132px;
+    padding-top: 14px;
     background: radial-gradient(
-      ellipse 80% 145% at 44% 122%,
-      rgba(5, 7, 6, .78) 0%,
-      rgba(5, 7, 6, .58) 49%,
-      rgba(5, 7, 6, .16) 77%,
+      ellipse 78% 142% at 44% 124%,
+      rgba(5, 7, 6, .65) 0%,
+      rgba(5, 7, 6, .42) 49%,
+      rgba(5, 7, 6, .10) 77%,
       transparent 100%
     );
   }
 
-  .hand { min-height: 108px; padding-top: 15px; }
-  .card { transform-origin: 50% 142%; }
-  .card + .card { margin-left: -18px; }
+  .hand { min-height: 114px; padding-top: 16px; }
+  .card { transform-origin: 50% 148%; }
+  .card + .card { margin-left: -22px; }
   .card[data-availability-blocked="true"],
-  .card:disabled { --fan-sink: 4px; }
+  .card:disabled { --fan-sink: 5px; }
 
   .card.selected,
   .card.selected:hover {
-    transform: translateY(calc(var(--fan-y) - 10px)) rotate(0deg);
+    transform: translateY(-13px) rotate(0deg);
   }
 
-  .turn-control { min-width: 0; width: 96px; }
-  .turn-primary-actions { position: relative; width: 96px; padding: 2px; }
+  .turn-control { min-width: 0; width: 94px; }
+  .turn-primary-actions { position: relative; width: 94px; padding: 2px; }
   .war-codex-launch {
     position: absolute;
     right: calc(100% + 4px);
     bottom: 0;
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     min-height: 0;
     padding: 3px;
     border-radius: 9px 3px 9px 3px;

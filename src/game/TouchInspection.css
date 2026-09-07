@@ -1,0 +1,37 @@
+@media (hover: none), (pointer: coarse) {
+  .card.is-touch-inspecting .card-surface {
+    animation: touch-card-inspect 480ms cubic-bezier(.2,.82,.28,1);
+    box-shadow:
+      0 22px 38px rgba(0, 0, 0, .64),
+      0 0 0 2px rgba(247, 222, 139, .82),
+      0 0 26px rgba(123, 191, 255, .34);
+  }
+
+  .card.is-touch-inspecting::after {
+    position: absolute;
+    z-index: 8;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    padding: 5px 9px;
+    border: 1px solid rgba(238, 211, 138, .54);
+    border-radius: 999px;
+    color: #fff1c0;
+    background: rgba(19, 15, 12, .91);
+    box-shadow: 0 5px 14px rgba(0, 0, 0, .42);
+    content: 'INSPECT';
+    font: 800 9px/1 Georgia, serif;
+    letter-spacing: .14em;
+    pointer-events: none;
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes touch-card-inspect {
+  0% { transform: translateY(0) scale(1); }
+  38% { transform: translateY(-9px) scale(1.035); }
+  100% { transform: translateY(-4px) scale(1.018); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card.is-touch-inspecting .card-surface { animation: none !important; }
+}

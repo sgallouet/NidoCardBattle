@@ -13,6 +13,7 @@ import './game/BattleFinaleFx.css';
 import './game/CardReadability.css';
 import './game/WarCodex.css';
 import './game/WarCodexExpansion.css';
+import './game/WarCodexRealEstate.css';
 
 type TileBorderMode = 'full' | 'half' | 'off';
 type FinalePreviewMode = 'victory' | 'defeat';

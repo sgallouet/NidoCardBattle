@@ -14,6 +14,7 @@ import './game/CardReadability.css';
 import './game/WarCodex.css';
 import './game/WarCodexExpansion.css';
 import './game/WarCodexRealEstate.css';
+import './game/UiCompositionPolish.css';
 
 type TileBorderMode = 'full' | 'half' | 'off';
 type FinalePreviewMode = 'victory' | 'defeat';

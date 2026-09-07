@@ -5,12 +5,13 @@ import {
   getCurseTargets,
   getDisplaceTargets,
   getInvokeDestinations,
+  getRallyTargets,
   getReachableCoords,
   getSoulLinkTargets,
   getTacticTargetCoords,
   getTacticTargets,
+  getThunderTargetCoords,
   getValidSummonCoords,
-  neighbors,
   unitAt,
   unitDefinition,
 } from './engine';
@@ -199,21 +200,17 @@ export class EndTurnPresentation {
 
   private unitCanStillAct(state: GameState, unit: UnitState): boolean {
     if (unit.owner !== 1 || unit.exhausted) return false;
-    if (!unit.moved && getReachableCoords(state, unit.id).size > 0) return true;
-    if (!unit.attacked && getAttackTargets(state, unit.id).length > 0) return true;
+    if (getReachableCoords(state, unit.id).size > 0) return true;
+    if (getAttackTargets(state, unit.id).length > 0) return true;
     if (unit.attacked) return false;
 
     const definition = unitDefinition(unit);
     if (definition.traits.includes('Invoker') && getInvokeDestinations(state, unit.id).length > 0) return true;
     if (definition.ability === 'Displace' && getDisplaceTargets(state, unit.id).length > 0) return true;
+    if (definition.ability === 'Rally' && getRallyTargets(state, unit.id).length > 0) return true;
     if (definition.ability === 'SoulLink' && getSoulLinkTargets(state, unit.id).length > 0) return true;
     if (definition.ability === 'Curse' && getCurseTargets(state, unit.id).length > 0) return true;
-    if (definition.ability === 'Rally') {
-      return neighbors(unit.coord).some((coord) => {
-        const target = unitAt(state, coord);
-        return target?.owner === 1 && target.id !== unit.id;
-      });
-    }
+    if (definition.ability === 'Thunder' && getThunderTargetCoords(state, unit.id).length > 0) return true;
     return false;
   }
 

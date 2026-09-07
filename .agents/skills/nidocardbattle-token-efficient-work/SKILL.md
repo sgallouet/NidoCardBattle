@@ -42,3 +42,14 @@ Do not tour Settings, MatchIntro, loading screens, or adjacent HUD unless a fail
 ## Reply
 
 One short summary: what changed, how the logic works, what was verified. No tour of discarded approaches.
+
+
+## Long simulations: completion-only workflow
+
+- Launch the whole authorized batch once with `node tools/benchmark-v10-matrix.mjs`. It owns scheduling, detailed logs, aggregation and final matrix formatting. Its stdout contains only the completion summary; do not redirect that summary away from the waiting tool.
+- Wait for the existing process to finish using the longest completion wait permitted by the host and higher-priority instructions. If the host yields, resume that same wait. Do not restart a batch because a tool wait expired.
+- Do not count saved games, read progress files, inspect partial reports, or post voluntary periodic counts. That polling repeatedly wakes the model and wastes tokens while providing no decision value. Give only required host-level updates or respond to an explicit status request.
+- Read the final summary once. For a simulation-and-matrix request, return the matrix without code reviews, additional tests, speculative analysis or follow-up tuning.
+- Detailed logs remain on disk. Inspect them only when requested or when a concrete failure requires it. A single JSON line can be huge; never tail raw report lines into context.
+- To display an already completed run, use `node tools/format-ai-matrix.mjs <summary.json>`; never rerun matches just to regenerate presentation.
+- Completion waiting reduces model activity; it does not guarantee zero tokens if the host requires multiple tool calls. Never claim that output limits or quiet logs alone eliminate token use.

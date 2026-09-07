@@ -62,6 +62,7 @@ export class WaveWaterSurface {
     ctx.putImageData(pixels, 0, 0);
     texture.refresh();
     const base = new Phaser.Display.BaseShader('wave-water', fragment, undefined, {
+      environmentTime: { type: '1f', value: 0 },
       motion: { type: '1f', value: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1 },
     });
     // Board-sized masks are non-power-of-two: WebGL 1 requires clamped sampling.
@@ -73,6 +74,10 @@ export class WaveWaterSurface {
       magFilter: 'linear',
     });
     this.addObject(this.shader);
+  }
+
+  setTime(seconds: number): void {
+    this.shader?.setUniform('environmentTime.value', seconds);
   }
 
   destroy(): void {

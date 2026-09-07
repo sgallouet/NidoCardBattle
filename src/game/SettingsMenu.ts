@@ -8,6 +8,8 @@ interface OriginalPlacement {
 
 export interface SettingsMenuActions {
   waveWaterEnabled?: boolean;
+  setCloudShadowsEnabled?: (enabled: boolean) => void;
+  setEnvironmentSpeed?: (speed: number) => void;
   waveWaterSupported?: boolean;
   setWaveWaterEnabled?: (enabled: boolean) => void;
   musicVolume?: number;
@@ -73,8 +75,16 @@ export class SettingsMenu {
     panel.append(header);
 
     const gameplay = this.createSection(panel, 'Gameplay');
-    this.moveControl('#player-camera-toggle', gameplay, 'Action camera');
-    this.moveControl('#enemy-animation-toggle', gameplay, 'Enemy turn');
+    const retiredControls = document.createElement('div');
+    retiredControls.hidden = true;
+    panel.append(retiredControls);
+    for (const selector of ['#player-camera-toggle', '#enemy-animation-toggle']) {
+      const control = document.querySelector<HTMLElement>(selector);
+      if (control) {
+        this.remember(control);
+        retiredControls.append(control);
+      }
+    }
     this.moveControl('#fullscreen-button', gameplay, 'Display');
     this.createTileTipsControl(gameplay);
 
@@ -84,6 +94,8 @@ export class SettingsMenu {
     const playtest = this.createSection(panel, 'Playtest');
     this.moveControl('#tile-border-button', playtest, 'Hex borders');
     this.createWaterControl(playtest);
+    this.createCloudShadowsControl(playtest);
+    this.createEnvironmentSpeedControl(playtest);
 
     const match = this.createSection(panel, 'Match');
     this.moveControl('#new-game-button', match, 'New match');
@@ -269,6 +281,67 @@ export class SettingsMenu {
     });
     update();
     if (toggle.disabled) toggle.textContent = 'Requires WebGL';
+    row.append(label, toggle);
+    destination.append(row);
+  }
+
+  private createEnvironmentSpeedControl(destination: HTMLElement): void {
+    if (!this.actions.setEnvironmentSpeed) return;
+    const row = document.createElement('div');
+    row.className = 'settings-menu-row settings-menu-volume-row';
+    const header = document.createElement('div');
+    header.className = 'settings-menu-volume-header';
+    const label = document.createElement('label');
+    label.className = 'settings-menu-row-label';
+    label.htmlFor = 'environment-speed-slider';
+    label.textContent = 'Water & cloud speed';
+    const value = document.createElement('output');
+    value.className = 'settings-menu-volume-value';
+    value.htmlFor = label.htmlFor;
+    const slider = document.createElement('input');
+    slider.id = label.htmlFor;
+    slider.className = 'settings-menu-volume-slider';
+    slider.type = 'range';
+    slider.min = '0';
+    slider.max = '200';
+    slider.step = '5';
+    slider.value = '100';
+    const update = (): void => {
+      const percent = Number(slider.value);
+      value.textContent = percent === 0 ? 'Paused' : `${percent}%`;
+      slider.setAttribute('aria-valuetext', value.textContent);
+      slider.style.setProperty('--music-volume-progress', `${percent / 2}%`);
+      this.actions.setEnvironmentSpeed!(percent / 100);
+    };
+    update();
+    slider.addEventListener('input', update);
+    header.append(label, value);
+    row.append(header, slider);
+    destination.append(row);
+  }
+
+  private createCloudShadowsControl(destination: HTMLElement): void {
+    if (!this.actions.setCloudShadowsEnabled) return;
+    const row = document.createElement('div');
+    row.className = 'settings-menu-row';
+    const label = document.createElement('span');
+    label.className = 'settings-menu-row-label';
+    label.textContent = 'Cloud shadows';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'secondary';
+    toggle.textContent = 'On';
+    toggle.setAttribute('aria-label', 'Cloud shadows');
+    toggle.setAttribute('aria-pressed', 'true');
+    toggle.disabled = this.actions.waveWaterSupported === false;
+    if (toggle.disabled) toggle.textContent = 'Requires WebGL';
+    let enabled = true;
+    toggle.addEventListener('click', () => {
+      this.actions.setCloudShadowsEnabled!(!enabled);
+      enabled = !enabled;
+      toggle.textContent = enabled ? 'On' : 'Off';
+      toggle.setAttribute('aria-pressed', String(enabled));
+    });
     row.append(label, toggle);
     destination.append(row);
   }

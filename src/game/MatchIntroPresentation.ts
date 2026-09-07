@@ -12,6 +12,7 @@ import './MatchIntroPresentation.css';
 const INTRO_COVER_DEPTH = 50_000;
 const INTRO_BEACON_DEPTH = INTRO_COVER_DEPTH + 10;
 const COVER_FADE_DURATION = 230;
+const INTRO_FAST_FORWARD_SCALE = 10;
 
 export interface MatchIntroSceneInternals {
   state: GameState;
@@ -30,6 +31,10 @@ export class MatchIntroPresentation {
   private commanderConfrontation?: CommanderConfrontation;
   private localKeep?: Coord;
   private localUnits: UnitState[] = [];
+  private introAnimations = new Set<Animation>();
+  private originalTimeScale = 1;
+  private originalTweenTimeScale = 1;
+  private fastForwarding = false;
   private prepared = false;
   private finished = false;
 
@@ -45,6 +50,8 @@ export class MatchIntroPresentation {
     if (!keep || !board) return false;
 
     this.prepared = true;
+    this.originalTimeScale = this.scene.time.timeScale;
+    this.originalTweenTimeScale = this.scene.tweens.timeScale;
     this.localKeep = keep;
     this.localUnits = this.game.state.units.filter((unit) => unit.owner === 1);
     this.actionFx = new ActionFxAnimator(this.scene, () => this.game.boardLayer, this.game.center.bind(this.game));
@@ -136,6 +143,7 @@ export class MatchIntroPresentation {
     this.skipButton?.removeEventListener('click', this.handleSkip);
     this.skipButton?.remove();
     this.skipButton = undefined;
+    this.restoreIntroTiming();
     this.commanderConfrontation?.destroy();
     this.commanderConfrontation = undefined;
     const app = document.querySelector<HTMLElement>('#app');
@@ -145,6 +153,7 @@ export class MatchIntroPresentation {
 
   destroy(): void {
     this.finished = true;
+    this.restoreIntroTiming();
     for (const cover of this.covers.values()) {
       if (cover.active) cover.destroy();
     }
@@ -322,7 +331,10 @@ export class MatchIntroPresentation {
         easing: 'cubic-bezier(.16,.82,.22,1)',
         fill: 'forwards',
       });
+      this.introAnimations.add(animation);
+      if (this.fastForwarding) animation.playbackRate = INTRO_FAST_FORWARD_SCALE;
       return animation.finished.finally(() => {
+        this.introAnimations.delete(animation);
         surface.style.removeProperty('opacity');
         animation.cancel();
       });
@@ -364,7 +376,19 @@ export class MatchIntroPresentation {
   }
 
   private readonly handleSkip = (): void => {
-    void this.finish();
+    if (this.finished || this.fastForwarding) return;
+    this.fastForwarding = true;
+    this.scene.time.timeScale = this.originalTimeScale * INTRO_FAST_FORWARD_SCALE;
+    this.scene.tweens.timeScale = this.originalTweenTimeScale * INTRO_FAST_FORWARD_SCALE;
+    for (const animation of this.introAnimations) animation.playbackRate = INTRO_FAST_FORWARD_SCALE;
+    if (this.skipButton) {
+      this.skipButton.disabled = true;
+      this.skipButton.setAttribute('aria-busy', 'true');
+      this.skipButton.setAttribute('aria-label', 'Fast-forwarding battlefield introduction');
+      const label = this.skipButton.querySelector('span');
+      if (label) label.textContent = 'Fast-forwarding';
+      this.skipButton.classList.add('is-speeding');
+    }
   };
 
   private showGuide(step: string, title: string, detail: string, phase: string): void {
@@ -399,6 +423,12 @@ export class MatchIntroPresentation {
 
   private wait(duration: number): Promise<void> {
     return new Promise((resolve) => this.scene.time.delayedCall(duration, resolve));
+  }
+
+  private restoreIntroTiming(): void {
+    if (!this.prepared) return;
+    this.scene.time.timeScale = this.originalTimeScale;
+    this.scene.tweens.timeScale = this.originalTweenTimeScale;
   }
 
   private key(coord: Coord): string {

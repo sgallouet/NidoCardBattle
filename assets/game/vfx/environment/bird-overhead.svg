@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64" viewBox="0 0 96 64">
+  <!-- Overhead, head north. Ivory back, charcoal flight feathers, forked tail. -->
+  <path d="M46 24C36 17 22 14 5 7L12 21 27 31 43 36 43 44 39 57 48 51 57 57 53 44 53 36 69 31 84 21 91 7C74 14 60 17 50 24Z" fill="#27333a" stroke="#101c24" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M45 27C32 23 23 21 14 16L29 28 45 32M51 27C64 23 73 21 82 16L67 28 51 32" fill="#b5bbb2"/>
+  <path d="M45 45C43 34 44 23 45 17Q48 10 51 17C52 23 53 34 51 45L48 49Z" fill="#d3d3be"/>
+  <path d="M46 15L48 8 50 15Z" fill="#b7a780"/>
+</svg>

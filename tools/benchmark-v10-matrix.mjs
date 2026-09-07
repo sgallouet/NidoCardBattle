@@ -1,3 +1,4 @@
+import { formatAiMatrix } from './format-ai-matrix.mjs';
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync, openSync, closeSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -19,10 +20,8 @@ const run = async job => {
   closeSync(fd);
   if (code !== 0) throw new Error(`${job.name} failed; see ${path.replace('.json', '.log')}`);
   reports.push({ job, report: JSON.parse(readFileSync(path, 'utf8')) });
-  writeFileSync(resolve(output, 'progress.json'), JSON.stringify({ games: reports.reduce((n, r) => n + r.report.games, 0),
-    v10Wins: reports.reduce((n, r) => n + r.report.winsByPlanner.v10, 0), draws: reports.reduce((n, r) => n + r.report.draws, 0) }));
+
 };
-console.log(JSON.stringify({ output, games: 48, clock: 'fixed nodes', status: 'running' }));
 for (let i = 0; i < jobs.length; i += 4) await Promise.all(jobs.slice(i, i + 4).map(run));
 const cells = {};
 const weaknesses = { losses: 0, lostCommanderFirst: 0, lossesWithMoreCaptures: 0, lossesWithMoreKills: 0,
@@ -68,4 +67,6 @@ const summary = { games: 48, v10: { wins, losses: 48 - wins - draws, draws }, ce
   replayFailures, timeLimits, sourceFingerprint: [...fingerprints][0],
   caveat: 'Fixed-node comparison. Humans always act first: faction and turn-order effects are confounded.', output };
 writeFileSync(resolve(output, 'summary.json'), JSON.stringify(summary, null, 2));
-console.log(JSON.stringify(summary));
+const matrix = formatAiMatrix(summary);
+writeFileSync(resolve(output, 'summary.md'), matrix + '\n');
+console.log(matrix);

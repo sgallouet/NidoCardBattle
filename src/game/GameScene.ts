@@ -54,6 +54,8 @@ import {
 import type { UnitDefinitionId } from '../data/units';
 import { SeaTerrainSurface } from './SeaTerrainSurface';
 import { WaveWaterSurface } from './WaveWaterSurface';
+import { createCloudShadows } from './CloudShadowLayer';
+import { AmbientBirds } from './AmbientBirds';
 import { isSeaTerrain } from './seaTerrain';
 import type { AbilityVfxEvent } from './AbilityVfxAnimator';
 import { setDebugStatus } from './DebugStatus';
@@ -220,6 +222,10 @@ export class GameScene extends Phaser.Scene {
   private renderedBoardStateSignature = '';
   private seaSurface?: SeaTerrainSurface | WaveWaterSurface;
   private waveWaterEnabled = true;
+  private cloudShadowLayer?: Phaser.GameObjects.Shader;
+  private environmentTime = 0;
+  private ambientBirds?: AmbientBirds;
+  private environmentSpeed = 1;
   private selectedUnitId: string | null = null;
   private selectedCardIndex: number | null = null;
   private displaceTargetId: string | null = null;
@@ -296,6 +302,7 @@ export class GameScene extends Phaser.Scene {
     this.load.image(HILL_TERRAIN_ART.textureKey, HILL_TERRAIN_ART.url);
     this.load.image(MOUNTAIN_TERRAIN_ART.textureKey, MOUNTAIN_TERRAIN_ART.url);
     SeaTerrainSurface.preload(this);
+    AmbientBirds.preload(this);
     this.load.image(RUIN_ART.textureKey, RUIN_ART.url);
     this.load.image(RUIN_ART.shadow.textureKey, RUIN_ART.shadow.url);
     this.load.image(TOWN_ART.textureKey, TOWN_ART.url);
@@ -325,6 +332,10 @@ export class GameScene extends Phaser.Scene {
     const battleLogDownload = document.querySelector<HTMLButtonElement>('#battle-log-download-button');
     battleLogDownload?.addEventListener('click', this.handleBattleLogDownload);
     this.events.once('shutdown', () => {
+      this.events.off(Phaser.Scenes.Events.UPDATE, this.updateEnvironment, this);
+      this.ambientBirds?.destroy();
+      this.ambientBirds = undefined;
+      this.setCloudShadowsEnabled(false);
       battleLogDownload?.removeEventListener('click', this.handleBattleLogDownload);
       this.liveBattleLog = undefined;
       this.clearTacticalHexFx();
@@ -343,6 +354,11 @@ export class GameScene extends Phaser.Scene {
     this.setupCameraControls();
     this.createGalaxyBackdrop();
     this.renderAll();
+    this.setCloudShadowsEnabled(true);
+    this.ambientBirds = new AmbientBirds(this, this.center({ q: 0, r: 0 }));
+    this.boardLayer?.add(this.ambientBirds.container);
+    this.boardLayer?.sort('depth');
+    this.events.on(Phaser.Scenes.Events.UPDATE, this.updateEnvironment, this);
     this.resetCamera();
     this.game.events.once(Phaser.Core.Events.POST_RENDER, () => loadingScreen.complete());
   }
@@ -628,6 +644,29 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 
   isWaveWaterEnabled(): boolean {
     return this.waveWaterEnabled;
+  }
+
+  setEnvironmentSpeed(speed: number): void {
+    this.environmentSpeed = Phaser.Math.Clamp(speed, 0, 2);
+  }
+
+  private updateEnvironment(_time: number, delta: number): void {
+    this.ambientBirds?.update(delta);
+    this.environmentTime += delta / 1000 * this.environmentSpeed;
+    this.cloudShadowLayer?.setUniform('environmentTime.value', this.environmentTime);
+    if (this.seaSurface instanceof WaveWaterSurface) this.seaSurface.setTime(this.environmentTime);
+  }
+
+  setCloudShadowsEnabled(enabled: boolean): void {
+    this.cloudShadowLayer?.destroy();
+    this.cloudShadowLayer = undefined;
+    if (enabled) {
+      this.cloudShadowLayer = createCloudShadows(this, this.center({ q: 0, r: 0 }))
+        .setDepth(TACTICAL_FX_DEPTH - 1);
+      this.boardLayer?.add(this.cloudShadowLayer);
+      this.cloudShadowLayer.setUniform('environmentTime.value', this.environmentTime);
+      this.boardLayer?.sort('depth');
+    }
   }
 
   setWaveWaterEnabled(enabled: boolean): void {
@@ -1096,6 +1135,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       (coord) => this.center(coord),
     );
     this.seaSurface.render();
+    if (this.seaSurface instanceof WaveWaterSurface) this.seaSurface.setTime(this.environmentTime);
   }
 
   private addTerrainDetail(coord: Coord, center: Phaser.Math.Vector2): void {

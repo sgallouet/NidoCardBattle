@@ -206,6 +206,8 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
       },
       tileTipsEnabled: this.areTileTipsEnabled(),
       waveWaterEnabled: this.isWaveWaterEnabled(),
+      setCloudShadowsEnabled: (enabled) => this.setCloudShadowsEnabled(enabled),
+      setEnvironmentSpeed: (speed) => this.setEnvironmentSpeed(speed),
       waveWaterSupported: this.game.renderer.type === Phaser.WEBGL,
       setWaveWaterEnabled: (enabled) => this.setWaveWaterEnabled(enabled),
       setTileTipsEnabled: (enabled) => this.setTileTipsEnabled(enabled),

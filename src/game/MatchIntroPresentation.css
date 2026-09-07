@@ -90,6 +90,19 @@
 
 .match-intro-skip:hover:not(:disabled) .match-intro-skip-mark { transform: translateX(2px); }
 
+.match-intro-skip.is-speeding {
+  border-color: rgba(233, 197, 110, .62);
+  color: #ffe8ad;
+  background: rgba(45, 31, 12, .78);
+  cursor: progress;
+  opacity: .9;
+}
+
+.match-intro-skip.is-speeding .match-intro-skip-mark {
+  color: #f5d47e;
+  animation: match-intro-skip-rush 520ms ease-in-out infinite alternate;
+}
+
 .match-intro-skip.is-leaving {
   pointer-events: none;
   opacity: 0;
@@ -193,6 +206,11 @@
   to { opacity: .9; transform: translateY(0); }
 }
 
+@keyframes match-intro-skip-rush {
+  from { transform: translateX(-1px); opacity: .62; }
+  to { transform: translateX(3px); opacity: 1; }
+}
+
 @media (max-width: 700px), (max-height: 500px) {
   .match-intro-guide {
     top: max(8px, env(safe-area-inset-top));
@@ -212,5 +230,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .match-intro-guide { display: none; }
-  .match-intro-skip { animation: none; opacity: .9; transform: none; }
+  .match-intro-skip,
+  .match-intro-skip.is-speeding .match-intro-skip-mark {
+    animation: none;
+    opacity: .9;
+    transform: none;
+  }
 }

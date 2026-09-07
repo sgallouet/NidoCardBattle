@@ -77,8 +77,8 @@ export class TileInsightUiGuard {
   private forceHidePanel(): void {
     const panel = document.querySelector<HTMLElement>('#tile-insight');
     if (!panel) return;
-    panel.classList.remove('is-visible');
-    panel.setAttribute('aria-hidden', 'true');
-    panel.hidden = true;
+    if (panel.classList.contains('is-visible')) panel.classList.remove('is-visible');
+    if (panel.getAttribute('aria-hidden') !== 'true') panel.setAttribute('aria-hidden', 'true');
+    if (!panel.hidden) panel.hidden = true;
   }
 }

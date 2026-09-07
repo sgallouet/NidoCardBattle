@@ -1,6 +1,12 @@
 import { CARD_ART } from '../data/cardArt';
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import {
+  BATTLEFIELD_CODEX,
+  SITE_CODEX_IDS,
+  TERRAIN_CODEX_IDS,
+  type BattlefieldCodexId,
+} from '../data/battlefieldCodex';
+import {
   ABILITY_DESCRIPTIONS,
   TRAIT_DESCRIPTIONS,
   UNIT_CODEX,
@@ -12,6 +18,9 @@ import type { Ability, Faction, Trait } from '../data/types';
 
 const FACTIONS: readonly Faction[] = ['human', 'undead'];
 const DEFAULT_UNIT: CodexUnitId = 'vampire';
+const DEFAULT_BATTLEFIELD: BattlefieldCodexId = 'forest';
+
+type CodexBook = 'units' | 'battlefield';
 
 const prettyMechanicName = (value: string): string =>
   value.replace(/([a-z])([A-Z])/g, '$1 $2').toUpperCase();
@@ -23,15 +32,26 @@ export class WarCodex {
   private readonly launchButton: HTMLButtonElement;
   private readonly closeButton: HTMLButtonElement;
   private readonly navigation: HTMLElement;
+  private readonly showcase: HTMLElement;
   private readonly cardMount: HTMLElement;
+  private readonly indexBook: HTMLElement;
+  private readonly indexTitle: HTMLElement;
   private readonly unitName: HTMLElement;
   private readonly unitFactionRole: HTMLElement;
   private readonly tagline: HTMLElement;
+  private readonly mechanicsTitle: HTMLElement;
   private readonly mechanics: HTMLElement;
+  private readonly statsSection: HTMLElement;
+  private readonly statsTitle: HTMLElement;
   private readonly stats: HTMLElement;
+  private readonly strongTitle: HTMLElement;
+  private readonly weakTitle: HTMLElement;
   private readonly strongAgainst: HTMLElement;
   private readonly weakAgainst: HTMLElement;
-  private selectedId: CodexUnitId = DEFAULT_UNIT;
+  private readonly cardCaption: HTMLElement;
+  private selectedBook: CodexBook = 'units';
+  private selectedUnit: CodexUnitId = DEFAULT_UNIT;
+  private selectedBattlefield: BattlefieldCodexId = DEFAULT_BATTLEFIELD;
   private previousFocus: HTMLElement | null = null;
   private closeTimer: number | null = null;
 
@@ -57,17 +77,29 @@ export class WarCodex {
 
     this.closeButton = this.requireElement<HTMLButtonElement>('[data-codex-close]');
     this.navigation = this.requireElement<HTMLElement>('[data-codex-navigation]');
+    this.showcase = this.requireElement<HTMLElement>('[data-codex-showcase]');
     this.cardMount = this.requireElement<HTMLElement>('[data-codex-card]');
+    this.indexBook = this.requireElement<HTMLElement>('[data-codex-index-book]');
+    this.indexTitle = this.requireElement<HTMLElement>('[data-codex-index-title]');
     this.unitName = this.requireElement<HTMLElement>('[data-codex-name]');
     this.unitFactionRole = this.requireElement<HTMLElement>('[data-codex-faction-role]');
     this.tagline = this.requireElement<HTMLElement>('[data-codex-tagline]');
+    this.mechanicsTitle = this.requireElement<HTMLElement>('[data-codex-mechanics-title]');
     this.mechanics = this.requireElement<HTMLElement>('[data-codex-mechanics]');
+    this.statsSection = this.requireElement<HTMLElement>('[data-codex-stats-section]');
+    this.statsTitle = this.requireElement<HTMLElement>('[data-codex-stats-title]');
     this.stats = this.requireElement<HTMLElement>('[data-codex-stats]');
+    this.strongTitle = this.requireElement<HTMLElement>('[data-codex-strong-title]');
+    this.weakTitle = this.requireElement<HTMLElement>('[data-codex-weak-title]');
     this.strongAgainst = this.requireElement<HTMLElement>('[data-codex-strong]');
     this.weakAgainst = this.requireElement<HTMLElement>('[data-codex-weak]');
+    this.cardCaption = this.requireElement<HTMLElement>('[data-codex-caption]');
 
     this.launchButton.addEventListener('click', () => this.open());
     this.closeButton.addEventListener('click', () => this.close());
+    for (const button of this.root.querySelectorAll<HTMLButtonElement>('[data-codex-book]')) {
+      button.addEventListener('click', () => this.selectBook(button.dataset.codexBook as CodexBook));
+    }
     document.addEventListener('keydown', this.handleKeyDown);
 
     this.render();
@@ -93,20 +125,24 @@ export class WarCodex {
           </div>
           <div class="war-codex-title-ornament" aria-hidden="true">✦</div>
         </header>
+        <div class="war-codex-books" aria-label="Codex books">
+          <button class="war-codex-book-tab" type="button" data-codex-book="units">Book I · Units</button>
+          <button class="war-codex-book-tab" type="button" data-codex-book="battlefield">Book II · Battlefield</button>
+        </div>
         <button class="war-codex-close" type="button" data-codex-close aria-label="Close the War Codex" title="Close Codex">×</button>
         <div class="war-codex-body">
-          <nav class="war-codex-index" aria-label="War Codex unit index">
+          <nav class="war-codex-index" aria-label="War Codex index">
             <div class="war-codex-index-heading">
-              <span>Book I</span>
-              <strong>Units</strong>
+              <span data-codex-index-book></span>
+              <strong data-codex-index-title></strong>
             </div>
             <div data-codex-navigation></div>
           </nav>
 
-          <section class="war-codex-showcase" aria-label="Selected unit card">
+          <section class="war-codex-showcase" data-codex-showcase aria-label="Selected Codex entry">
             <div class="war-codex-card-aura" aria-hidden="true"></div>
             <div class="war-codex-card-frame" data-codex-card></div>
-            <div class="war-codex-card-caption" aria-hidden="true">Move the pointer across the card</div>
+            <div class="war-codex-card-caption" data-codex-caption aria-hidden="true"></div>
           </section>
 
           <article class="war-codex-details">
@@ -120,22 +156,22 @@ export class WarCodex {
             <p class="war-codex-tagline" data-codex-tagline></p>
 
             <section class="war-codex-section">
-              <h3><span aria-hidden="true">◆</span> Traits &amp; Abilities</h3>
+              <h3 data-codex-mechanics-title></h3>
               <div class="war-codex-mechanics" data-codex-mechanics></div>
             </section>
 
-            <section class="war-codex-section">
-              <h3><span aria-hidden="true">◆</span> Battle Record</h3>
+            <section class="war-codex-section" data-codex-stats-section>
+              <h3 data-codex-stats-title></h3>
               <div class="war-codex-stats" data-codex-stats></div>
             </section>
 
             <div class="war-codex-matchups">
               <section class="war-codex-section war-codex-strong">
-                <h3><span aria-hidden="true">✦</span> Strong Against</h3>
+                <h3 data-codex-strong-title></h3>
                 <ul data-codex-strong></ul>
               </section>
               <section class="war-codex-section war-codex-weak">
-                <h3><span aria-hidden="true">✧</span> Weak Against</h3>
+                <h3 data-codex-weak-title></h3>
                 <ul data-codex-weak></ul>
               </section>
             </div>
@@ -157,43 +193,73 @@ export class WarCodex {
   }
 
   private render(): void {
-    const definition = getCodexUnitDefinition(this.selectedId);
-    const entry = UNIT_CODEX[this.selectedId];
+    this.root.dataset.mode = this.selectedBook;
+    for (const button of this.root.querySelectorAll<HTMLButtonElement>('[data-codex-book]')) {
+      const selected = button.dataset.codexBook === this.selectedBook;
+      button.classList.toggle('is-selected', selected);
+      button.setAttribute('aria-pressed', `${selected}`);
+    }
+
+    if (this.selectedBook === 'units') this.renderUnitBook();
+    else this.renderBattlefieldBook();
+    this.animateEntry();
+  }
+
+  private renderUnitBook(): void {
+    const definition = getCodexUnitDefinition(this.selectedUnit);
+    const entry = UNIT_CODEX[this.selectedUnit];
     const faction = definition.faction as Faction;
     this.root.dataset.faction = faction;
+    this.indexBook.textContent = 'Book I';
+    this.indexTitle.textContent = 'Units';
+    this.showcase.setAttribute('aria-label', `${definition.name} card`);
+    this.cardCaption.textContent = 'Move the pointer across the card';
 
-    this.renderNavigation();
+    this.renderUnitNavigation();
     this.renderCard();
 
     this.unitName.textContent = definition.name;
     this.unitFactionRole.textContent = `${factionLabel(faction)} • ${entry.role}`;
     this.tagline.textContent = entry.tagline;
-    this.renderMechanics();
+    this.mechanicsTitle.innerHTML = '<span aria-hidden="true">◆</span> Traits &amp; Abilities';
+    this.renderUnitMechanics();
+    this.statsSection.hidden = false;
+    this.statsTitle.innerHTML = '<span aria-hidden="true">◆</span> Battle Record';
     this.renderStats();
+    this.strongTitle.innerHTML = '<span aria-hidden="true">✦</span> Strong Against';
+    this.weakTitle.innerHTML = '<span aria-hidden="true">✧</span> Weak Against';
     this.renderList(this.strongAgainst, entry.strongAgainst);
     this.renderList(this.weakAgainst, entry.weakAgainst);
-
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      const panels = [this.cardMount, this.unitName.closest('.war-codex-entry-header'), this.tagline, this.mechanics, this.stats]
-        .filter((element): element is Element => element !== null);
-      for (const panel of panels) {
-        panel.animate(
-          [
-            { opacity: 0.35, transform: 'translateY(5px)' },
-            { opacity: 1, transform: 'translateY(0)' },
-          ],
-          { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' },
-        );
-      }
-    }
   }
 
-  private renderNavigation(): void {
+  private renderBattlefieldBook(): void {
+    const entry = BATTLEFIELD_CODEX[this.selectedBattlefield];
+    this.root.removeAttribute('data-faction');
+    this.indexBook.textContent = 'Book II';
+    this.indexTitle.textContent = 'Battlefield';
+    this.showcase.setAttribute('aria-label', `${entry.name} battlefield entry`);
+    this.cardCaption.textContent = entry.group === 'terrain' ? 'A plate of the battlefield terrain' : 'A landmark from the field';
+
+    this.renderBattlefieldNavigation();
+    this.renderBattlefieldShowcase();
+
+    this.unitName.textContent = entry.name;
+    this.unitFactionRole.textContent = entry.kind.toUpperCase();
+    this.tagline.textContent = entry.tagline;
+    this.mechanicsTitle.innerHTML = '<span aria-hidden="true">◆</span> Field Rules';
+    this.renderBattlefieldRules(entry.rules);
+    this.statsSection.hidden = true;
+    this.strongTitle.innerHTML = '<span aria-hidden="true">✦</span> Best For';
+    this.weakTitle.innerHTML = '<span aria-hidden="true">✧</span> Beware';
+    this.renderList(this.strongAgainst, entry.bestFor);
+    this.renderList(this.weakAgainst, entry.beware);
+  }
+
+  private renderUnitNavigation(): void {
     this.navigation.replaceChildren();
     for (const faction of FACTIONS) {
       const group = document.createElement('section');
       group.className = `war-codex-faction war-codex-faction-${faction}`;
-
       const heading = document.createElement('h3');
       heading.innerHTML = `<span aria-hidden="true">${faction === 'human' ? '♔' : '☾'}</span>${factionLabel(faction)}`;
       group.append(heading);
@@ -202,13 +268,8 @@ export class WarCodex {
       list.className = 'war-codex-unit-list';
       for (const unitId of getCodexUnitsByFaction(faction)) {
         const definition = getCodexUnitDefinition(unitId);
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'war-codex-unit-link';
+        const button = this.navigationButton(definition.name, unitId === this.selectedUnit);
         button.dataset.unitId = unitId;
-        button.textContent = definition.name;
-        button.setAttribute('aria-current', unitId === this.selectedId ? 'true' : 'false');
-        if (unitId === this.selectedId) button.classList.add('is-selected');
         button.addEventListener('click', () => this.selectUnit(unitId));
         list.append(button);
       }
@@ -217,11 +278,49 @@ export class WarCodex {
     }
   }
 
+  private renderBattlefieldNavigation(): void {
+    this.navigation.replaceChildren();
+    const groups: Array<{ title: string; glyph: string; ids: readonly BattlefieldCodexId[] }> = [
+      { title: 'Terrain', glyph: '⬡', ids: TERRAIN_CODEX_IDS },
+      { title: 'Sites & Places', glyph: '⚑', ids: SITE_CODEX_IDS },
+    ];
+    for (const groupData of groups) {
+      const group = document.createElement('section');
+      group.className = 'war-codex-faction war-codex-battlefield-group';
+      const heading = document.createElement('h3');
+      heading.innerHTML = `<span aria-hidden="true">${groupData.glyph}</span>${groupData.title}`;
+      group.append(heading);
+
+      const list = document.createElement('div');
+      list.className = 'war-codex-unit-list';
+      for (const id of groupData.ids) {
+        const entry = BATTLEFIELD_CODEX[id];
+        const button = this.navigationButton(entry.name, id === this.selectedBattlefield);
+        button.classList.add('war-codex-battlefield-link');
+        button.dataset.battlefieldId = id;
+        button.addEventListener('click', () => this.selectBattlefield(id));
+        list.append(button);
+      }
+      group.append(list);
+      this.navigation.append(group);
+    }
+  }
+
+  private navigationButton(label: string, selected: boolean): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'war-codex-unit-link';
+    button.textContent = label;
+    button.setAttribute('aria-current', selected ? 'true' : 'false');
+    if (selected) button.classList.add('is-selected');
+    return button;
+  }
+
   private renderCard(): void {
-    const definition = getCodexUnitDefinition(this.selectedId);
-    const cardId = this.selectedId as CardDefinitionId;
-    const cardDefinition = CARD_DEFINITIONS[cardId];
-    if (!cardDefinition || cardDefinition.type !== 'unit') {
+    const definition = getCodexUnitDefinition(this.selectedUnit);
+    const cardId = this.selectedUnit as CardDefinitionId;
+    const definitionCard = CARD_DEFINITIONS[cardId];
+    if (!definitionCard || definitionCard.type !== 'unit') {
       throw new Error(`${definition.name} does not resolve to a unit card.`);
     }
 
@@ -244,10 +343,39 @@ export class WarCodex {
     this.cardMount.replaceChildren(card);
   }
 
-  private renderMechanics(): void {
-    const definition = getCodexUnitDefinition(this.selectedId);
-    this.mechanics.replaceChildren();
+  private renderBattlefieldShowcase(): void {
+    const entry = BATTLEFIELD_CODEX[this.selectedBattlefield];
+    const showcase = document.createElement('div');
+    showcase.className = 'codex-battlefield-showcase';
+    const plinth = document.createElement('span');
+    plinth.className = 'codex-tile-plinth';
+    plinth.setAttribute('aria-hidden', 'true');
+    const art = document.createElement('div');
+    art.className = 'codex-battlefield-art';
 
+    if (entry.art.length > 0) {
+      for (const layer of entry.art) {
+        const image = document.createElement('img');
+        image.className = `codex-battlefield-layer ${layer.className ?? ''}`.trim();
+        image.src = layer.url;
+        image.alt = '';
+        image.draggable = false;
+        art.append(image);
+      }
+    } else {
+      const glyph = document.createElement('span');
+      glyph.className = 'codex-battlefield-glyph';
+      glyph.textContent = entry.glyph ?? '⬡';
+      art.append(glyph);
+    }
+
+    showcase.append(plinth, art);
+    this.cardMount.replaceChildren(showcase);
+  }
+
+  private renderUnitMechanics(): void {
+    const definition = getCodexUnitDefinition(this.selectedUnit);
+    this.mechanics.replaceChildren();
     const mechanics: Array<{ name: string; description: string }> = definition.traits.map((trait) => ({
       name: prettyMechanicName(trait),
       description: TRAIT_DESCRIPTIONS[trait as Trait],
@@ -285,8 +413,21 @@ export class WarCodex {
     }
   }
 
+  private renderBattlefieldRules(rules: readonly string[]): void {
+    this.mechanics.replaceChildren();
+    const wrapper = document.createElement('div');
+    wrapper.className = 'war-codex-field-rules';
+    for (const rule of rules) {
+      const row = document.createElement('div');
+      row.className = 'war-codex-field-rule';
+      row.textContent = rule;
+      wrapper.append(row);
+    }
+    this.mechanics.append(wrapper);
+  }
+
   private renderStats(): void {
-    const definition = getCodexUnitDefinition(this.selectedId);
+    const definition = getCodexUnitDefinition(this.selectedUnit);
     const values: Array<[string, string, string]> = [
       ['◆', 'Mana', `${definition.cost}`],
       ['♥', 'Health', `${definition.maxHp}`],
@@ -312,9 +453,22 @@ export class WarCodex {
     }
   }
 
+  private selectBook(book: CodexBook): void {
+    if (book !== 'units' && book !== 'battlefield') return;
+    if (book === this.selectedBook) return;
+    this.selectedBook = book;
+    this.render();
+  }
+
   private selectUnit(id: CodexUnitId): void {
-    if (id === this.selectedId) return;
-    this.selectedId = id;
+    if (id === this.selectedUnit) return;
+    this.selectedUnit = id;
+    this.render();
+  }
+
+  private selectBattlefield(id: BattlefieldCodexId): void {
+    if (id === this.selectedBattlefield) return;
+    this.selectedBattlefield = id;
     this.render();
   }
 
@@ -340,6 +494,26 @@ export class WarCodex {
     card.style.setProperty('--holo-y', '50%');
   }
 
+  private animateEntry(): void {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const panels = [
+      this.cardMount,
+      this.unitName.closest('.war-codex-entry-header'),
+      this.tagline,
+      this.mechanics,
+      this.statsSection.hidden ? null : this.stats,
+    ].filter((element): element is Element => element !== null);
+    for (const panel of panels) {
+      panel.animate(
+        [
+          { opacity: 0.35, transform: 'translateY(5px)' },
+          { opacity: 1, transform: 'translateY(0)' },
+        ],
+        { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' },
+      );
+    }
+  }
+
   private open(): void {
     if (this.closeTimer !== null) {
       window.clearTimeout(this.closeTimer);
@@ -348,25 +522,25 @@ export class WarCodex {
     this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.root.hidden = false;
     this.root.setAttribute('aria-hidden', 'false');
-    document.querySelector('#app')?.classList.add('war-codex-open');
+    document.querySelector<HTMLElement>('#app')?.classList.add('war-codex-active');
     window.requestAnimationFrame(() => {
       this.root.classList.add('is-open');
-      this.closeButton.focus();
+      const selected = this.root.querySelector<HTMLButtonElement>('.war-codex-unit-link.is-selected');
+      (selected ?? this.closeButton).focus({ preventScroll: true });
     });
   }
 
   private close(): void {
     if (this.root.hidden) return;
     this.root.classList.remove('is-open');
-    const finish = (): void => {
+    this.root.setAttribute('aria-hidden', 'true');
+    document.querySelector<HTMLElement>('#app')?.classList.remove('war-codex-active');
+    if (this.closeTimer !== null) window.clearTimeout(this.closeTimer);
+    this.closeTimer = window.setTimeout(() => {
       this.root.hidden = true;
-      this.root.setAttribute('aria-hidden', 'true');
-      document.querySelector('#app')?.classList.remove('war-codex-open');
-      this.previousFocus?.focus();
       this.closeTimer = null;
-    };
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) finish();
-    else this.closeTimer = window.setTimeout(finish, 220);
+      this.previousFocus?.focus({ preventScroll: true });
+    }, 230);
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
@@ -380,7 +554,7 @@ export class WarCodex {
 
     const focusable = [...this.root.querySelectorAll<HTMLElement>(
       'button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
-    )].filter((element) => !element.hidden && element.offsetParent !== null);
+    )].filter((element) => !element.hidden && element.getClientRects().length > 0);
     if (focusable.length === 0) return;
     const first = focusable[0];
     const last = focusable[focusable.length - 1];

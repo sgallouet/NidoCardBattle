@@ -1,6 +1,7 @@
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
 import type { GameState } from '../data/types';
 import { getValidSummonCoords } from './engine';
+import { showInvalidCardFeedback } from './InvalidActionFeedback';
 import './CardAvailabilityTips.css';
 
 interface CardAvailabilityTipsOptions {
@@ -71,7 +72,22 @@ export class CardAvailabilityTips {
 
   private readonly handleClick = (event: MouseEvent): void => {
     const button = this.cardFromEvent(event);
-    if (!button || !this.blockContextFor(button)) return;
+    if (!button) return;
+    const context = this.blockContextFor(button);
+    if (!context) return;
+
+    if (context.reason.kind === 'mana') {
+      showInvalidCardFeedback(button, {
+        title: `Need ${context.reason.missing} more Mana`,
+        detail: `${context.cardName} costs ${context.reason.cost} · you have ${context.reason.mana}`,
+      }, true);
+    } else {
+      showInvalidCardFeedback(button, {
+        title: 'No deployment site',
+        detail: 'Need an empty controlled Keep, Fort, or Garrison',
+      });
+    }
+
     event.preventDefault();
     event.stopImmediatePropagation();
   };

@@ -121,15 +121,19 @@ export class PersistentHandRenderer {
       button.removeAttribute('aria-disabled');
     }
 
+    // A deliberately visible but still restrained hand fan. The cards pivot from
+    // below the viewport as though held in one hand: outer cards rotate outward,
+    // while the middle sinks into a shallow arc. CSS straightens and lifts the
+    // hovered/selected card without losing this resting geometry.
     const fanOffset = index - (handSize - 1) / 2;
     const maxOffset = Math.max(0.5, (handSize - 1) / 2);
     const normalizedOffset = fanOffset / maxOffset;
-    const maxAngle = handSize <= 1 ? 0 : Math.min(9, 4 + handSize * 0.9);
-    const centerDip = handSize <= 1
-      ? 0
-      : (1 - Math.min(1, Math.abs(fanOffset) / maxOffset)) * 12;
+    const maxAngle = handSize <= 1 ? 0 : Math.min(13, 7 + handSize * 1.05);
+    const normalizedDistance = Math.min(1, Math.abs(fanOffset) / maxOffset);
+    const centerDip = handSize <= 1 ? 0 : (1 - normalizedDistance ** 1.45) * 25;
     button.style.setProperty('--fan-angle', `${normalizedOffset * maxAngle}deg`);
     button.style.setProperty('--fan-y', `${centerDip}px`);
+    button.style.setProperty('--fan-position', `${normalizedOffset}`);
     button.style.setProperty('--deal-delay', `${index * 70}ms`);
 
     delete button.dataset.holoStyle;

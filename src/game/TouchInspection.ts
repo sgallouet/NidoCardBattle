@@ -7,6 +7,7 @@ const CLICK_SUPPRESSION_MS = 650;
 export class TouchInspection {
   private pointerId: number | null = null;
   private target?: HTMLButtonElement;
+  private preview?: HTMLButtonElement;
   private startX = 0;
   private startY = 0;
   private timer: number | null = null;
@@ -52,6 +53,7 @@ export class TouchInspection {
       this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
       this.target.classList.add('is-touch-inspecting');
       this.target.focus({ preventScroll: true });
+      this.showPreview(this.target);
       window.setTimeout(() => this.target?.classList.remove('is-touch-inspecting'), 520);
     }, LONG_PRESS_MS);
   };
@@ -69,6 +71,7 @@ export class TouchInspection {
       event.preventDefault();
       event.stopPropagation();
     }
+    this.removePreview();
     this.pointerId = null;
     this.target = undefined;
     this.inspected = false;
@@ -91,6 +94,32 @@ export class TouchInspection {
     this.suppressTarget = undefined;
   };
 
+  private showPreview(card: HTMLButtonElement): void {
+    this.removePreview();
+    const app = document.querySelector<HTMLElement>('#app');
+    if (!app) return;
+
+    const preview = card.cloneNode(true) as HTMLButtonElement;
+    preview.disabled = false;
+    preview.tabIndex = -1;
+    preview.className = 'card touch-card-preview';
+    preview.removeAttribute('id');
+    preview.removeAttribute('aria-disabled');
+    preview.setAttribute('aria-hidden', 'true');
+    delete preview.dataset.availabilityBlocked;
+    delete preview.dataset.hardDisabled;
+    delete preview.dataset.persistentHand;
+    preview.style.removeProperty('--fan-angle');
+    preview.style.removeProperty('--fan-y');
+    app.append(preview);
+    this.preview = preview;
+  }
+
+  private removePreview(): void {
+    this.preview?.remove();
+    this.preview = undefined;
+  }
+
   private cancelTimer(): void {
     if (this.timer !== null) window.clearTimeout(this.timer);
     this.timer = null;
@@ -98,6 +127,7 @@ export class TouchInspection {
 
   private cancel(): void {
     this.cancelTimer();
+    this.removePreview();
     this.pointerId = null;
     this.target?.classList.remove('is-touch-inspecting');
     this.target = undefined;

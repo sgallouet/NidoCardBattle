@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { CARD_DEFINITIONS, type CardDefinitionId } from '../data/cards';
-import type { Coord, GameState } from '../data/types';
+import type { Coord, GameState, UnitState } from '../data/types';
 import { loadingScreen } from './LoadingScreen';
 import './FirstTurnGuide.css';
 
@@ -109,10 +109,11 @@ export class FirstTurnGuide {
       title.textContent = 'Play a card';
       const targeting = document.querySelector('#hand')?.classList.contains('targeting') ?? false;
       copy.textContent = targeting
-        ? 'Good — now choose one of the highlighted hexes.'
-        : 'Choose a glowing card you can afford, then place it on a highlighted hex.';
+        ? 'Now choose a highlighted hex.'
+        : 'Choose a glowing card you can afford.';
       if (!targeting) this.highlightPlayableCards();
       this.setBeaconVisible(false);
+      this.positionGuide();
       return;
     }
 
@@ -121,17 +122,19 @@ export class FirstTurnGuide {
       title.textContent = 'Move a unit';
       const unitSelected = / selected\.$/i.test(this.game.message);
       copy.textContent = unitSelected
-        ? 'Now click a blue highlighted hex to move there.'
-        : 'Click one of your units, then choose a blue highlighted hex.';
+        ? 'Choose a blue highlighted hex.'
+        : 'Select one of your ready units.';
       this.setBeaconVisible(!unitSelected);
+      this.positionGuide();
       return;
     }
 
     step.textContent = '3 / 3';
     title.textContent = 'End your turn';
-    copy.textContent = 'That is the core loop. End the turn and watch the enemy respond.';
+    copy.textContent = 'End the turn and watch the enemy respond.';
     document.querySelector<HTMLButtonElement>('#end-turn-button')?.classList.add('ftue-end-turn-target');
     this.setBeaconVisible(false);
+    this.positionGuide();
   }
 
   private highlightPlayableCards(): void {
@@ -155,29 +158,101 @@ export class FirstTurnGuide {
     this.frame = null;
     if (!this.active || this.destroyed) return;
     if (this.step === 'move' && this.beacon && !this.beacon.hidden) this.positionBeacon();
+    this.positionGuide();
     this.frame = requestAnimationFrame(this.positionLoop);
   };
 
+  private positionGuide(): void {
+    const root = this.root;
+    const app = document.querySelector<HTMLElement>('#app');
+    if (!root || !app) return;
+    const appRect = app.getBoundingClientRect();
+    const rootRect = root.getBoundingClientRect();
+    if (rootRect.width <= 0 || rootRect.height <= 0) return;
+
+    if (this.step === 'card') {
+      const target = document.querySelector<HTMLElement>('.ftue-card-target') ?? document.querySelector<HTMLElement>('#hand');
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      this.placeAbove(
+        rect.left + rect.width / 2 - appRect.left,
+        rect.top - appRect.top,
+        rootRect,
+        appRect,
+      );
+      return;
+    }
+
+    if (this.step === 'end-turn') {
+      const target = document.querySelector<HTMLElement>('#end-turn-button');
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      this.placeAbove(
+        rect.left + rect.width / 2 - appRect.left,
+        rect.top - appRect.top,
+        rootRect,
+        appRect,
+      );
+      return;
+    }
+
+    const unit = this.guideUnit();
+    if (!unit) return;
+    const point = this.unitViewportPoint(unit);
+    const x = point.x - appRect.left;
+    const y = point.y - appRect.top;
+    const gap = 52;
+    const fitsRight = x + gap + rootRect.width <= appRect.width - 10;
+    const left = fitsRight ? x + gap : x - gap - rootRect.width;
+    const top = y - rootRect.height / 2;
+    root.dataset.placement = fitsRight ? 'right' : 'left';
+    root.style.left = `${Math.round(Phaser.Math.Clamp(left, 10, appRect.width - rootRect.width - 10))}px`;
+    root.style.top = `${Math.round(Phaser.Math.Clamp(top, 10, appRect.height - rootRect.height - 10))}px`;
+  }
+
+  private placeAbove(
+    anchorX: number,
+    anchorTop: number,
+    rootRect: DOMRect,
+    appRect: DOMRect,
+  ): void {
+    const left = anchorX - rootRect.width / 2;
+    const top = anchorTop - rootRect.height - 14;
+    this.root!.dataset.placement = 'above';
+    this.root!.style.left = `${Math.round(Phaser.Math.Clamp(left, 10, appRect.width - rootRect.width - 10))}px`;
+    this.root!.style.top = `${Math.round(Phaser.Math.Clamp(top, 10, appRect.height - rootRect.height - 10))}px`;
+  }
+
   private positionBeacon(): void {
     if (!this.beacon) return;
-    const unit = this.game.state.units.find((candidate) =>
-      candidate.owner === 1
-      && candidate.definitionId !== 'commander'
-      && !candidate.exhausted
-      && !candidate.moved)
-      ?? this.game.state.units.find((candidate) => candidate.owner === 1 && !candidate.exhausted && !candidate.moved);
+    const unit = this.guideUnit();
     if (!unit) {
       this.beacon.hidden = true;
       return;
     }
 
+    const point = this.unitViewportPoint(unit);
+    this.beacon.style.left = `${Math.round(point.x)}px`;
+    this.beacon.style.top = `${Math.round(point.y)}px`;
+  }
+
+  private guideUnit(): UnitState | undefined {
+    return this.game.state.units.find((candidate) =>
+      candidate.owner === 1
+      && candidate.definitionId !== 'commander'
+      && !candidate.exhausted
+      && !candidate.moved)
+      ?? this.game.state.units.find((candidate) => candidate.owner === 1 && !candidate.exhausted && !candidate.moved);
+  }
+
+  private unitViewportPoint(unit: UnitState): { x: number; y: number } {
     const world = this.game.center(unit.coord);
     const camera = this.scene.cameras.main;
     const canvas = this.scene.game.canvas.getBoundingClientRect();
-    const x = canvas.left + camera.x + (world.x - camera.worldView.x) * camera.zoom;
-    const y = canvas.top + camera.y + (world.y - camera.worldView.y) * camera.zoom;
-    this.beacon.style.left = `${Math.round(x)}px`;
-    this.beacon.style.top = `${Math.round(y)}px`;
+    return {
+      x: canvas.left + camera.x + (world.x - camera.worldView.x) * camera.zoom,
+      y: canvas.top + camera.y + (world.y - camera.worldView.y) * camera.zoom,
+    };
   }
 
   private setBeaconVisible(visible: boolean): void {

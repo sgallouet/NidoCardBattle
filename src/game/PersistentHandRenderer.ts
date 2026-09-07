@@ -12,8 +12,6 @@ interface PersistentHandRendererOptions {
 }
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
-const TOUCH_INSPECT_MS = 360;
-const TOUCH_INSPECT_MOVE_PX = 12;
 
 export class PersistentHandRenderer {
   private initialized = false;
@@ -68,7 +66,6 @@ export class PersistentHandRenderer {
   }
 
   destroy(): void {
-    document.querySelector('.touch-card-preview')?.remove();
     this.initialized = false;
     this.currentPlayer = undefined;
   }
@@ -87,53 +84,9 @@ export class PersistentHandRenderer {
         <span class="card-glare" aria-hidden="true"></span>
       </span>`;
 
-    let touchTimer: number | null = null;
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let touchInspecting = false;
-
-    const clearTouchTimer = (): void => {
-      if (touchTimer !== null) window.clearTimeout(touchTimer);
-      touchTimer = null;
-    };
-    const finishTouchInspect = (keepClickGuard: boolean): void => {
-      clearTouchTimer();
-      if (touchInspecting) document.querySelector('.touch-card-preview')?.remove();
-      touchInspecting = false;
-      if (!keepClickGuard) delete button.dataset.touchInspectConsumed;
-      else window.setTimeout(() => delete button.dataset.touchInspectConsumed, 0);
-    };
-
-    button.addEventListener('pointerdown', (event) => {
-      if (!window.matchMedia('(hover: none)').matches) return;
-      clearTouchTimer();
-      touchStartX = event.clientX;
-      touchStartY = event.clientY;
-      touchTimer = window.setTimeout(() => {
-        if (!button.isConnected) return;
-        touchTimer = null;
-        touchInspecting = true;
-        button.dataset.touchInspectConsumed = 'true';
-        this.showTouchPreview(button);
-      }, TOUCH_INSPECT_MS);
-    });
-    button.addEventListener('pointermove', (event) => {
-      if (touchTimer !== null && Math.hypot(event.clientX - touchStartX, event.clientY - touchStartY) > TOUCH_INSPECT_MOVE_PX) {
-        clearTouchTimer();
-      }
-      this.tiltCard(button, event);
-    });
-    button.addEventListener('pointerup', () => finishTouchInspect(true));
-    button.addEventListener('pointercancel', () => finishTouchInspect(false));
-    button.addEventListener('pointerleave', () => {
-      clearTouchTimer();
-      this.resetCardTilt(button);
-    });
+    button.addEventListener('pointermove', (event) => this.tiltCard(button, event));
+    button.addEventListener('pointerleave', () => this.resetCardTilt(button));
     button.addEventListener('click', () => {
-      if (button.dataset.touchInspectConsumed === 'true') {
-        delete button.dataset.touchInspectConsumed;
-        return;
-      }
       const index = Number(button.dataset.handIndex);
       if (Number.isInteger(index) && index >= 0) this.options.selectCard(index);
     });
@@ -191,25 +144,6 @@ export class PersistentHandRenderer {
     } else if (index === 4) {
       button.dataset.holoStyle = 'reverse';
     }
-  }
-
-  private showTouchPreview(card: HTMLButtonElement): void {
-    const app = document.querySelector<HTMLElement>('#app');
-    if (!app) return;
-    document.querySelector('.touch-card-preview')?.remove();
-    const preview = card.cloneNode(true) as HTMLButtonElement;
-    preview.disabled = false;
-    preview.tabIndex = -1;
-    preview.className = 'card touch-card-preview';
-    preview.removeAttribute('id');
-    preview.removeAttribute('aria-disabled');
-    preview.setAttribute('aria-hidden', 'true');
-    delete preview.dataset.availabilityBlocked;
-    delete preview.dataset.hardDisabled;
-    delete preview.dataset.persistentHand;
-    preview.style.removeProperty('--fan-angle');
-    preview.style.removeProperty('--fan-y');
-    app.append(preview);
   }
 
   private tiltCard(card: HTMLButtonElement, event: PointerEvent): void {

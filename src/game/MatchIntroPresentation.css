@@ -46,6 +46,57 @@
   transform: translate(-50%, -8px) scale(.985);
 }
 
+.match-intro-skip {
+  position: absolute;
+  z-index: 26;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 11px 0 14px;
+  border: 1px solid rgba(110, 222, 242, .54);
+  border-radius: 999px;
+  color: rgba(235, 250, 252, .88);
+  background: rgba(4, 13, 19, .72);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .32), inset 0 1px rgba(255, 255, 255, .08);
+  backdrop-filter: blur(12px) saturate(1.15);
+  font: 800 10px/1 Inter, ui-sans-serif, sans-serif;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(-6px);
+  animation: match-intro-skip-in 420ms cubic-bezier(.16, .82, .22, 1) 180ms forwards;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.match-intro-skip:hover:not(:disabled) {
+  border-color: #91edff;
+  color: #fff;
+  background: rgba(12, 49, 59, .86);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .38), 0 0 0 1px rgba(104, 227, 247, .18), 0 0 18px rgba(69, 204, 231, .16);
+}
+
+.match-intro-skip:active:not(:disabled) { transform: translateY(1px); }
+
+.match-intro-skip-mark {
+  color: #7ee9fa;
+  font-size: 18px;
+  line-height: .7;
+  letter-spacing: -.14em;
+  transition: transform 160ms ease;
+}
+
+.match-intro-skip:hover:not(:disabled) .match-intro-skip-mark { transform: translateX(2px); }
+
+.match-intro-skip.is-leaving {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px) scale(.96);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
 .match-intro-step {
   display: grid;
   place-items: center;
@@ -137,11 +188,23 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes match-intro-skip-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: .9; transform: translateY(0); }
+}
+
 @media (max-width: 700px), (max-height: 500px) {
   .match-intro-guide {
     top: max(8px, env(safe-area-inset-top));
     width: min(440px, calc(100% - 16px));
     padding: 8px 10px 10px;
+  }
+  .match-intro-skip {
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    min-height: 34px;
+    padding-left: 11px;
+    font-size: 9px;
   }
   .match-intro-copy strong { font-size: 14px; }
   .match-intro-copy p { font-size: 10px; }
@@ -149,4 +212,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .match-intro-guide { display: none; }
+  .match-intro-skip { animation: none; opacity: .9; transform: none; }
 }

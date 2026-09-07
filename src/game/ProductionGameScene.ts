@@ -205,6 +205,9 @@ export class ProductionGameScene extends PlayerCameraChoreographyGameScene {
         this.matchMusic?.setVolume(volume);
       },
       tileTipsEnabled: this.areTileTipsEnabled(),
+      waveWaterEnabled: this.isWaveWaterEnabled(),
+      waveWaterSupported: this.game.renderer.type === Phaser.WEBGL,
+      setWaveWaterEnabled: (enabled) => this.setWaveWaterEnabled(enabled),
       setTileTipsEnabled: (enabled) => this.setTileTipsEnabled(enabled),
       recordDemo: () => void this.demoVideo?.record(),
       recordingSupported: DemoVideoRecorder.isSupported(this.game.canvas),

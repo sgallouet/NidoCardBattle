@@ -44,19 +44,24 @@ export class CommanderConfrontation {
     if (this.destroyed) return;
     this.showBubble(enemy, 'Enemy Commander', 'Come for me, little hero. Your bones will serve me when this is over.', false);
     await this.wait(ENEMY_LINE_HOLD_MS);
+    if (this.destroyed) return;
     this.hideBubble();
     await this.wait(140);
+    if (this.destroyed) return;
 
     await this.focus(friendly.coord, Math.max(returnView.zoom, 1.42), 560);
     if (this.destroyed) return;
     this.showBubble(friendly, 'Your Commander', 'Then I’d better end you first.', true);
     await this.wait(FRIENDLY_LINE_HOLD_MS);
+    if (this.destroyed) return;
     this.hideBubble();
     await this.wait(120);
+    if (this.destroyed) return;
 
     camera.pan(returnView.x, returnView.y, 650, 'Sine.easeInOut', true);
     camera.zoomTo(returnView.zoom, 650, 'Sine.easeInOut', true);
     await this.wait(700);
+    if (this.destroyed) return;
     app?.classList.remove('match-intro-dialogue-active');
   }
 

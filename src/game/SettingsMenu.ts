@@ -7,6 +7,9 @@ interface OriginalPlacement {
 }
 
 export interface SettingsMenuActions {
+  waveWaterEnabled?: boolean;
+  waveWaterSupported?: boolean;
+  setWaveWaterEnabled?: (enabled: boolean) => void;
   musicVolume?: number;
   setMusicVolume?: (volume: number) => void;
   tileTipsEnabled?: boolean;
@@ -80,6 +83,7 @@ export class SettingsMenu {
 
     const playtest = this.createSection(panel, 'Playtest');
     this.moveControl('#tile-border-button', playtest, 'Hex borders');
+    this.createWaterControl(playtest);
 
     const match = this.createSection(panel, 'Match');
     this.moveControl('#new-game-button', match, 'New match');
@@ -238,6 +242,34 @@ export class SettingsMenu {
     slider.addEventListener('input', update);
     header.append(label, value);
     row.append(header, slider);
+    destination.append(row);
+  }
+
+  private createWaterControl(destination: HTMLElement): void {
+    if (!this.actions.setWaveWaterEnabled) return;
+    const row = document.createElement('div');
+    row.className = 'settings-menu-row';
+    const label = document.createElement('span');
+    label.className = 'settings-menu-row-label';
+    label.innerHTML = '<strong>Wave water</strong><small>Compare with original water</small>';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'secondary';
+    let enabled = this.actions.waveWaterEnabled ?? true;
+    const update = (): void => {
+      toggle.textContent = enabled ? 'Waves' : 'Current';
+      toggle.setAttribute('aria-pressed', String(enabled));
+      toggle.setAttribute('aria-label', 'Wave water');
+    };
+    toggle.disabled = this.actions.waveWaterSupported === false;
+    toggle.addEventListener('click', () => {
+      this.actions.setWaveWaterEnabled!(!enabled);
+      enabled = !enabled;
+      update();
+    });
+    update();
+    if (toggle.disabled) toggle.textContent = 'Requires WebGL';
+    row.append(label, toggle);
     destination.append(row);
   }
 

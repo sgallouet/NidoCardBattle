@@ -25,6 +25,7 @@ export interface MatchIntroSceneInternals {
 export class MatchIntroPresentation {
   private covers = new Map<string, Phaser.GameObjects.Graphics>();
   private guide?: HTMLElement;
+  private skipButton?: HTMLButtonElement;
   private actionFx?: ActionFxAnimator;
   private commanderConfrontation?: CommanderConfrontation;
   private localKeep?: Coord;
@@ -52,6 +53,7 @@ export class MatchIntroPresentation {
     document.querySelector<HTMLElement>('#app')?.classList.add('match-intro-active');
     this.game.setAnimationLock(true);
     this.createGuide();
+    this.createSkipButton();
     this.createMapCovers();
     for (const unit of this.localUnits) this.game.renderedUnits.get(unit.id)?.container.setAlpha(0);
 
@@ -70,18 +72,23 @@ export class MatchIntroPresentation {
     this.showGuide('01', 'Your Home Keep', 'Your army begins here. Controlled Keeps and Forts are your deployment anchors.', 'keep');
     this.spawnKeepBeacon(this.localKeep);
     await this.revealKeepCluster(this.localKeep);
+    if (this.finished) return;
     await this.wait(430);
+    if (this.finished) return;
 
     this.showGuide('02', 'The Battlefield', 'Watch the routes unfold: terrain shapes movement, while sites create strategic value.', 'map');
     this.focusCameraOnLocalKeep(MAP_REVEAL_DURATION + 280);
     await this.revealMap(this.localKeep);
+    if (this.finished) return;
 
     const commander = this.localUnits.find((unit) => unit.definitionId === 'commander');
     if (commander) {
       this.showGuide('03', 'Your Commander', 'This is the heart of your army. Keep their survival in view as the battle develops.', 'commander');
       this.spawnCommanderBeacon(commander.coord);
       await this.revealUnit(commander);
+      if (this.finished) return;
       await this.wait(90);
+      if (this.finished) return;
     }
 
     const support = this.localUnits.filter((unit) => unit.id !== commander?.id);
@@ -89,25 +96,32 @@ export class MatchIntroPresentation {
       this.showGuide('04', 'Your Starting Army', 'Each unit has a clear job. Read the formation first, then choose who acts.', 'army');
       await Promise.all(support.map(async (unit, index) => {
         if (index > 0) await this.wait(index * 85);
+        if (this.finished) return;
         await this.revealUnit(unit);
       }));
+      if (this.finished) return;
       await this.wait(70);
+      if (this.finished) return;
     }
 
     const enemyCommander = this.game.state.units.find((unit) => unit.owner === 2 && unit.definitionId === 'commander');
     if (commander && enemyCommander && this.commanderConfrontation) {
       await this.commanderConfrontation.play(enemyCommander, commander);
+      if (this.finished) return;
     }
 
     this.showGuide('05', 'Your Hand', 'Spend mana to reinforce your army or change the battlefield with a Tactic.', 'hand');
     await this.revealHudAndCards();
+    if (this.finished) return;
     await this.wait(180);
+    if (this.finished) return;
     await this.finish();
   }
 
   async finish(): Promise<void> {
     if (this.finished) return;
     this.finished = true;
+    this.skipButton?.classList.add('is-leaving');
     for (const cover of this.covers.values()) {
       if (cover.active) cover.destroy();
     }
@@ -119,6 +133,9 @@ export class MatchIntroPresentation {
     await this.wait(210);
     this.guide?.remove();
     this.guide = undefined;
+    this.skipButton?.removeEventListener('click', this.handleSkip);
+    this.skipButton?.remove();
+    this.skipButton = undefined;
     this.commanderConfrontation?.destroy();
     this.commanderConfrontation = undefined;
     const app = document.querySelector<HTMLElement>('#app');
@@ -136,6 +153,9 @@ export class MatchIntroPresentation {
     this.commanderConfrontation = undefined;
     this.guide?.remove();
     this.guide = undefined;
+    this.skipButton?.removeEventListener('click', this.handleSkip);
+    this.skipButton?.remove();
+    this.skipButton = undefined;
     document.querySelector<HTMLElement>('#app')?.classList.remove(
       'match-intro-active',
       'match-intro-hud-visible',
@@ -191,6 +211,7 @@ export class MatchIntroPresentation {
   }
 
   private revealCover(coord: Coord, duration: number): Promise<void> {
+    if (this.finished) return Promise.resolve();
     const cover = this.covers.get(this.key(coord));
     if (!cover?.active) return Promise.resolve();
     this.covers.delete(this.key(coord));
@@ -328,6 +349,23 @@ export class MatchIntroPresentation {
     app.append(guide);
     this.guide = guide;
   }
+
+  private createSkipButton(): void {
+    const app = document.querySelector<HTMLElement>('#app');
+    if (!app) return;
+    const button = document.createElement('button');
+    button.className = 'match-intro-skip';
+    button.type = 'button';
+    button.setAttribute('aria-label', 'Skip battlefield introduction');
+    button.innerHTML = '<span>Skip intro</span><span class="match-intro-skip-mark" aria-hidden="true">»</span>';
+    button.addEventListener('click', this.handleSkip);
+    app.append(button);
+    this.skipButton = button;
+  }
+
+  private readonly handleSkip = (): void => {
+    void this.finish();
+  };
 
   private showGuide(step: string, title: string, detail: string, phase: string): void {
     if (!this.guide) return;

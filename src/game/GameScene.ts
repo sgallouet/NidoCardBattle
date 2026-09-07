@@ -53,6 +53,7 @@ import {
 } from '../data/unitArt';
 import type { UnitDefinitionId } from '../data/units';
 import { SeaTerrainSurface } from './SeaTerrainSurface';
+import { WaveWaterSurface } from './WaveWaterSurface';
 import { isSeaTerrain } from './seaTerrain';
 import type { AbilityVfxEvent } from './AbilityVfxAnimator';
 import { setDebugStatus } from './DebugStatus';
@@ -217,7 +218,8 @@ export class GameScene extends Phaser.Scene {
   private hexGeometry = new Map<string, HexRenderGeometry>();
   private staticBoardDirty = true;
   private renderedBoardStateSignature = '';
-  private seaSurface?: SeaTerrainSurface;
+  private seaSurface?: SeaTerrainSurface | WaveWaterSurface;
+  private waveWaterEnabled = true;
   private selectedUnitId: string | null = null;
   private selectedCardIndex: number | null = null;
   private displaceTargetId: string | null = null;
@@ -622,6 +624,16 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 
   areTileTipsEnabled(): boolean {
     return this.tileTipsEnabled;
+  }
+
+  isWaveWaterEnabled(): boolean {
+    return this.waveWaterEnabled;
+  }
+
+  setWaveWaterEnabled(enabled: boolean): void {
+    this.waveWaterEnabled = enabled;
+    this.staticBoardDirty = true;
+    this.renderBoard();
   }
 
   setTileTipsEnabled(enabled: boolean): void {
@@ -1077,7 +1089,8 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 
   private addRiverSurface(): void {
     this.seaSurface?.destroy();
-    this.seaSurface = new SeaTerrainSurface(
+    const Surface = this.waveWaterEnabled ? WaveWaterSurface : SeaTerrainSurface;
+    this.seaSurface = new Surface(
       this,
       (object) => this.addRenderObject(object, true),
       (coord) => this.center(coord),

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { BoardEntityCache } from './BoardEntityCache';
 import abilityBloodDrainUrl from '../../assets/game/audio/sfx/ability-blood-drain.mp3?url';
 import abilityCleaveUrl from '../../assets/game/audio/sfx/ability-cleave.mp3?url';
 import abilityCurseUrl from '../../assets/game/audio/sfx/ability-curse.mp3?url';
@@ -79,6 +80,7 @@ import {
   getGarrisonOwner,
   getInvokeDestinations,
   getReachableCoords,
+  getMovementPreviewPaths,
   getRestoreTargets,
   getValidSummonCoords,
   hexDistance,
@@ -213,13 +215,14 @@ export class GameScene extends Phaser.Scene {
   private galaxyLayer?: Phaser.GameObjects.Container;
   private boardLayer?: Phaser.GameObjects.Container;
   private staticBoardObjects: Phaser.GameObjects.GameObject[] = [];
-  private entityBoardObjects: Phaser.GameObjects.GameObject[] = [];
+  private readonly boardEntities = new BoardEntityCache<Phaser.GameObjects.GameObject>(
+    (objects) => this.destroyBoardObjects(objects),
+  );
   private effectBoardObjects: Phaser.GameObjects.GameObject[] = [];
   private activeRenderObjects?: Phaser.GameObjects.GameObject[];
   private hexGraphics = new Map<string, Phaser.GameObjects.Graphics>();
   private hexGeometry = new Map<string, HexRenderGeometry>();
   private staticBoardDirty = true;
-  private renderedBoardStateSignature = '';
   private seaSurface?: SeaTerrainSurface | WaveWaterSurface;
   private waveWaterEnabled = true;
   private cloudShadowLayer?: Phaser.GameObjects.Shader;
@@ -342,7 +345,8 @@ export class GameScene extends Phaser.Scene {
       this.clearSelectionHexFx();
       this.clearRiverSurface();
       this.destroyBoardObjects(this.effectBoardObjects);
-      this.destroyBoardObjects(this.entityBoardObjects);
+      this.boardEntities.clear();
+      this.renderedUnits.clear();
       this.destroyBoardObjects(this.staticBoardObjects);
       this.hexGraphics.clear();
       this.hexGeometry.clear();
@@ -714,7 +718,6 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     this.clearSelectionHexFx();
     this.destroyBoardObjects(this.effectBoardObjects);
     const highlight = this.highlights();
-    this.refreshHexGraphics();
     const premiumSelections: Array<{
       center: Phaser.Math.Vector2;
       points: Phaser.Geom.Point[];
@@ -775,27 +778,33 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       this.activeRenderObjects = undefined;
     }
 
-    const boardStateSignature = this.boardStateSignature();
-    if (boardStateSignature !== this.renderedBoardStateSignature) {
-      this.renderedUnits.clear();
-      this.destroyBoardObjects(this.entityBoardObjects);
-      this.activeRenderObjects = this.entityBoardObjects;
+    const units = new Map(this.state.units.map((unit) => [unit.id, unit]));
+    for (const id of this.renderedUnits.keys()) {
+      if (!units.has(id)) this.renderedUnits.delete(id);
+    }
+    this.boardEntities.sync(this.boardEntitySignatures(), (key) => {
+      const objects: Phaser.GameObjects.GameObject[] = [];
+      this.activeRenderObjects = objects;
       try {
-        for (const site of this.state.sites) this.addSite(site.coord, site.type, site.owner);
-        for (const garrison of MAP_GARRISONS) {
-          this.addGarrison(garrison.coord, getGarrisonOwner(this.state, garrison.fortId));
+        if (key === 'sites') {
+          for (const site of this.state.sites) this.addSite(site.coord, site.type, site.owner);
+          for (const garrison of MAP_GARRISONS) {
+            this.addGarrison(garrison.coord, getGarrisonOwner(this.state, garrison.fortId));
+          }
+        } else {
+          this.addUnit(units.get(key.slice(5))!);
         }
-        for (const unit of this.state.units) this.addUnit(unit);
       } finally {
         this.activeRenderObjects = undefined;
       }
-      this.renderedBoardStateSignature = boardStateSignature;
-    }
+      return objects;
+    });
     this.boardLayer.sort('depth');
   }
 
-  private boardStateSignature(): string {
-    const units = this.state.units.map((unit) => [
+  private boardEntitySignatures(): Map<string, string> {
+    const signatures = new Map<string, string>();
+    for (const unit of this.state.units) signatures.set(`unit:${unit.id}`, [
       unit.id,
       unit.definitionId,
       unit.owner,
@@ -803,7 +812,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       unit.coord.r,
       unit.hp,
       Number(unit.exhausted),
-    ].join(':')).join('|');
+    ].join(':'));
     const sites = this.state.sites.map((site) => [
       site.id,
       site.type,
@@ -811,7 +820,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       site.coord.r,
       site.owner ?? 0,
     ].join(':')).join('|');
-    return `${units};${sites}`;
+    return new Map([['sites', sites], ...signatures]);
   }
 
   private rebuildStaticBoard(): void {
@@ -900,6 +909,7 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     } finally {
       this.activeRenderObjects = undefined;
     }
+    this.refreshHexGraphics();
     this.staticBoardDirty = false;
   }
 
@@ -1066,12 +1076,8 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
     const selected = findUnit(this.state, this.selectedUnitId);
     if (!selected) return paths;
 
-    for (const key of getReachableCoords(this.state, selected.id).keys()) {
-      const [q, r] = key.split(',').map(Number);
-      const preview = structuredClone(this.state);
-      const result = moveUnit(preview, selected.id, { q, r });
-      if (!result.ok || !result.path) continue;
-      paths.set(key, result.path.map((coord) => this.center(coord)));
+    for (const [key, path] of getMovementPreviewPaths(this.state, selected.id)) {
+      paths.set(key, path.map((coord) => this.center(coord)));
     }
     return paths;
   }
@@ -1695,8 +1701,8 @@ this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
         try {
           await summonPresentation;
         } finally {
+          this.animationInProgress = false;
           this.renderAll();
-          this.setAnimationLock(false);
         }
         return;
       }

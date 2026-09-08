@@ -53,9 +53,10 @@ export class CardAvailabilityTips {
   sync(): void {
     const hand = this.hand ?? document.querySelector<HTMLElement>('#hand');
     if (!hand) return;
+    const hasSummonSite = getValidSummonCoords(this.options.getState()).length > 0;
 
     for (const button of hand.querySelectorAll<HTMLButtonElement>('.card[data-hand-index]')) {
-      const context = this.blockContextFor(button);
+      const context = this.blockContextFor(button, hasSummonSite);
       const hardDisabled = button.dataset.hardDisabled === 'true' || this.options.getState().winner !== null;
       if (context) {
         button.dataset.availabilityBlocked = context.reason.kind;
@@ -68,7 +69,7 @@ export class CardAvailabilityTips {
       }
     }
 
-    if (this.activeCard && (!this.activeCard.isConnected || !this.blockContextFor(this.activeCard))) {
+    if (this.activeCard && (!this.activeCard.isConnected || !this.blockContextFor(this.activeCard, hasSummonSite))) {
       this.hide(this.activeCard);
     }
   }
@@ -147,7 +148,7 @@ export class CardAvailabilityTips {
     return relatedTarget instanceof Node && button.contains(relatedTarget);
   }
 
-  private blockContextFor(button: HTMLButtonElement): BlockContext | undefined {
+  private blockContextFor(button: HTMLButtonElement, hasSummonSite?: boolean): BlockContext | undefined {
     const state = this.options.getState();
     const player = state.players[state.currentPlayer];
     const index = Number(button.dataset.handIndex);
@@ -162,7 +163,7 @@ export class CardAvailabilityTips {
         reason: { kind: 'mana', missing: card.cost - player.mana, cost: card.cost, mana: player.mana },
       };
     }
-    if (card.type === 'unit' && getValidSummonCoords(state).length === 0) {
+    if (card.type === 'unit' && !(hasSummonSite ?? getValidSummonCoords(state).length > 0)) {
       return { cardName: card.name, reason: { kind: 'deployment' } };
     }
     return undefined;

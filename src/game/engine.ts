@@ -361,6 +361,28 @@ export const getReachableCoords = (state: GameState, unitId: string): Map<string
   return reachable;
 };
 
+const movementPath = (movement: MovementSearch, unit: UnitState, destination: Coord): Coord[] => {
+  const path = reconstructMovementPath(movement, destination);
+  if (!unit.attacked && unit.movementOrigin && !sameCoord(unit.coord, movement.origin)) {
+    return [...reconstructMovementPath(movement, unit.coord).reverse(), ...path.slice(1)];
+  }
+  return path;
+};
+
+export const getMovementPreviewPaths = (state: GameState, unitId: string): Map<string, Coord[]> => {
+  const paths = new Map<string, Coord[]>();
+  const unit = findUnit(state, unitId);
+  if (!unit) return paths;
+  const movement = searchMovement(state, unitId);
+  const occupied = new Set(state.units.map((occupant) => coordKey(occupant.coord)));
+  for (const key of movement.reachable.keys()) {
+    if (occupied.has(key)) continue;
+    const [q, r] = key.split(',').map(Number);
+    paths.set(key, movementPath(movement, unit, { q, r }));
+  }
+  return paths;
+};
+
 export const moveUnit = (state: GameState, unitId: string, destination: Coord): ActionResult => {
   if (state.winner) return { ok: false, message: 'The match is over.' };
   const unit = findUnit(state, unitId);
@@ -375,14 +397,8 @@ export const moveUnit = (state: GameState, unitId: string, destination: Coord): 
     return { ok: false, message: 'That hex is not reachable.' };
   }
 
-  const destinationPath = reconstructMovementPath(movement, destination);
+  const path = movementPath(movement, unit, destination);
   const agilePostAttack = unit.attacked && unitDefinition(unit).traits.includes('AgileAssault');
-  const reconsidering = !unit.attacked && unit.movementOrigin !== undefined;
-  let path = destinationPath;
-  if (reconsidering && !sameCoord(start, movement.origin)) {
-    const currentPath = reconstructMovementPath(movement, start);
-    path = [...currentPath.reverse(), ...destinationPath.slice(1)];
-  }
 
   unit.coord = { ...destination };
   delete unit.pendingAdvance;

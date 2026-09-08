@@ -6,9 +6,8 @@ import {
   effectiveRange,
   findUnit,
   getAttackTargets,
-  getReachableCoords,
+  getMovementPreviewPaths,
   hexDistance,
-  moveUnit,
   unitDefinition,
 } from './engine';
 import { TacticalHexFxLayer } from './TacticalHexFx';
@@ -55,8 +54,8 @@ export class EnemyUnitThreatPreview {
     const previewUnit = findUnit(preview, selected.id);
     if (!previewUnit) return;
 
-    const moveReach = getReachableCoords(preview, previewUnit.id);
-    const moveKeys = new Set(moveReach.keys());
+    const movementPaths = getMovementPreviewPaths(preview, previewUnit.id);
+    const moveKeys = new Set(movementPaths.keys());
     const attackKeys = this.attackThreatKeys(previewUnit, moveKeys);
     const layer = new TacticalHexFxLayer(this.scene, THREAT_FX_DEPTH);
     this.layer = layer;
@@ -71,7 +70,7 @@ export class EnemyUnitThreatPreview {
         this.game.hexPoints(center),
         'move',
         this.phase(coord),
-        this.movementPath(preview, previewUnit.id, coord),
+        movementPaths.get(key)!.map((step) => this.game.center(step)),
       );
     }
 
@@ -178,13 +177,6 @@ export class EnemyUnitThreatPreview {
     }
     threatened.delete(coordKey(unit.coord));
     return threatened;
-  }
-
-  private movementPath(preview: GameState, unitId: string, destination: Coord): Phaser.Math.Vector2[] | undefined {
-    const pathState = structuredClone(preview);
-    const result = moveUnit(pathState, unitId, destination);
-    if (!result.ok || !result.path) return undefined;
-    return result.path.map((coord) => this.game.center(coord));
   }
 
   private coordFromKey(key: string): Coord {

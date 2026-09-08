@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import birdUrl from '../../assets/game/vfx/environment/bird-overhead.svg?url';
+import birdUrl from '../../assets/game/vfx/environment/bird-overhead.svg?url&no-inline';
 import { MAP_HEIGHT, MAP_WIDTH } from '../data/map';
 import { SEA_HEX_SIZE, SEA_HEX_WIDTH } from './seaTerrain';
 import { createBirdFlights, stepBirdFlights } from './ambientBirdFlight';
